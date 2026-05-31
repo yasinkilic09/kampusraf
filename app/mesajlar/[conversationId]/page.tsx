@@ -2,6 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { sendMessageAction } from "@/app/actions/conversations";
 import { createClient } from "@/lib/supabase/server";
+import {
+  createExchangeAction,
+  updateExchangeStatusAction,
+} from "@/app/actions/exchanges";
 
 type ProfileSummary = {
   full_name: string | null;
@@ -64,6 +68,89 @@ type MessageItem = {
   is_read: boolean;
   created_at: string;
 };
+
+type ExchangeItem = {
+  id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  canceled_at: string | null;
+};
+
+function getExchangeStatusLabel(status: string) {
+  if (status === "requested") return "Takas Başlatıldı";
+  if (status === "meeting_planned") return "Görüşme Planlandı";
+  if (status === "handed_over") return "Kitap Teslim Edildi";
+  if (status === "completed") return "Takas Tamamlandı";
+  if (status === "canceled") return "Takas İptal Edildi";
+  return "Takas Süreci";
+}
+
+function getExchangeStatusDescription(status: string) {
+  if (status === "requested") {
+    return "Takas süreci başlatıldı. Şimdi buluşma veya teslim yöntemi netleştirilebilir.";
+  }
+
+  if (status === "meeting_planned") {
+    return "Görüşme planlandı. Kitap teslim edildiğinde sonraki adıma geçebilirsin.";
+  }
+
+  if (status === "handed_over") {
+    return "Kitap teslim edildi olarak işaretlendi. Süreç sorunsuz tamamlandıysa takası tamamlayabilirsin.";
+  }
+
+  if (status === "completed") {
+    return "Bu takas başarıyla tamamlandı. Güven profiline tamamlanan takas olarak işlendi.";
+  }
+
+  if (status === "canceled") {
+    return "Bu takas süreci iptal edildi.";
+  }
+
+  return "Kitap paylaşım sürecini buradan takip edebilirsin.";
+}
+
+function getExchangeStatusClass(status: string) {
+  if (status === "completed") return "bg-[#2E7D5B]/10 text-[#2E7D5B]";
+  if (status === "canceled") return "bg-red-50 text-red-600";
+  if (status === "handed_over") return "bg-blue-50 text-blue-600";
+  if (status === "meeting_planned") return "bg-[#F59E0B]/10 text-[#F59E0B]";
+  return "bg-slate-100 text-slate-600";
+}
+
+function ExchangeActionButton({
+  exchangeId,
+  conversationId,
+  status,
+  children,
+  danger = false,
+}: {
+  exchangeId: string;
+  conversationId: string;
+  status: string;
+  children: string;
+  danger?: boolean;
+}) {
+  return (
+    <form action={updateExchangeStatusAction}>
+      <input type="hidden" name="exchangeId" value={exchangeId} />
+      <input type="hidden" name="conversationId" value={conversationId} />
+      <input type="hidden" name="status" value={status} />
+
+      <button
+        type="submit"
+        className={`w-full rounded-full px-5 py-3 text-xs font-black transition hover:-translate-y-0.5 sm:w-auto ${
+          danger
+            ? "bg-red-50 text-red-600 hover:bg-red-100"
+            : "bg-[#2E7D5B] text-white"
+        }`}
+      >
+        {children}
+      </button>
+    </form>
+  );
+}
 
 type SearchParams = {
   error?: string;
@@ -193,6 +280,16 @@ export default async function ConversationDetailPage({
     .eq("conversation_id", currentConversation.id)
     .order("created_at", { ascending: true });
 
+    const { data: exchangeData } = await supabase
+  .from("exchanges")
+  .select("id, status, created_at, updated_at, completed_at, canceled_at")
+  .eq("conversation_id", currentConversation.id)
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .maybeSingle();
+
+const exchange = exchangeData as ExchangeItem | null;
+
   const messageList = (messages || []) as MessageItem[];
 
   const otherUser = getOtherUser(currentConversation, user.id);
@@ -271,6 +368,112 @@ export default async function ConversationDetailPage({
     {decodeURIComponent(queryParams.error)}
   </div>
 )}
+
+        <div className="mt-6 rounded-[2rem] bg-white p-5 shadow-sm md:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.2em] text-[#2E7D5B]">
+                Takas Süreci
+              </p>
+
+              <h2 className="mt-2 text-2xl font-black text-[#1F2933]">
+                {exchange
+                  ? getExchangeStatusLabel(exchange.status)
+                  : "Henüz takas başlatılmadı"}
+              </h2>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                {exchange
+                  ? getExchangeStatusDescription(exchange.status)
+                  : "Mesajlaştıktan sonra kitap teslim sürecini buradan başlatabilirsin."}
+              </p>
+            </div>
+
+            {exchange && (
+              <span
+                className={`w-fit rounded-full px-4 py-2 text-xs font-black ${getExchangeStatusClass(
+                  exchange.status
+                )}`}
+              >
+                {getExchangeStatusLabel(exchange.status)}
+              </span>
+            )}
+          </div>
+
+          {!exchange && currentConversation.user_book_id && (
+            <form action={createExchangeAction} className="mt-5">
+              <input
+                type="hidden"
+                name="conversationId"
+                value={currentConversation.id}
+              />
+
+              <button
+                type="submit"
+                className="w-full rounded-full bg-[#2E7D5B] px-6 py-4 text-sm font-black text-white shadow-lg shadow-[#2E7D5B]/20 transition hover:-translate-y-0.5 sm:w-auto"
+              >
+                Takas Sürecini Başlat
+              </button>
+            </form>
+          )}
+
+          {exchange && exchange.status !== "completed" && exchange.status !== "canceled" && (
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {exchange.status === "requested" && (
+                <ExchangeActionButton
+                  exchangeId={exchange.id}
+                  conversationId={currentConversation.id}
+                  status="meeting_planned"
+                >
+                  Görüşme Planlandı
+                </ExchangeActionButton>
+              )}
+
+              {exchange.status === "meeting_planned" && (
+                <ExchangeActionButton
+                  exchangeId={exchange.id}
+                  conversationId={currentConversation.id}
+                  status="handed_over"
+                >
+                  Kitap Teslim Edildi
+                </ExchangeActionButton>
+              )}
+
+              {exchange.status === "handed_over" && (
+                <ExchangeActionButton
+                  exchangeId={exchange.id}
+                  conversationId={currentConversation.id}
+                  status="completed"
+                >
+                  Takası Tamamla
+                </ExchangeActionButton>
+              )}
+
+              <ExchangeActionButton
+                exchangeId={exchange.id}
+                conversationId={currentConversation.id}
+                status="canceled"
+                danger
+              >
+                Takası İptal Et
+              </ExchangeActionButton>
+            </div>
+          )}
+
+          {exchange?.status === "completed" && (
+            <div className="mt-5 rounded-2xl bg-[#2E7D5B]/10 p-4 text-sm font-bold text-[#2E7D5B]">
+              Bu takas tamamlandı. İki kullanıcının güven profiline tamamlanan
+              takas olarak işlendi.
+            </div>
+          )}
+
+          {exchange?.status === "canceled" && (
+            <div className="mt-5 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-600">
+              Bu takas iptal edildi. Aynı sohbet üzerinden mesajlaşmaya devam
+              edebilirsin.
+            </div>
+          )}
+        </div>
 
         <div className="mt-5 rounded-[1.7rem] bg-white p-4 shadow-sm md:mt-6 md:rounded-[2rem] md:p-5">
           {messageList.length === 0 ? (

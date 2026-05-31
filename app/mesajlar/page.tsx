@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  createExchangeAction,
+  updateExchangeStatusAction,
+} from "@/app/actions/exchanges";
 
 type ProfileSummary = {
   full_name: string | null;
