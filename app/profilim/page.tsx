@@ -454,6 +454,14 @@ const monthlyMatchLimit = profile?.monthly_match_limit || 10;
                 özellikler için kullanılacak. Şimdilik sadece statü gösterimi
                 yapıyor.
               </div>
+
+              <Link
+  href="/paketler"
+  className="mt-4 block rounded-full bg-[#2E7D5B] px-6 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5"
+>
+  Paketleri İncele
+</Link>
+
             </section>
 
             <section className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">

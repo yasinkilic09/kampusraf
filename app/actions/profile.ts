@@ -78,3 +78,72 @@ export async function signOutAction() {
 
   redirect("/auth/login");
 }
+
+const planLimits = {
+  free: {
+    monthly_book_limit: 10,
+    monthly_request_limit: 10,
+    monthly_message_limit: 30,
+    monthly_match_limit: 10,
+  },
+  plus: {
+    monthly_book_limit: 30,
+    monthly_request_limit: 30,
+    monthly_message_limit: 100,
+    monthly_match_limit: 40,
+  },
+  premium: {
+    monthly_book_limit: 75,
+    monthly_request_limit: 75,
+    monthly_message_limit: 300,
+    monthly_match_limit: 150,
+  },
+  pro: {
+    monthly_book_limit: 200,
+    monthly_request_limit: 200,
+    monthly_message_limit: 1000,
+    monthly_match_limit: 500,
+  },
+} as const;
+
+export async function updatePlanAction(formData: FormData) {
+  const planType = String(formData.get("planType") || "free");
+
+  if (!["free", "plus", "premium", "pro"].includes(planType)) {
+    redirect("/paketler?error=Geçersiz paket seçimi.");
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  const selectedPlan = planType as keyof typeof planLimits;
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      plan_type: selectedPlan,
+      plan_status: "active",
+      plan_started_at: new Date().toISOString(),
+      plan_expires_at: null,
+      ...planLimits[selectedPlan],
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (error) {
+    redirect(`/paketler?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/paketler");
+  revalidatePath("/profilim");
+  revalidatePath("/dashboard");
+
+  redirect("/paketler?success=plan-updated");
+}
