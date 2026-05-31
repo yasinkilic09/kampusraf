@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { checkUsageLimit } from "@/lib/usage-limits";
 
 export async function createBookRequestAction(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
@@ -26,7 +27,17 @@ export async function createBookRequestAction(formData: FormData) {
     redirect("/auth/login");
   }
 
-  const { data: request } = await supabase
+const limitCheck = await checkUsageLimit(supabase, user.id, "requests");
+
+if (!limitCheck.allowed) {
+  redirect(
+    `/aradigim-kitaplar?error=${encodeURIComponent(
+      limitCheck.message || "Aylık arama kaydı limitine ulaştın."
+    )}`
+  );
+}
+
+  const { data: request, error: requestError } = await supabase
   .from("book_requests")
   .insert({
     user_id: user.id,
@@ -42,16 +53,26 @@ export async function createBookRequestAction(formData: FormData) {
   .select("id")
   .single();
 
+if (requestError) {
+  redirect(
+    `/aradigim-kitaplar?error=${encodeURIComponent(
+      requestError.message || "Arama kaydı oluşturulamadı."
+    )}`
+  );
+}
+
 if (request?.id) {
   await supabase.rpc("create_matches_for_request", {
     p_request_id: request.id,
   });
+
 }
 
   revalidatePath("/aradigim-kitaplar");
   revalidatePath("/dashboard");
+  revalidatePath("/eslesmeler");
 
-  redirect("/aradigim-kitaplar");
+  redirect("/aradigim-kitaplar?success=request-created");
 }
 
 export async function closeBookRequestAction(formData: FormData) {

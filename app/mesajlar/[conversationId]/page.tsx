@@ -65,6 +65,10 @@ type MessageItem = {
   created_at: string;
 };
 
+type SearchParams = {
+  error?: string;
+};
+
 function first<T>(value: T | T[] | null): T | null {
   if (Array.isArray(value)) return value[0] || null;
   return value || null;
@@ -107,10 +111,13 @@ function getBook(conversation: ConversationDetail) {
 
 export default async function ConversationDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ conversationId: string }>;
+  searchParams?: Promise<SearchParams>;
 }) {
   const { conversationId } = await params;
+  const queryParams = (await searchParams) || {};
 
   const supabase = await createClient();
 
@@ -258,6 +265,12 @@ export default async function ConversationDetailPage({
             </div>
           </div>
         </div>
+
+        {queryParams.error && (
+  <div className="mt-4 rounded-2xl bg-red-50 p-4 text-sm font-black text-red-700 md:mt-6">
+    {decodeURIComponent(queryParams.error)}
+  </div>
+)}
 
         <div className="mt-5 rounded-[1.7rem] bg-white p-4 shadow-sm md:mt-6 md:rounded-[2rem] md:p-5">
           {messageList.length === 0 ? (

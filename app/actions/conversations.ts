@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { checkUsageLimit } from "@/lib/usage-limits";
 
 export async function startConversationAction(formData: FormData) {
   const userBookId = String(formData.get("userBookId") || "");
@@ -115,17 +116,35 @@ export async function sendMessageAction(formData: FormData) {
   }
 
   const receiverId =
-    conversation.user_one_id === user.id
-      ? conversation.user_two_id
-      : conversation.user_one_id;
+  conversation.user_one_id === user.id
+    ? conversation.user_two_id
+    : conversation.user_one_id;
 
-  await supabase.from("messages").insert({
-    conversation_id: conversation.id,
-    sender_id: user.id,
-    receiver_id: receiverId,
-    message,
-    is_read: false,
-  });
+const limitCheck = await checkUsageLimit(supabase, user.id, "messages");
+
+if (!limitCheck.allowed) {
+  redirect(
+    `/mesajlar/${conversation.id}?error=${encodeURIComponent(
+      limitCheck.message || "Aylık mesaj gönderme limitine ulaştın."
+    )}`
+  );
+}
+
+const { error: messageError } = await supabase.from("messages").insert({
+  conversation_id: conversation.id,
+  sender_id: user.id,
+  receiver_id: receiverId,
+  message,
+  is_read: false,
+});
+
+if (messageError) {
+  redirect(
+    `/mesajlar/${conversation.id}?error=${encodeURIComponent(
+      messageError.message || "Mesaj gönderilemedi."
+    )}`
+  );
+}
 
   await supabase
     .from("conversations")

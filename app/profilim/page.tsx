@@ -77,6 +77,20 @@ function formatDate(value?: string | null) {
   }).format(new Date(value));
 }
 
+function getCurrentMonthStart() {
+  const now = new Date();
+
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0)
+  ).toISOString();
+}
+
+function getUsagePercent(current: number, limit: number) {
+  if (limit <= 0) return 100;
+
+  return Math.min(Math.round((current / limit) * 100), 100);
+}
+
 export default async function ProfilePage({
   searchParams,
 }: {
@@ -125,6 +139,8 @@ export default async function ProfilePage({
 
   const profile = profileData as Profile | null;
 
+  const monthStart = getCurrentMonthStart();
+
   const { count: myBooksCount } = await supabase
     .from("user_books")
     .select("*", { count: "exact", head: true })
@@ -140,9 +156,37 @@ export default async function ProfilePage({
     .select("*", { count: "exact", head: true })
     .or(`requester_id.eq.${user.id},owner_id.eq.${user.id}`);
 
+    const { count: monthlyBooksCount } = await supabase
+  .from("user_books")
+  .select("*", { count: "exact", head: true })
+  .eq("user_id", user.id)
+  .gte("created_at", monthStart);
+
+const { count: monthlyRequestsCount } = await supabase
+  .from("book_requests")
+  .select("*", { count: "exact", head: true })
+  .eq("user_id", user.id)
+  .gte("created_at", monthStart);
+
+const { count: monthlyMessagesCount } = await supabase
+  .from("messages")
+  .select("*", { count: "exact", head: true })
+  .eq("sender_id", user.id)
+  .gte("created_at", monthStart);
+
+const { count: monthlyMatchesCount } = await supabase
+  .from("book_matches")
+  .select("*", { count: "exact", head: true })
+  .or(`requester_id.eq.${user.id},owner_id.eq.${user.id}`)
+  .gte("created_at", monthStart);
+
   const planType = profile?.plan_type || "free";
   const planStatus = profile?.plan_status || "active";
   const accountStatus = profile?.account_status || "active";
+  const monthlyBookLimit = profile?.monthly_book_limit || 10;
+  const monthlyRequestLimit = profile?.monthly_request_limit || 10;
+const monthlyMessageLimit = profile?.monthly_message_limit || 30;
+const monthlyMatchLimit = profile?.monthly_match_limit || 10;
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
@@ -413,48 +457,77 @@ export default async function ProfilePage({
             </section>
 
             <section className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
-              <p className="text-sm font-black uppercase tracking-[0.2em] text-[#2E7D5B]">
-                Paket Limitleri
-              </p>
+  <p className="text-sm font-black uppercase tracking-[0.2em] text-[#2E7D5B]">
+    Aylık Kullanım
+  </p>
 
-              <div className="mt-5 grid gap-3">
-                <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#FAF7F0] p-3 md:p-4">
-                  <span className="text-sm font-bold text-slate-600">
-                    Kitap ekleme
-                  </span>
-                  <span className="shrink-0 text-sm font-black text-[#2E7D5B]">
-                    {profile?.monthly_book_limit || 10}/ay
-                  </span>
-                </div>
+  <p className="mt-2 text-sm leading-6 text-slate-500">
+    Bu ay kullandığın hakları ve paket limitlerini buradan takip edebilirsin.
+  </p>
 
-                <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#FAF7F0] p-3 md:p-4">
-                  <span className="text-sm font-bold text-slate-600">
-                    Arama kaydı
-                  </span>
-                  <span className="shrink-0 text-sm font-black text-[#2E7D5B]">
-                    {profile?.monthly_request_limit || 10}/ay
-                  </span>
-                </div>
+  <div className="mt-5 grid gap-3">
+    {[
+      {
+        label: "Kitap ekleme",
+        current: monthlyBooksCount || 0,
+        limit: monthlyBookLimit,
+      },
+      {
+        label: "Arama kaydı",
+        current: monthlyRequestsCount || 0,
+        limit: monthlyRequestLimit,
+      },
+      {
+        label: "Mesajlaşma",
+        current: monthlyMessagesCount || 0,
+        limit: monthlyMessageLimit,
+      },
+      {
+        label: "Eşleşme",
+        current: monthlyMatchesCount || 0,
+        limit: monthlyMatchLimit,
+      },
+    ].map((item) => {
+      const percent = getUsagePercent(item.current, item.limit);
+      const isFull = item.current >= item.limit;
 
-                <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#FAF7F0] p-3 md:p-4">
-                  <span className="text-sm font-bold text-slate-600">
-                    Mesajlaşma
-                  </span>
-                  <span className="shrink-0 text-sm font-black text-[#2E7D5B]">
-                    {profile?.monthly_message_limit || 30}/ay
-                  </span>
-                </div>
+      return (
+        <div
+          key={item.label}
+          className="rounded-2xl bg-[#FAF7F0] p-3 md:p-4"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-bold text-slate-600">
+              {item.label}
+            </span>
+            <span
+              className={`shrink-0 text-sm font-black ${
+                isFull ? "text-red-600" : "text-[#2E7D5B]"
+              }`}
+            >
+              {item.current}/{item.limit}
+            </span>
+          </div>
 
-                <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#FAF7F0] p-3 md:p-4">
-                  <span className="text-sm font-bold text-slate-600">
-                    Eşleşme
-                  </span>
-                  <span className="shrink-0 text-sm font-black text-[#2E7D5B]">
-                    {profile?.monthly_match_limit || 10}/ay
-                  </span>
-                </div>
-              </div>
-            </section>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+            <div
+              className={`h-full rounded-full ${
+                isFull ? "bg-red-500" : "bg-[#2E7D5B]"
+              }`}
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+
+          <p className="mt-2 text-xs font-semibold text-slate-400">
+            {isFull
+              ? "Bu ayki limit doldu."
+              : `${Math.max(item.limit - item.current, 0)} hak kaldı.`}
+          </p>
+        </div>
+      );
+    })}
+  </div>
+</section>
 
             <section className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
               <h2 className="text-xl font-black md:text-2xl">Hesap İşlemleri</h2>

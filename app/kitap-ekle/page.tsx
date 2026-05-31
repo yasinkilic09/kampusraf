@@ -62,6 +62,40 @@ export default function AddBookPage() {
     loadProfile();
   }, [router, supabase]);
 
+function getCurrentMonthStart() {
+  const now = new Date();
+
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0)
+  ).toISOString();
+}
+
+async function checkBookLimit(userId: string) {
+  const monthStart = getCurrentMonthStart();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("monthly_book_limit")
+    .eq("id", userId)
+    .single();
+
+  const { count } = await supabase
+    .from("user_books")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", monthStart);
+
+  const limit = profile?.monthly_book_limit ?? 10;
+  const currentUsage = count ?? 0;
+
+  return {
+    allowed: currentUsage < limit,
+    currentUsage,
+    limit,
+    remaining: Math.max(limit - currentUsage, 0),
+  };
+}
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
@@ -78,6 +112,16 @@ export default function AddBookPage() {
       router.push("/auth/login");
       return;
     }
+
+    const limitCheck = await checkBookLimit(user.id);
+
+if (!limitCheck.allowed) {
+  setMessage(
+    `Aylık kitap ekleme limitine ulaştın. Mevcut limitin: ${limitCheck.limit}/ay.`
+  );
+  setIsLoading(false);
+  return;
+}
 
     const { data: book, error: bookError } = await supabase
       .from("books")
