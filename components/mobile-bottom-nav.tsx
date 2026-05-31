@@ -64,6 +64,11 @@ const menuItems = [
     label: "Paketler",
     icon: "⭐",
   },
+  {
+  href: "/ogrenci-dogrulama",
+  label: "Doğrulama",
+  icon: "🎓",
+},
 ];
 
 export function MobileBottomNav() {

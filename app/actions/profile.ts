@@ -147,3 +147,64 @@ export async function updatePlanAction(formData: FormData) {
 
   redirect("/paketler?success=plan-updated");
 }
+
+export async function submitStudentVerificationAction(formData: FormData) {
+  const method = String(formData.get("method") || "university_email");
+  const universityEmail = String(formData.get("universityEmail") || "")
+    .trim()
+    .toLowerCase();
+  const verificationNote = String(formData.get("verificationNote") || "").trim();
+
+  const allowedMethods = ["university_email", "document", "manual"];
+
+  if (!allowedMethods.includes(method)) {
+    redirect(
+      `/ogrenci-dogrulama?error=${encodeURIComponent(
+        "Geçersiz doğrulama yöntemi."
+      )}`
+    );
+  }
+
+  if (method === "university_email" && !universityEmail.includes("@")) {
+    redirect(
+      `/ogrenci-dogrulama?error=${encodeURIComponent(
+        "Lütfen geçerli bir üniversite e-posta adresi gir."
+      )}`
+    );
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      verification_status: "pending",
+      verification_method: method,
+      university_email: universityEmail || null,
+      verification_note: verificationNote || null,
+      verification_requested_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
+
+  if (error) {
+    redirect(
+      `/ogrenci-dogrulama?error=${encodeURIComponent(
+        error.message || "Doğrulama talebi gönderilemedi."
+      )}`
+    );
+  }
+
+  revalidatePath("/ogrenci-dogrulama");
+  revalidatePath("/profilim");
+
+  redirect("/ogrenci-dogrulama?success=verification-requested");
+}

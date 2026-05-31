@@ -1,5 +1,8 @@
+import { StudentVerifiedBadge } from "@/components/student-verified-badge";
+
 type ProfileTrustCardProps = {
   isVerified?: boolean | null;
+  verificationStatus?: string | null;
   trustScore?: number | null;
   completedExchangeCount?: number | null;
   responseScore?: number | null;
@@ -30,12 +33,14 @@ function getBarColor(score: number) {
 
 export function ProfileTrustCard({
   isVerified,
+  verificationStatus,
   trustScore,
   completedExchangeCount,
   responseScore,
   profileCompletionScore = 0,
   compact = false,
 }: ProfileTrustCardProps) {
+  const isStudentVerified = verificationStatus === "verified";
   const score = Math.max(0, Math.min(trustScore ?? 60, 100));
   const completion = Math.max(0, Math.min(profileCompletionScore, 100));
   const exchanges = completedExchangeCount ?? 0;
@@ -62,15 +67,17 @@ export function ProfileTrustCard({
           </h2>
         </div>
 
-        {isVerified ? (
-          <span className="rounded-full bg-[#2E7D5B]/10 px-3 py-1 text-xs font-black text-[#2E7D5B]">
-            ✓ Doğrulanmış
-          </span>
-        ) : (
-          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-600">
-            Doğrulanmamış
-          </span>
-        )}
+        {isStudentVerified ? (
+  <StudentVerifiedBadge compact={compact} />
+) : isVerified ? (
+  <span className="rounded-full bg-[#2E7D5B]/10 px-3 py-1 text-xs font-black text-[#2E7D5B]">
+    ✓ Doğrulanmış
+  </span>
+) : (
+  <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-600">
+    Doğrulanmamış
+  </span>
+)}
       </div>
 
       <div className="mt-5 rounded-2xl bg-[#FAF7F0] p-4">

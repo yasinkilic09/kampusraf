@@ -21,6 +21,7 @@ type Profile = {
   bio: string | null;
   trust_score: number | null;
   is_verified: boolean | null;
+  verification_status: string | null;
   completed_exchange_count: number | null;
   response_score: number | null;
   account_status: string | null;
@@ -145,6 +146,7 @@ export default async function ProfilePage({
       bio,
       trust_score,
       is_verified,
+      verification_status,
       completed_exchange_count,
       response_score,
       account_status,
@@ -245,6 +247,9 @@ const profileCompletionScore = getProfileCompletionScore(profile);
             <Link href="/mesajlar" className="hover:text-[#2E7D5B]">
               Mesajlar
             </Link>
+            <Link href="/ogrenci-dogrulama" className="hover:text-[#2E7D5B]">
+  Doğrulama
+</Link>
             <Link href="/takaslar" className="hover:text-[#2E7D5B]">
   Takaslar
 </Link>
@@ -494,11 +499,19 @@ const profileCompletionScore = getProfileCompletionScore(profile);
 
 <ProfileTrustCard
   isVerified={profile?.is_verified}
+  verificationStatus={profile?.verification_status}
   trustScore={profile?.trust_score}
   completedExchangeCount={profile?.completed_exchange_count}
   responseScore={profile?.response_score}
   profileCompletionScore={profileCompletionScore}
 />
+
+<Link
+  href="/ogrenci-dogrulama"
+  className="mt-4 block rounded-full bg-[#F59E0B] px-6 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5"
+>
+  Öğrenci Doğrulama
+</Link>
 
 <section className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
   <p className="text-sm font-black uppercase tracking-[0.2em] text-[#2E7D5B]">

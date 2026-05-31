@@ -72,6 +72,9 @@ export default async function DashboardPage() {
 <Link href="/eslesmeler" className="hover:text-[#2E7D5B]">
   Eşleşmeler
 </Link>
+<Link href="/ogrenci-dogrulama" className="hover:text-[#2E7D5B]">
+  Doğrulama
+</Link>
             <Link href="/profilim" className="hover:text-[#2E7D5B]">
               Profilim
             </Link>

@@ -37,6 +37,7 @@ type OwnerProfile = {
   bio: string | null;
   trust_score: number | null;
   is_verified: boolean | null;
+  verification_status: string | null;
   completed_exchange_count: number | null;
   response_score: number | null;
 };
@@ -119,6 +120,7 @@ return {
   bio: owner?.bio || null,
   trustScore: owner?.trust_score ?? 60,
   isVerified: owner?.is_verified || false,
+  verificationStatus: owner?.verification_status || "unverified",
   completedExchangeCount: owner?.completed_exchange_count ?? 0,
   responseScore: owner?.response_score ?? 0,
   profileCompletionScore: Math.round((completedFields / profileFields.length) * 100),
@@ -177,6 +179,7 @@ export default async function BookDetailPage({
         bio,
         trust_score,
         is_verified,
+        verification_status,
         completed_exchange_count,
         response_score
         )
@@ -443,14 +446,15 @@ export default async function BookDetailPage({
             </div>
 
             <div className="mt-6">
-              <ProfileTrustCard
-                isVerified={owner.isVerified}
-                trustScore={owner.trustScore}
-                completedExchangeCount={owner.completedExchangeCount}
-                responseScore={owner.responseScore}
-                profileCompletionScore={owner.profileCompletionScore}
-                compact
-              />
+             <ProfileTrustCard
+  isVerified={owner.isVerified}
+  verificationStatus={owner.verificationStatus}
+  trustScore={owner.trustScore}
+  completedExchangeCount={owner.completedExchangeCount}
+  responseScore={owner.responseScore}
+  profileCompletionScore={owner.profileCompletionScore}
+  compact
+/>
             </div>
 
             <div className="mt-5 rounded-[1.7rem] border border-[#2E7D5B]/10 bg-white p-5 shadow-sm md:mt-6 md:rounded-[2rem] md:p-7">
