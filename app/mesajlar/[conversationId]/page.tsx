@@ -1,0 +1,347 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { sendMessageAction } from "@/app/actions/conversations";
+import { createClient } from "@/lib/supabase/server";
+
+type ProfileSummary = {
+  full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  university: string | null;
+  city: string | null;
+};
+
+type ConversationDetail = {
+  id: string;
+  user_one_id: string;
+  user_two_id: string;
+  user_book_id: string | null;
+  user_one: ProfileSummary | ProfileSummary[] | null;
+  user_two: ProfileSummary | ProfileSummary[] | null;
+  user_books:
+    | {
+        custom_title: string | null;
+        custom_author: string | null;
+        image_url: string | null;
+        books:
+          | {
+              title: string;
+              author: string | null;
+              cover_url: string | null;
+            }
+          | {
+              title: string;
+              author: string | null;
+              cover_url: string | null;
+            }[]
+          | null;
+      }
+    | {
+        custom_title: string | null;
+        custom_author: string | null;
+        image_url: string | null;
+        books:
+          | {
+              title: string;
+              author: string | null;
+              cover_url: string | null;
+            }
+          | {
+              title: string;
+              author: string | null;
+              cover_url: string | null;
+            }[]
+          | null;
+      }[]
+    | null;
+};
+
+type MessageItem = {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+};
+
+function first<T>(value: T | T[] | null): T | null {
+  if (Array.isArray(value)) return value[0] || null;
+  return value || null;
+}
+
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function getOtherUser(conversation: ConversationDetail, currentUserId: string) {
+  const userOne = first(conversation.user_one);
+  const userTwo = first(conversation.user_two);
+
+  const other = conversation.user_one_id === currentUserId ? userTwo : userOne;
+
+  return {
+    name: other?.full_name || other?.username || "KampüsRaf kullanıcısı",
+    username: other?.username || "",
+    avatarUrl: other?.avatar_url || null,
+    university: other?.university || "Üniversite bilgisi yok",
+    city: other?.city || "Şehir bilgisi yok",
+  };
+}
+
+function getBook(conversation: ConversationDetail) {
+  const userBook = first(conversation.user_books);
+  const relatedBook = first(userBook?.books || null);
+
+  return {
+    title: userBook?.custom_title || relatedBook?.title || "Kitap bilgisi yok",
+    author: userBook?.custom_author || relatedBook?.author || "",
+    image: userBook?.image_url || relatedBook?.cover_url || null,
+  };
+}
+
+export default async function ConversationDetailPage({
+  params,
+}: {
+  params: Promise<{ conversationId: string }>;
+}) {
+  const { conversationId } = await params;
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  const { data: conversation, error } = await supabase
+    .from("conversations")
+    .select(
+      `
+      id,
+      user_one_id,
+      user_two_id,
+      user_book_id,
+      user_one:profiles!conversations_user_one_id_fkey (
+        full_name,
+        username,
+        avatar_url,
+        university,
+        city
+      ),
+      user_two:profiles!conversations_user_two_id_fkey (
+        full_name,
+        username,
+        avatar_url,
+        university,
+        city
+      ),
+      user_books (
+        custom_title,
+        custom_author,
+        image_url,
+        books (
+          title,
+          author,
+          cover_url
+        )
+      )
+    `
+    )
+    .eq("id", conversationId)
+    .single();
+
+  if (error || !conversation) {
+    notFound();
+  }
+
+  const currentConversation = conversation as ConversationDetail;
+
+  const isMember =
+    currentConversation.user_one_id === user.id ||
+    currentConversation.user_two_id === user.id;
+
+  if (!isMember) {
+    redirect("/mesajlar");
+  }
+
+  await supabase
+    .from("messages")
+    .update({ is_read: true })
+    .eq("conversation_id", currentConversation.id)
+    .eq("receiver_id", user.id)
+    .eq("is_read", false);
+
+  const { data: messages } = await supabase
+    .from("messages")
+    .select("id, sender_id, receiver_id, message, is_read, created_at")
+    .eq("conversation_id", currentConversation.id)
+    .order("created_at", { ascending: true });
+
+  const messageList = (messages || []) as MessageItem[];
+
+  const otherUser = getOtherUser(currentConversation, user.id);
+  const book = getBook(currentConversation);
+
+  return (
+    <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
+      <header className="border-b border-[#2E7D5B]/10 bg-white/80 px-4 py-4 backdrop-blur md:px-6 md:py-5">
+        <div className="mx-auto flex max-w-5xl items-center justify-between">
+          <Link href="/mesajlar" className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
+              💬
+            </div>
+            <div>
+              <p className="text-xl font-black">Sohbet</p>
+              <p className="text-xs font-semibold text-slate-500">
+                KampüsRaf mesajlaşma
+              </p>
+            </div>
+          </Link>
+
+          <Link
+  href="/mesajlar"
+  className="rounded-full bg-[#FAF7F0] px-4 py-2.5 text-xs font-black text-[#2E7D5B] md:px-5 md:py-3 md:text-sm"
+>
+  Tüm Mesajlar
+</Link>
+        </div>
+      </header>
+
+      <section className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
+        <div className="rounded-[1.7rem] bg-[#2E7D5B] p-4 text-white shadow-2xl shadow-[#2E7D5B]/20 md:rounded-[2rem] md:p-6">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex min-w-0 items-center gap-3 md:gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/15 text-xl md:h-16 md:w-16 md:rounded-3xl md:text-2xl">
+                {otherUser.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={otherUser.avatarUrl}
+                    alt={otherUser.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  "👤"
+                )}
+              </div>
+
+              <div className="min-w-0">
+  <h1 className="line-clamp-1 text-xl font-black leading-tight md:text-2xl">
+    {otherUser.name}
+  </h1>
+  <p className="mt-1 line-clamp-1 text-xs font-semibold text-white/65 md:text-sm">
+    {otherUser.university} · {otherUser.city}
+  </p>
+</div>
+            </div>
+
+            <div className="min-w-0 rounded-2xl bg-white/10 p-3 md:rounded-3xl md:p-4">
+              <p className="text-xs font-black uppercase tracking-[0.15em] text-white/45">
+                Kitap
+              </p>
+              <p className="mt-1 line-clamp-2 text-sm font-black leading-tight">
+  {book.title}
+</p>
+              {book.author && (
+                <p className="mt-1 line-clamp-1 text-xs font-semibold text-white/60">
+  {book.author}
+</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-[1.7rem] bg-white p-4 shadow-sm md:mt-6 md:rounded-[2rem] md:p-5">
+          {messageList.length === 0 ? (
+            <div className="rounded-[1.5rem] border border-dashed border-[#2E7D5B]/25 bg-[#FAF7F0] p-5 text-center md:p-8">
+              <div className="text-4xl">💬</div>
+              <h2 className="mt-4 text-lg font-black md:text-xl">
+  Sohbet başlatmaya hazırsın
+</h2>
+              <p className="mx-auto mt-2 max-w-xl text-sm leading-7 text-slate-500">
+                İlk mesajı göndererek kitapla ilgili takas, ödünç veya paylaşım
+                sürecini başlatabilirsin.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3 md:space-y-4">
+              {messageList.map((message) => {
+                const isMine = message.sender_id === user.id;
+
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+  className={`max-w-[86%] break-words rounded-[1.3rem] px-4 py-3 md:max-w-[80%] md:rounded-[1.5rem] md:px-5 md:py-4 ${
+    isMine
+      ? "bg-[#2E7D5B] text-white"
+      : "bg-[#FAF7F0] text-[#1F2933]"
+  }`}
+>
+                      <p className="whitespace-pre-wrap text-sm leading-6 md:leading-7">
+  {message.message}
+</p>
+                      <p
+                        className={`mt-2 text-[11px] font-bold ${
+                          isMine ? "text-white/55" : "text-slate-400"
+                        }`}
+                      >
+                        {formatTime(message.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <form
+  action={sendMessageAction}
+  className="mt-5 border-t border-slate-100 pt-4 md:mt-6 md:pt-5"
+>
+            <input
+              type="hidden"
+              name="conversationId"
+              value={currentConversation.id}
+            />
+
+            <label className="text-sm font-bold text-slate-700">
+              Mesajın
+            </label>
+            <textarea
+  name="message"
+  required
+  rows={3}
+  placeholder="Merhaba, kitap hâlâ sende mevcut mu?"
+  className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-[#FAF7F0] px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B] focus:bg-white"
+/>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-semibold text-slate-400">
+                Güvenliğin için kişisel bilgilerini paylaşmadan önce kullanıcıyla
+                uygulama içinde konuş.
+              </p>
+
+              <button
+  type="submit"
+  className="w-full rounded-full bg-[#2E7D5B] px-7 py-4 text-sm font-black text-white shadow-lg shadow-[#2E7D5B]/20 transition hover:-translate-y-0.5 hover:bg-[#25684c] sm:w-auto"
+>
+  Mesaj Gönder
+</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+  );
+}
