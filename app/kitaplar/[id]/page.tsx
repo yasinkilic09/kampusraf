@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { startConversationAction } from "@/app/actions/conversations";
+import { ProfileTrustCard } from "@/components/profile-trust-card";
 
 const conditionLabels: Record<string, string> = {
   yeni: "Yeni",
@@ -24,6 +25,20 @@ const statusLabels: Record<string, string> = {
   verildi: "Verildi",
   takaslandi: "Takaslandı",
   pasif: "Pasif",
+};
+
+type OwnerProfile = {
+  full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  university: string | null;
+  department: string | null;
+  city: string | null;
+  bio: string | null;
+  trust_score: number | null;
+  is_verified: boolean | null;
+  completed_exchange_count: number | null;
+  response_score: number | null;
 };
 
 type BookDetail = {
@@ -58,30 +73,7 @@ type BookDetail = {
         description: string | null;
       }[]
     | null;
-  profiles:
-    | {
-        full_name: string | null;
-        username: string | null;
-        avatar_url: string | null;
-        university: string | null;
-        department: string | null;
-        city: string | null;
-        bio: string | null;
-        trust_score: number | null;
-        is_verified: boolean | null;
-      }
-    | {
-        full_name: string | null;
-        username: string | null;
-        avatar_url: string | null;
-        university: string | null;
-        department: string | null;
-        city: string | null;
-        bio: string | null;
-        trust_score: number | null;
-        is_verified: boolean | null;
-      }[]
-    | null;
+ profiles: OwnerProfile | OwnerProfile[] | null;
 };
 
 function getBookInfo(userBook: BookDetail) {
@@ -104,17 +96,33 @@ function getOwnerInfo(userBook: BookDetail) {
     ? userBook.profiles[0]
     : userBook.profiles;
 
-  return {
-    fullName: owner?.full_name || "KampüsRaf kullanıcısı",
-    username: owner?.username || "",
-    avatarUrl: owner?.avatar_url || null,
-    university: owner?.university || userBook.university || "Üniversite bilgisi yok",
-    department: owner?.department || "Bölüm bilgisi yok",
-    city: owner?.city || userBook.city || "Şehir bilgisi yok",
-    bio: owner?.bio || null,
-    trustScore: owner?.trust_score || 0,
-    isVerified: owner?.is_verified || false,
-  };
+  const profileFields = [
+  owner?.full_name,
+  owner?.username,
+  owner?.university || userBook.university,
+  owner?.department,
+  owner?.city || userBook.city,
+  owner?.bio,
+];
+
+const completedFields = profileFields.filter(
+  (field) => field && String(field).trim().length > 0
+).length;
+
+return {
+  fullName: owner?.full_name || "KampüsRaf kullanıcısı",
+  username: owner?.username || "",
+  avatarUrl: owner?.avatar_url || null,
+  university: owner?.university || userBook.university || "Üniversite bilgisi yok",
+  department: owner?.department || "Bölüm bilgisi yok",
+  city: owner?.city || userBook.city || "Şehir bilgisi yok",
+  bio: owner?.bio || null,
+  trustScore: owner?.trust_score ?? 60,
+  isVerified: owner?.is_verified || false,
+  completedExchangeCount: owner?.completed_exchange_count ?? 0,
+  responseScore: owner?.response_score ?? 0,
+  profileCompletionScore: Math.round((completedFields / profileFields.length) * 100),
+};
 }
 
 export default async function BookDetailPage({
@@ -159,7 +167,7 @@ export default async function BookDetailPage({
         cover_url,
         description
       ),
-      profiles (
+     profiles (
         full_name,
         username,
         avatar_url,
@@ -168,8 +176,10 @@ export default async function BookDetailPage({
         city,
         bio,
         trust_score,
-        is_verified
-      )
+        is_verified,
+        completed_exchange_count,
+        response_score
+        )
     `
     )
     .eq("id", id)
@@ -430,6 +440,17 @@ export default async function BookDetailPage({
                   )}
                 </div>
               </div>
+            </div>
+
+            <div className="mt-6">
+              <ProfileTrustCard
+                isVerified={owner.isVerified}
+                trustScore={owner.trustScore}
+                completedExchangeCount={owner.completedExchangeCount}
+                responseScore={owner.responseScore}
+                profileCompletionScore={owner.profileCompletionScore}
+                compact
+              />
             </div>
 
             <div className="mt-5 rounded-[1.7rem] border border-[#2E7D5B]/10 bg-white p-5 shadow-sm md:mt-6 md:rounded-[2rem] md:p-7">

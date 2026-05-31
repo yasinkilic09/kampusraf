@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOutAction, updateProfileAction } from "@/app/actions/profile";
 import { createClient } from "@/lib/supabase/server";
+import { ProfileTrustCard } from "@/components/profile-trust-card";
 
 type SearchParams = {
   success?: string;
@@ -20,6 +21,8 @@ type Profile = {
   bio: string | null;
   trust_score: number | null;
   is_verified: boolean | null;
+  completed_exchange_count: number | null;
+  response_score: number | null;
   account_status: string | null;
   plan_type: string | null;
   plan_status: string | null;
@@ -77,6 +80,25 @@ function formatDate(value?: string | null) {
   }).format(new Date(value));
 }
 
+function getProfileCompletionScore(profile: Profile | null) {
+  if (!profile) return 0;
+
+  const fields = [
+    profile.full_name,
+    profile.username,
+    profile.university,
+    profile.department,
+    profile.city,
+    profile.bio,
+  ];
+
+  const completedFields = fields.filter(
+    (field) => field && String(field).trim().length > 0
+  ).length;
+
+  return Math.round((completedFields / fields.length) * 100);
+}
+
 function getCurrentMonthStart() {
   const now = new Date();
 
@@ -123,6 +145,8 @@ export default async function ProfilePage({
       bio,
       trust_score,
       is_verified,
+      completed_exchange_count,
+      response_score,
       account_status,
       plan_type,
       plan_status,
@@ -187,6 +211,7 @@ const { count: monthlyMatchesCount } = await supabase
   const monthlyRequestLimit = profile?.monthly_request_limit || 10;
 const monthlyMessageLimit = profile?.monthly_message_limit || 30;
 const monthlyMatchLimit = profile?.monthly_match_limit || 10;
+const profileCompletionScore = getProfileCompletionScore(profile);
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
@@ -462,9 +487,17 @@ const monthlyMatchLimit = profile?.monthly_match_limit || 10;
   Paketleri İncele
 </Link>
 
-            </section>
+</section>
 
-            <section className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
+<ProfileTrustCard
+  isVerified={profile?.is_verified}
+  trustScore={profile?.trust_score}
+  completedExchangeCount={profile?.completed_exchange_count}
+  responseScore={profile?.response_score}
+  profileCompletionScore={profileCompletionScore}
+/>
+
+<section className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
   <p className="text-sm font-black uppercase tracking-[0.2em] text-[#2E7D5B]">
     Aylık Kullanım
   </p>
