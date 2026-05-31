@@ -117,18 +117,52 @@ export function NotificationBell() {
   }
 
   useEffect(() => {
-    if (shouldHide) return;
+  if (shouldHide) return;
 
-    fetchNotifications();
+  let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+  let isActive = true;
 
-    const interval = window.setInterval(fetchNotifications, 20000);
-    window.addEventListener("focus", fetchNotifications);
+  async function setupRealtimeNotifications() {
+    await fetchNotifications();
 
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", fetchNotifications);
-    };
-  }, [pathname, shouldHide]);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user || !isActive) return;
+
+    realtimeChannel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        async () => {
+          await fetchNotifications();
+        }
+      )
+      .subscribe();
+  }
+
+  setupRealtimeNotifications();
+
+  const backupInterval = window.setInterval(fetchNotifications, 60000);
+  window.addEventListener("focus", fetchNotifications);
+
+  return () => {
+    isActive = false;
+    window.clearInterval(backupInterval);
+    window.removeEventListener("focus", fetchNotifications);
+
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel);
+    }
+  };
+}, [pathname, shouldHide, supabase]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
