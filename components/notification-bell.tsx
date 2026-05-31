@@ -19,6 +19,11 @@ function getNotificationIcon(type: string) {
   if (type === "new_message") return "💬";
   if (type === "book_found") return "📚";
   if (type === "new_match") return "🤝";
+  if (type === "exchange_requested") return "🔄";
+  if (type === "exchange_meeting_planned") return "📍";
+  if (type === "exchange_handed_over") return "📦";
+  if (type === "exchange_completed") return "✅";
+  if (type === "exchange_canceled") return "❌";
   if (type === "limit_warning") return "⚠️";
   return "🔔";
 }

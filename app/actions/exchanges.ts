@@ -96,13 +96,14 @@ export async function createExchangeAction(formData: FormData) {
   }
 
   const { error } = await supabase.from("exchanges").insert({
-    conversation_id: conversation.id,
-    user_book_id: userBook.id,
-    requester_id: requesterId,
-    owner_id: ownerId,
-    requested_by: user.id,
-    status: "requested",
-  });
+  conversation_id: conversation.id,
+  user_book_id: userBook.id,
+  requester_id: requesterId,
+  owner_id: ownerId,
+  requested_by: user.id,
+  last_action_by: user.id,
+  status: "requested",
+});
 
   if (error) {
     redirect(
@@ -162,14 +163,16 @@ export async function updateExchangeStatusAction(formData: FormData) {
   const now = new Date().toISOString();
 
   const updatePayload: {
-    status: ExchangeStatus;
-    updated_at: string;
-    completed_at?: string | null;
-    canceled_at?: string | null;
-  } = {
-    status: nextStatus,
-    updated_at: now,
-  };
+  status: ExchangeStatus;
+  updated_at: string;
+  last_action_by: string;
+  completed_at?: string | null;
+  canceled_at?: string | null;
+} = {
+  status: nextStatus,
+  updated_at: now,
+  last_action_by: user.id,
+};
 
   if (nextStatus === "completed") {
     updatePayload.completed_at = now;
