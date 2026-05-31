@@ -209,6 +209,9 @@ export default async function MatchesPage() {
             <Link href="/mesajlar" className="hover:text-[#2E7D5B]">
               Mesajlar
             </Link>
+            <Link href="/takaslar" className="hover:text-[#2E7D5B]">
+  Takaslar
+</Link>
           </nav>
         </div>
       </header>

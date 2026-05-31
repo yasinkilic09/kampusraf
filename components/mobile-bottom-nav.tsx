@@ -2,100 +2,191 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
-const navItems = [
+const mainItems = [
   {
-    label: "Panel",
     href: "/dashboard",
+    label: "Panel",
     icon: "🏠",
   },
   {
-    label: "Ara",
     href: "/kitap-ara",
+    label: "Ara",
     icon: "🔎",
   },
   {
-    label: "Ekle",
     href: "/kitap-ekle",
+    label: "Ekle",
     icon: "➕",
-    featured: true,
+    primary: true,
   },
+  {
+    href: "/mesajlar",
+    label: "Mesaj",
+    icon: "💬",
+  },
+];
+
+const menuItems = [
   {
     href: "/kitaplarim",
     label: "Rafım",
     icon: "📚",
   },
   {
-    label: "Mesaj",
-    href: "/mesajlar",
-    icon: "💬",
+    href: "/aradigim-kitaplar",
+    label: "Aradığım Kitaplar",
+    icon: "🔖",
   },
   {
-    label: "Profil",
+    href: "/eslesmeler",
+    label: "Eşleşmeler",
+    icon: "🤝",
+  },
+  {
+    href: "/takaslar",
+    label: "Takaslarım",
+    icon: "🔄",
+  },
+  {
+    href: "/bildirimler",
+    label: "Bildirimler",
+    icon: "🔔",
+  },
+  {
     href: "/profilim",
+    label: "Profilim",
     icon: "👤",
+  },
+  {
+    href: "/paketler",
+    label: "Paketler",
+    icon: "⭐",
   },
 ];
 
 export function MobileBottomNav() {
   const pathname = usePathname();
-
-  const hiddenRoutes = ["/", "/auth/login", "/auth/sign-up", "/auth/forgot-password"];
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const shouldHide =
-    hiddenRoutes.includes(pathname) ||
-    pathname.startsWith("/auth/");
+    pathname === "/" ||
+    pathname.startsWith("/auth/login") ||
+    pathname.startsWith("/auth/sign-up");
 
-  if (shouldHide) {
-    return null;
-  }
+  if (shouldHide) return null;
+
+  const isMainActive = (href: string) => {
+    if (href === "/dashboard") return pathname === "/dashboard";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const isMenuActive = menuItems.some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
+  );
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#2E7D5B]/10 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
-      <div className="mx-auto grid max-w-md grid-cols-6 items-end gap-1">
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+    <>
+      {isMenuOpen && (
+        <button
+          type="button"
+          aria-label="Menüyü kapat"
+          onClick={() => setIsMenuOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[2px] md:hidden"
+        />
+      )}
 
-          if (item.featured) {
+      {isMenuOpen && (
+        <div className="fixed bottom-[5.7rem] left-3 right-3 z-50 rounded-[1.7rem] border border-[#2E7D5B]/10 bg-white p-4 shadow-2xl shadow-slate-900/20 md:hidden">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-black text-[#1F2933]">KampüsRaf Menü</p>
+              <p className="text-xs font-semibold text-slate-400">
+                Diğer sayfalara hızlı erişim
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen(false)}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FAF7F0] text-sm font-black text-slate-600"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {menuItems.map((item) => {
+              const active =
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`rounded-2xl p-3 transition ${
+                    active
+                      ? "bg-[#2E7D5B] text-white"
+                      : "bg-[#FAF7F0] text-[#1F2933]"
+                  }`}
+                >
+                  <div className="text-xl">{item.icon}</div>
+                  <p className="mt-1 text-xs font-black leading-tight">
+                    {item.label}
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#2E7D5B]/10 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.55rem)] pt-2 shadow-2xl shadow-slate-900/15 backdrop-blur md:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
+          {mainItems.map((item) => {
+            const active = isMainActive(item.href);
+
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex flex-col items-center justify-center gap-1"
+                onClick={() => setIsMenuOpen(false)}
+                className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-center transition ${
+                  item.primary
+                    ? "bg-[#2E7D5B] text-white shadow-lg shadow-[#2E7D5B]/25"
+                    : active
+                      ? "bg-[#2E7D5B]/10 text-[#2E7D5B]"
+                      : "text-slate-500"
+                }`}
               >
-                <span
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl font-black shadow-lg transition ${
-                    isActive
-                      ? "bg-[#F59E0B] text-white shadow-[#F59E0B]/25"
-                      : "bg-[#2E7D5B] text-white shadow-[#2E7D5B]/25"
-                  }`}
-                >
+                <span className={item.primary ? "text-xl" : "text-lg"}>
                   {item.icon}
                 </span>
-                <span className="text-[10px] font-black text-[#2E7D5B]">
+                <span className="mt-1 text-[10px] font-black leading-none">
                   {item.label}
                 </span>
               </Link>
             );
-          }
+          })}
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-center transition ${
-                isActive
-                  ? "bg-[#2E7D5B]/10 text-[#2E7D5B]"
-                  : "text-slate-400"
-              }`}
-            >
-              <span className="text-lg leading-none">{item.icon}</span>
-              <span className="text-[10px] font-black">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((current) => !current)}
+            className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 text-center transition ${
+              isMenuOpen || isMenuActive
+                ? "bg-[#2E7D5B]/10 text-[#2E7D5B]"
+                : "text-slate-500"
+            }`}
+          >
+            <span className="text-lg">☰</span>
+            <span className="mt-1 text-[10px] font-black leading-none">
+              Menü
+            </span>
+          </button>
+        </div>
+      </nav>
+    </>
   );
 }

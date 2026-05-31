@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  createExchangeAction,
-  updateExchangeStatusAction,
-} from "@/app/actions/exchanges";
 
 type ProfileSummary = {
   full_name: string | null;
@@ -174,16 +170,19 @@ export default async function MessagesPage() {
           </Link>
 
           <nav className="hidden items-center gap-6 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
-              Kitap Ara
-            </Link>
-            <Link href="/kitap-ekle" className="hover:text-[#2E7D5B]">
-              Kitap Ekle
-            </Link>
-          </nav>
+  <Link href="/dashboard" className="hover:text-[#2E7D5B]">
+    Panel
+  </Link>
+  <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
+    Kitap Ara
+  </Link>
+  <Link href="/kitap-ekle" className="hover:text-[#2E7D5B]">
+    Kitap Ekle
+  </Link>
+  <Link href="/takaslar" className="hover:text-[#2E7D5B]">
+    Takaslar
+  </Link>
+</nav>
         </div>
       </header>
 

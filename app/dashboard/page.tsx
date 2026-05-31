@@ -66,6 +66,9 @@ export default async function DashboardPage() {
 <Link href="/mesajlar" className="hover:text-[#2E7D5B]">
   Mesajlar
 </Link>
+<Link href="/takaslar" className="hover:text-[#2E7D5B]">
+  Takaslar
+</Link>
 <Link href="/eslesmeler" className="hover:text-[#2E7D5B]">
   Eşleşmeler
 </Link>
@@ -154,6 +157,17 @@ export default async function DashboardPage() {
   className="rounded-2xl bg-[#FAF7F0] p-4 text-sm font-black text-[#2E7D5B] transition hover:bg-[#F5EBDD]"
 >
   🔎 Aradığın kitabı kampüste ara
+</Link>
+
+<Link
+  href="/takaslar"
+  className="rounded-2xl bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+>
+  <p className="text-2xl">🤝</p>
+  <h3 className="mt-3 font-black text-[#1F2933]">Takaslarım</h3>
+  <p className="mt-2 text-sm text-slate-500">
+    Aktif ve geçmiş takas süreçlerini takip et.
+  </p>
 </Link>
 
 <Link
