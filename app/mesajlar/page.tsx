@@ -5,6 +5,7 @@ import {
   type InboxConversationGroup,
 } from "@/components/messages-inbox";
 import { createClient } from "@/lib/supabase/server";
+import { MessagesRealtimeRefresh } from "@/components/messages-realtime-refresh";
 
 type ProfileSummary = {
   full_name: string | null;
@@ -259,6 +260,7 @@ const inboxConversations = Array.from(groupedInbox.values()).sort((a, b) => {
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-10">
+      <MessagesRealtimeRefresh currentUserId={user.id} />
       <header className="border-b border-[#2E7D5B]/10 bg-white/80 px-4 py-4 backdrop-blur md:px-6 md:py-5">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-3">
