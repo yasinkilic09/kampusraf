@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveAccount } from "@/lib/account-status";
 
 const activeStatuses = ["requested", "meeting_planned", "handed_over"] as const;
 
@@ -33,6 +34,8 @@ function getOtherParticipant(
 }
 
 export async function createExchangeAction(formData: FormData) {
+  await requireActiveAccount("/mesajlar");
+
   const conversationId = String(formData.get("conversationId") || "");
 
   if (!conversationId) {
@@ -121,6 +124,8 @@ export async function createExchangeAction(formData: FormData) {
 }
 
 export async function updateExchangeStatusAction(formData: FormData) {
+  await requireActiveAccount("/mesajlar");
+  
   const exchangeId = String(formData.get("exchangeId") || "");
   const conversationId = String(formData.get("conversationId") || "");
   const nextStatus = String(formData.get("status") || "");

@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { redirectIfBanned } from "@/lib/account-status";
 
 export default async function DashboardPage() {
+  await redirectIfBanned();
+  
   const supabase = await createClient();
 
   const {

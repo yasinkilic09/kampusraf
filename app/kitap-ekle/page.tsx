@@ -26,6 +26,7 @@ export default function AddBookPage() {
 
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
+  const [error, setError] = useState("");
   const [category, setCategory] = useState("");
   const [isbn, setIsbn] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
@@ -50,10 +51,20 @@ export default function AddBookPage() {
       }
 
       const { data: profile } = await supabase
-        .from("profiles")
-        .select("city, university")
-        .eq("id", user.id)
-        .single();
+  .from("profiles")
+  .select("monthly_book_limit, account_status, city, university")
+  .eq("id", user.id)
+  .single();
+
+if (profile?.account_status === "banned") {
+  window.location.href = "/hesap-kisitlandi";
+  return;
+}
+
+if (profile?.account_status === "suspended") {
+  setError("Hesabın geçici olarak askıya alındığı için kitap ekleyemezsin.");
+  return;
+}
 
       if (profile?.city) setCity(profile.city);
       if (profile?.university) setUniversity(profile.university);

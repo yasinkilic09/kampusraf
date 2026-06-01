@@ -4,8 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { checkUsageLimit } from "@/lib/usage-limits";
+import { requireActiveAccount } from "@/lib/account-status";
 
 export async function startConversationAction(formData: FormData) {
+  await requireActiveAccount("/mesajlar");
+  
   const userBookId = String(formData.get("userBookId") || "");
 
   if (!userBookId) {
@@ -77,6 +80,8 @@ export async function startConversationAction(formData: FormData) {
 }
 
 export async function sendMessageAction(formData: FormData) {
+  await requireActiveAccount("/mesajlar");
+
   const conversationId = String(formData.get("conversationId") || "");
   const message = String(formData.get("message") || "").trim();
 
@@ -162,6 +167,8 @@ if (messageError) {
 }
 
 export async function startMatchConversationAction(formData: FormData) {
+  await requireActiveAccount("/mesajlar");
+
   const matchId = String(formData.get("matchId") || "");
 
   if (!matchId) {
