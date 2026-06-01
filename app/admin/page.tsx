@@ -219,6 +219,9 @@ export default async function AdminPage() {
             <Link href="/admin/kullanicilar" className="hover:text-[#2E7D5B]">
   Kullanıcılar
 </Link>
+<Link href="/admin/sikayetler" className="hover:text-[#2E7D5B]">
+  Şikayetler
+</Link>
             <Link href="/ogrenci-dogrulama" className="hover:text-[#2E7D5B]">
               Öğrenci Doğrulama
             </Link>
@@ -330,6 +333,18 @@ export default async function AdminPage() {
               <p className="text-sm font-black uppercase tracking-[0.2em] text-[#2E7D5B]">
                 Hızlı İşlemler
               </p>
+
+              <Link
+  href="/admin/sikayetler"
+  className="rounded-2xl bg-red-50 p-4 transition hover:-translate-y-0.5"
+>
+  <p className="text-sm font-black text-red-600">
+    Şikayet Yönetimi
+  </p>
+  <p className="mt-1 text-xs leading-5 text-slate-500">
+    Kullanıcı bildirimlerini incele ve gerekli aksiyonu al.
+  </p>
+</Link>
 
               <div className="mt-5 grid gap-3">
                 <Link
