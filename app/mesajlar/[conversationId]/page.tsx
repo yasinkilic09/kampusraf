@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { sendMessageAction } from "@/app/actions/conversations";
 import { createClient } from "@/lib/supabase/server";
 import {
   createExchangeAction,
   updateExchangeStatusAction,
 } from "@/app/actions/exchanges";
 import { submitUserReportAction } from "@/app/actions/user-reports";
+import { ChatRoom } from "@/components/chat-room";
 
 type ProfileSummary = {
   full_name: string | null;
@@ -537,94 +537,13 @@ const exchange = exchangeData as ExchangeItem | null;
           </form>
         </details>
 
-        <div className="mt-5 rounded-[1.7rem] bg-white p-4 shadow-sm md:mt-6 md:rounded-[2rem] md:p-5">
-          {messageList.length === 0 ? (
-            <div className="rounded-[1.5rem] border border-dashed border-[#2E7D5B]/25 bg-[#FAF7F0] p-5 text-center md:p-8">
-              <div className="text-4xl">💬</div>
-
-              <h2 className="mt-4 text-lg font-black md:text-xl">
-                Sohbet başlatmaya hazırsın
-              </h2>
-
-              <p className="mx-auto mt-2 max-w-xl text-sm leading-7 text-slate-500">
-                İlk mesajı göndererek kitapla ilgili takas, ödünç veya paylaşım
-                sürecini başlatabilirsin.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3 md:space-y-4">
-              {messageList.map((message) => {
-                const isMine = message.sender_id === user.id;
-
-                return (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      isMine ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[86%] break-words rounded-[1.3rem] px-4 py-3 md:max-w-[80%] md:rounded-[1.5rem] md:px-5 md:py-4 ${
-                        isMine
-                          ? "bg-[#2E7D5B] text-white"
-                          : "bg-[#FAF7F0] text-[#1F2933]"
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap text-sm leading-6 md:leading-7">
-                        {message.message}
-                      </p>
-
-                      <p
-                        className={`mt-2 text-[11px] font-bold ${
-                          isMine ? "text-white/55" : "text-slate-400"
-                        }`}
-                      >
-                        {formatTime(message.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <form
-            action={sendMessageAction}
-            className="mt-5 border-t border-slate-100 pt-4 md:mt-6 md:pt-5"
-          >
-            <input
-              type="hidden"
-              name="conversationId"
-              value={currentConversation.id}
-            />
-
-            <label className="text-sm font-bold text-slate-700">
-              Mesajın
-            </label>
-
-            <textarea
-              name="message"
-              required
-              rows={3}
-              placeholder="Merhaba, kitap hâlâ sende mevcut mu?"
-              className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-[#FAF7F0] px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B] focus:bg-white"
-            />
-
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs font-semibold text-slate-400">
-                Güvenliğin için kişisel bilgilerini paylaşmadan önce kullanıcıyla
-                uygulama içinde konuş.
-              </p>
-
-              <button
-                type="submit"
-                className="w-full rounded-full bg-[#2E7D5B] px-7 py-4 text-sm font-black text-white shadow-lg shadow-[#2E7D5B]/20 transition hover:-translate-y-0.5 hover:bg-[#25684c] sm:w-auto"
-              >
-                Mesaj Gönder
-              </button>
-            </div>
-          </form>
-        </div>
+        <div className="mt-5 md:mt-6">
+  <ChatRoom
+    initialMessages={messageList}
+    conversationId={currentConversation.id}
+    currentUserId={user.id}
+  />
+</div>
       </section>
     </main>
   );

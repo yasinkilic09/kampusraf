@@ -8,7 +8,7 @@ import { requireActiveAccount } from "@/lib/account-status";
 
 export async function startConversationAction(formData: FormData) {
   await requireActiveAccount("/mesajlar");
-  
+
   const userBookId = String(formData.get("userBookId") || "");
 
   if (!userBookId) {
@@ -253,4 +253,109 @@ export async function startMatchConversationAction(formData: FormData) {
   revalidatePath("/eslesmeler");
 
   redirect(`/mesajlar/${conversation.id}`);
+}
+
+export async function sendMessageRealtimeAction(formData: FormData) {
+  const conversationId = String(formData.get("conversationId") || "");
+  const message = String(formData.get("message") || "").trim();
+
+  if (!conversationId) {
+    return {
+      success: false,
+      error: "Sohbet bulunamadı.",
+      message: null,
+    };
+  }
+
+  if (!message) {
+    return {
+      success: false,
+      error: "Mesaj boş olamaz.",
+      message: null,
+    };
+  }
+
+  if (message.length > 2000) {
+    return {
+      success: false,
+      error: "Mesaj en fazla 2000 karakter olabilir.",
+      message: null,
+    };
+  }
+
+  const { supabase, user } = await requireActiveAccount(
+    `/mesajlar/${conversationId}`
+  );
+
+  const { data: conversation, error: conversationError } = await supabase
+    .from("conversations")
+    .select("id, user_one_id, user_two_id")
+    .eq("id", conversationId)
+    .single();
+
+  if (conversationError || !conversation) {
+    return {
+      success: false,
+      error: "Sohbet bulunamadı.",
+      message: null,
+    };
+  }
+
+  const isUserOne = conversation.user_one_id === user.id;
+  const isUserTwo = conversation.user_two_id === user.id;
+
+  if (!isUserOne && !isUserTwo) {
+    return {
+      success: false,
+      error: "Bu sohbete mesaj gönderme yetkin yok.",
+      message: null,
+    };
+  }
+
+  const receiverId = isUserOne
+    ? conversation.user_two_id
+    : conversation.user_one_id;
+
+  if (!receiverId || receiverId === user.id) {
+    return {
+      success: false,
+      error: "Alıcı kullanıcı bulunamadı.",
+      message: null,
+    };
+  }
+
+  const { data: insertedMessage, error } = await supabase
+    .from("messages")
+    .insert({
+      conversation_id: conversation.id,
+      sender_id: user.id,
+      receiver_id: receiverId,
+      message,
+      is_read: false,
+    })
+    .select("id, conversation_id, sender_id, receiver_id, message, is_read, created_at")
+    .single();
+
+  if (error || !insertedMessage) {
+    return {
+      success: false,
+      error: error?.message || "Mesaj gönderilemedi.",
+      message: null,
+    };
+  }
+
+  await supabase
+    .from("conversations")
+    .update({
+      last_message: message,
+      last_message_at: insertedMessage.created_at,
+      updated_at: insertedMessage.created_at,
+    })
+    .eq("id", conversation.id);
+
+  return {
+    success: true,
+    error: null,
+    message: insertedMessage,
+  };
 }
