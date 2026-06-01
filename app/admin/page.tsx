@@ -216,6 +216,9 @@ export default async function AdminPage() {
             <Link href="/admin/dogrulamalar" className="hover:text-[#2E7D5B]">
               Doğrulamalar
             </Link>
+            <Link href="/admin/kullanicilar" className="hover:text-[#2E7D5B]">
+  Kullanıcılar
+</Link>
             <Link href="/ogrenci-dogrulama" className="hover:text-[#2E7D5B]">
               Öğrenci Doğrulama
             </Link>
@@ -338,6 +341,18 @@ export default async function AdminPage() {
                     Öğrenci doğrulama taleplerini onayla veya reddet.
                   </p>
                 </Link>
+
+                <Link
+  href="/admin/kullanicilar"
+  className="rounded-2xl bg-[#FAF7F0] p-4 transition hover:-translate-y-0.5"
+>
+  <p className="text-sm font-black text-[#1F2933]">
+    Kullanıcı Yönetimi
+  </p>
+  <p className="mt-1 text-xs leading-5 text-slate-500">
+    Kullanıcıları, rolleri ve hesap durumlarını yönet.
+  </p>
+</Link>
 
                 <Link
                   href="/takaslar"
