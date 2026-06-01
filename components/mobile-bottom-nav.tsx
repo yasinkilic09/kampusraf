@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 const mainItems = [
   {
@@ -71,9 +72,63 @@ const menuItems = [
 },
 ];
 
+const adminMenuItems = [
+  {
+    href: "/admin",
+    label: "Admin",
+    icon: "🛡️",
+  },
+  {
+    href: "/admin/kullanicilar",
+    label: "Kullanıcılar",
+    icon: "👥",
+  },
+  {
+    href: "/admin/sikayetler",
+    label: "Şikayetler",
+    icon: "🚩",
+  },
+  {
+    href: "/admin/dogrulamalar",
+    label: "Doğrulamalar",
+    icon: "🎓",
+  },
+];
+
 export function MobileBottomNav() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+    useEffect(() => {
+    let isMounted = true;
+
+    async function loadRole() {
+      const supabase = createClient();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (isMounted) {
+        setIsAdmin(profile?.role === "admin");
+      }
+    }
+
+    loadRole();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const shouldHide =
     pathname === "/" ||
@@ -87,9 +142,13 @@ export function MobileBottomNav() {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const isMenuActive = menuItems.some(
-    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
-  );
+ const visibleMenuItems = isAdmin
+  ? [...adminMenuItems, ...menuItems]
+  : menuItems;
+
+const isMenuActive = visibleMenuItems.some(
+  (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
+);
 
   return (
     <>
@@ -106,10 +165,12 @@ export function MobileBottomNav() {
         <div className="fixed bottom-[5.7rem] left-3 right-3 z-50 rounded-[1.7rem] border border-[#2E7D5B]/10 bg-white p-4 shadow-2xl shadow-slate-900/20 md:hidden">
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <p className="text-sm font-black text-[#1F2933]">KampüsRaf Menü</p>
-              <p className="text-xs font-semibold text-slate-400">
-                Diğer sayfalara hızlı erişim
-              </p>
+              <p className="text-sm font-black text-[#1F2933]">
+  {isAdmin ? "Admin & KampüsRaf Menü" : "KampüsRaf Menü"}
+</p>
+<p className="text-xs font-semibold text-slate-400">
+  Diğer sayfalara hızlı erişim
+</p>
             </div>
 
             <button
@@ -122,7 +183,7 @@ export function MobileBottomNav() {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {menuItems.map((item) => {
+            {visibleMenuItems.map((item) => {
               const active =
                 pathname === item.href || pathname.startsWith(`${item.href}/`);
 
