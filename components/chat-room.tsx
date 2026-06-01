@@ -9,7 +9,10 @@ import {
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { sendMessageRealtimeAction } from "@/app/actions/conversations";
+import {
+  markConversationMessagesAsReadAction,
+  sendMessageRealtimeAction,
+} from "@/app/actions/conversations";
 
 type ChatMessage = {
   id: string;

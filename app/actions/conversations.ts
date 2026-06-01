@@ -359,3 +359,48 @@ export async function sendMessageRealtimeAction(formData: FormData) {
     message: insertedMessage,
   };
 }
+
+export async function markConversationMessagesAsReadAction(
+  conversationIds: string[]
+) {
+  if (!conversationIds.length) {
+    return {
+      success: true,
+      error: null,
+    };
+  }
+
+  const { supabase, user } = await requireActiveAccount("/mesajlar");
+
+  const safeConversationIds = conversationIds.filter(Boolean);
+
+  if (!safeConversationIds.length) {
+    return {
+      success: true,
+      error: null,
+    };
+  }
+
+  const { error } = await supabase
+    .from("messages")
+    .update({
+      is_read: true,
+    })
+    .in("conversation_id", safeConversationIds)
+    .eq("receiver_id", user.id)
+    .eq("is_read", false);
+
+  if (error) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+
+  revalidatePath("/mesajlar");
+
+  return {
+    success: true,
+    error: null,
+  };
+}

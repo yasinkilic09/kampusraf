@@ -8,7 +8,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { sendMessageRealtimeAction } from "@/app/actions/conversations";
+import {
+  markConversationMessagesAsReadAction,
+  sendMessageRealtimeAction,
+} from "@/app/actions/conversations";
 import { createClient } from "@/lib/supabase/client";
 
 type UserChatMessage = {
@@ -113,6 +116,10 @@ export function UserChatRoom({
     return [...conversationIds].sort().join("|");
   }, [conversationIds]);
 
+   useEffect(() => {
+  markConversationMessagesAsReadAction(conversationIds);
+}, [conversationKey]);
+
   const sortedMessages = useMemo(() => {
     return [...messages].sort(
       (a, b) =>
@@ -182,6 +189,10 @@ export function UserChatRoom({
                   message.message === newMessage.message
                 )
             );
+
+            if (newMessage.receiver_id === currentUserId) {
+  markConversationMessagesAsReadAction([newMessage.conversation_id]);
+}
 
             return [
               ...withoutOptimisticCopy,
