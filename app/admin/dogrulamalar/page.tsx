@@ -151,6 +151,9 @@ export default async function AdminVerificationsPage({
           </Link>
 
           <nav className="hidden items-center gap-6 text-sm font-bold text-slate-600 md:flex">
+            <Link href="/admin" className="hover:text-[#2E7D5B]">
+  Admin Panel
+</Link>
             <Link href="/dashboard" className="hover:text-[#2E7D5B]">
               Panel
             </Link>
