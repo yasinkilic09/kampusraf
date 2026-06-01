@@ -3,6 +3,7 @@ import { StudentVerifiedBadge } from "@/components/student-verified-badge";
 type ProfileTrustCardProps = {
   isVerified?: boolean | null;
   verificationStatus?: string | null;
+  accountStatus?: string | null;
   trustScore?: number | null;
   completedExchangeCount?: number | null;
   responseScore?: number | null;
@@ -31,9 +32,119 @@ function getBarColor(score: number) {
   return "bg-red-500";
 }
 
+function getTrustSignals({
+  verificationStatus,
+  accountStatus,
+  trustScore,
+  completedExchangeCount,
+  responseScore,
+  profileCompletionScore,
+}: {
+  verificationStatus?: string | null;
+  accountStatus?: string | null;
+  trustScore?: number | null;
+  completedExchangeCount?: number | null;
+  responseScore?: number | null;
+  profileCompletionScore?: number;
+}) {
+  const score = trustScore ?? 60;
+  const completed = completedExchangeCount ?? 0;
+  const response = responseScore ?? 0;
+  const completion = profileCompletionScore ?? 0;
+
+  const signals: {
+    icon: string;
+    title: string;
+    description: string;
+    className: string;
+  }[] = [];
+
+  if (accountStatus === "banned") {
+    signals.push({
+      icon: "🚫",
+      title: "Hesap Engelli",
+      description: "Bu kullanıcı platform kuralları nedeniyle engellenmiş.",
+      className: "bg-red-50 text-red-700 border-red-100",
+    });
+
+    return signals;
+  }
+
+  if (accountStatus === "suspended") {
+    signals.push({
+      icon: "⏸️",
+      title: "Hesap Askıda",
+      description: "Bu kullanıcının işlem yapma yetkisi geçici olarak kısıtlı.",
+      className: "bg-[#F59E0B]/10 text-[#B45309] border-[#F59E0B]/20",
+    });
+  }
+
+  if (verificationStatus === "verified") {
+    signals.push({
+      icon: "🎓",
+      title: "Doğrulanmış Öğrenci",
+      description: "Öğrencilik durumu admin tarafından doğrulanmış.",
+      className: "bg-[#2E7D5B]/10 text-[#2E7D5B] border-[#2E7D5B]/20",
+    });
+  }
+
+  if (score >= 85 && completed >= 3) {
+    signals.push({
+      icon: "🛡️",
+      title: "Güçlü Takas Profili",
+      description: "Güven puanı ve tamamlanan takas geçmişi güçlü.",
+      className: "bg-[#2E7D5B]/10 text-[#2E7D5B] border-[#2E7D5B]/20",
+    });
+  } else if (score < 50) {
+    signals.push({
+      icon: "⚠️",
+      title: "Güven Puanı Düşük",
+      description: "Bu kullanıcıyla işlem yaparken daha dikkatli olunmalı.",
+      className: "bg-red-50 text-red-700 border-red-100",
+    });
+  }
+
+  if (completed >= 5) {
+    signals.push({
+      icon: "🟢",
+      title: "Deneyimli Takasçı",
+      description: "Platformda birden fazla başarılı takas tamamlamış.",
+      className: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    });
+  } else if (completed === 0) {
+    signals.push({
+      icon: "🆕",
+      title: "Yeni Kullanıcı",
+      description: "Henüz tamamlanmış takas geçmişi bulunmuyor.",
+      className: "bg-slate-100 text-slate-600 border-slate-200",
+    });
+  }
+
+  if (completion < 50) {
+    signals.push({
+      icon: "📝",
+      title: "Profil Bilgileri Eksik",
+      description: "Profil bilgileri tam olmadığı için güven değerlendirmesi sınırlı.",
+      className: "bg-[#F59E0B]/10 text-[#B45309] border-[#F59E0B]/20",
+    });
+  }
+
+  if (response >= 80) {
+    signals.push({
+      icon: "💬",
+      title: "Yanıt Davranışı İyi",
+      description: "Mesajlara dönüş performansı güçlü görünüyor.",
+      className: "bg-blue-50 text-blue-700 border-blue-100",
+    });
+  }
+
+  return signals.slice(0, 4);
+}
+
 export function ProfileTrustCard({
   isVerified,
   verificationStatus,
+  accountStatus,
   trustScore,
   completedExchangeCount,
   responseScore,
@@ -41,6 +152,14 @@ export function ProfileTrustCard({
   compact = false,
 }: ProfileTrustCardProps) {
   const isStudentVerified = verificationStatus === "verified";
+  const trustSignals = getTrustSignals({
+  verificationStatus,
+  accountStatus,
+  trustScore,
+  completedExchangeCount,
+  responseScore,
+  profileCompletionScore,
+});
   const score = Math.max(0, Math.min(trustScore ?? 60, 100));
   const completion = Math.max(0, Math.min(profileCompletionScore, 100));
   const exchanges = completedExchangeCount ?? 0;
@@ -121,6 +240,34 @@ export function ProfileTrustCard({
           </p>
         </div>
       </div>
+
+      {trustSignals.length > 0 && (
+  <div className={compact ? "mt-4 grid gap-2" : "mt-5 grid gap-3"}>
+    <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-400">
+      Güven Sinyalleri
+    </p>
+
+    <div className="grid gap-2">
+      {trustSignals.map((signal) => (
+        <div
+          key={signal.title}
+          className={`rounded-2xl border p-3 ${signal.className}`}
+        >
+          <div className="flex items-start gap-3">
+            <span className="text-lg">{signal.icon}</span>
+
+            <div>
+              <p className="text-xs font-black">{signal.title}</p>
+              <p className="mt-1 text-[11px] font-semibold leading-5 opacity-80">
+                {signal.description}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
       {!compact && (
         <p className="mt-4 text-xs leading-5 text-slate-400">

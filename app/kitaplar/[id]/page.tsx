@@ -37,6 +37,7 @@ type OwnerProfile = {
   bio: string | null;
   trust_score: number | null;
   is_verified: boolean | null;
+  account_status: string | null;
   verification_status: string | null;
   completed_exchange_count: number | null;
   response_score: number | null;
@@ -121,6 +122,7 @@ return {
   trustScore: owner?.trust_score ?? 60,
   isVerified: owner?.is_verified || false,
   verificationStatus: owner?.verification_status || "unverified",
+  accountStatus: owner?.account_status || "active",
   completedExchangeCount: owner?.completed_exchange_count ?? 0,
   responseScore: owner?.response_score ?? 0,
   profileCompletionScore: Math.round((completedFields / profileFields.length) * 100),
@@ -180,6 +182,7 @@ export default async function BookDetailPage({
         trust_score,
         is_verified,
         verification_status,
+        account_status,
         completed_exchange_count,
         response_score
         )
@@ -449,6 +452,7 @@ export default async function BookDetailPage({
              <ProfileTrustCard
   isVerified={owner.isVerified}
   verificationStatus={owner.verificationStatus}
+  accountStatus={owner.accountStatus}
   trustScore={owner.trustScore}
   completedExchangeCount={owner.completedExchangeCount}
   responseScore={owner.responseScore}
