@@ -38,6 +38,14 @@ export async function createExchangeAction(formData: FormData) {
 
   const conversationId = String(formData.get("conversationId") || "");
 
+  const returnTo = String(
+  formData.get("returnTo") || `/mesajlar/${conversationId}`
+);
+
+const safeReturnTo = returnTo.startsWith("/")
+  ? returnTo
+  : `/mesajlar/${conversationId}`;
+
   if (!conversationId) {
     redirect("/mesajlar");
   }
@@ -125,9 +133,18 @@ export async function createExchangeAction(formData: FormData) {
 
 export async function updateExchangeStatusAction(formData: FormData) {
   await requireActiveAccount("/mesajlar");
-  
+
   const exchangeId = String(formData.get("exchangeId") || "");
   const conversationId = String(formData.get("conversationId") || "");
+
+  const returnTo = String(
+  formData.get("returnTo") || `/mesajlar/${conversationId}`
+);
+
+const safeReturnTo = returnTo.startsWith("/")
+  ? returnTo
+  : `/mesajlar/${conversationId}`;
+
   const nextStatus = String(formData.get("status") || "");
 
   if (!exchangeId || !conversationId) {
@@ -201,8 +218,9 @@ export async function updateExchangeStatusAction(formData: FormData) {
   }
 
   revalidatePath(`/mesajlar/${conversationId}`);
-  revalidatePath("/mesajlar");
-  revalidatePath("/profilim");
+revalidatePath(safeReturnTo);
+revalidatePath("/mesajlar");
+revalidatePath("/profilim");
 
-  redirect(`/mesajlar/${conversationId}`);
+redirect(safeReturnTo);
 }
