@@ -26,6 +26,21 @@ type ExchangeRow = {
   owner_id: string;
 };
 
+type ReportProfile = {
+  full_name: string | null;
+  username: string | null;
+  email: string | null;
+  account_status: string | null;
+};
+
+type RecentReportRow = {
+  id: string;
+  reason: string;
+  status: string;
+  created_at: string;
+  reported_user: ReportProfile | ReportProfile[] | null;
+};
+
 function getPlanLabel(plan?: string | null) {
   if (plan === "plus") return "Plus";
   if (plan === "premium") return "Premium";
@@ -74,6 +89,36 @@ function formatDate(value?: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function first<T>(value: T | T[] | null | undefined) {
+  if (Array.isArray(value)) return value[0] || null;
+  return value || null;
+}
+
+function getReportReasonLabel(reason: string) {
+  if (reason === "spam") return "Spam / Rahatsız Edici";
+  if (reason === "harassment") return "Taciz / Kötü Davranış";
+  if (reason === "fraud") return "Dolandırıcılık Şüphesi";
+  if (reason === "inappropriate") return "Uygunsuz İçerik";
+  if (reason === "unsafe_exchange") return "Güvensiz Takas";
+  return "Diğer";
+}
+
+function getReportStatusLabel(status: string) {
+  if (status === "pending") return "Bekliyor";
+  if (status === "reviewed") return "İncelendi";
+  if (status === "action_taken") return "Aksiyon Alındı";
+  if (status === "rejected") return "Reddedildi";
+  return "Bekliyor";
+}
+
+function getReportStatusClass(status: string) {
+  if (status === "pending") return "bg-[#F59E0B]/10 text-[#F59E0B]";
+  if (status === "reviewed") return "bg-blue-50 text-blue-600";
+  if (status === "action_taken") return "bg-[#2E7D5B]/10 text-[#2E7D5B]";
+  if (status === "rejected") return "bg-red-50 text-red-600";
+  return "bg-slate-100 text-slate-600";
 }
 
 export default async function AdminPage() {
@@ -134,6 +179,20 @@ export default async function AdminPage() {
     .select("*", { count: "exact", head: true })
     .eq("status", "completed");
 
+    const { count: totalReportsCount } = await supabase
+  .from("user_reports")
+  .select("*", { count: "exact", head: true });
+
+const { count: pendingReportsCount } = await supabase
+  .from("user_reports")
+  .select("*", { count: "exact", head: true })
+  .eq("status", "pending");
+
+const { count: actionTakenReportsCount } = await supabase
+  .from("user_reports")
+  .select("*", { count: "exact", head: true })
+  .eq("status", "action_taken");
+
   const { data: planRows } = await supabase
     .from("profiles")
     .select("plan_type");
@@ -188,8 +247,28 @@ export default async function AdminPage() {
     .order("updated_at", { ascending: false })
     .limit(5);
 
+    const { data: recentReportsData } = await supabase
+  .from("user_reports")
+  .select(
+    `
+    id,
+    reason,
+    status,
+    created_at,
+    reported_user:profiles!user_reports_reported_user_id_fkey (
+      full_name,
+      username,
+      email,
+      account_status
+    )
+  `
+  )
+  .order("created_at", { ascending: false })
+  .limit(5);
+
   const pendingProfiles = (pendingProfilesData || []) as ProfileRow[];
   const recentExchanges = (recentExchangesData || []) as ExchangeRow[];
+  const recentReports = (recentReportsData || []) as RecentReportRow[];
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
@@ -307,6 +386,24 @@ export default async function AdminPage() {
               icon: "🏁",
               color: "text-[#2E7D5B]",
             },
+            {
+  label: "Toplam Şikayet",
+  value: totalReportsCount || 0,
+  icon: "🚩",
+  color: "text-red-600",
+},
+{
+  label: "Bekleyen Şikayet",
+  value: pendingReportsCount || 0,
+  icon: "⚠️",
+  color: "text-[#F59E0B]",
+},
+{
+  label: "Aksiyon Alınan",
+  value: actionTakenReportsCount || 0,
+  icon: "🛡️",
+  color: "text-[#2E7D5B]",
+},
           ].map((item) => (
             <div
               key={item.label}
@@ -334,18 +431,6 @@ export default async function AdminPage() {
                 Hızlı İşlemler
               </p>
 
-              <Link
-  href="/admin/sikayetler"
-  className="rounded-2xl bg-red-50 p-4 transition hover:-translate-y-0.5"
->
-  <p className="text-sm font-black text-red-600">
-    Şikayet Yönetimi
-  </p>
-  <p className="mt-1 text-xs leading-5 text-slate-500">
-    Kullanıcı bildirimlerini incele ve gerekli aksiyonu al.
-  </p>
-</Link>
-
               <div className="mt-5 grid gap-3">
                 <Link
                   href="/admin/dogrulamalar"
@@ -356,6 +441,18 @@ export default async function AdminPage() {
                     Öğrenci doğrulama taleplerini onayla veya reddet.
                   </p>
                 </Link>
+
+                <Link
+  href="/admin/sikayetler"
+  className="rounded-2xl bg-red-50 p-4 transition hover:-translate-y-0.5"
+>
+  <p className="text-sm font-black text-red-600">
+    Şikayet Yönetimi
+  </p>
+  <p className="mt-1 text-xs leading-5 text-slate-500">
+    Kullanıcı bildirimlerini incele ve gerekli aksiyonu al.
+  </p>
+</Link>
 
                 <Link
   href="/admin/kullanicilar"
@@ -531,6 +628,76 @@ export default async function AdminPage() {
                   ))
                 )}
               </div>
+                          <div className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-[0.2em] text-red-500">
+                    Son Şikayetler
+                  </p>
+                  <h2 className="mt-2 text-2xl font-black">
+                    Güvenlik bildirimleri
+                  </h2>
+                </div>
+
+                <Link
+                  href="/admin/sikayetler"
+                  className="rounded-full bg-red-600 px-4 py-2 text-xs font-black text-white"
+                >
+                  Tümünü Gör
+                </Link>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                {recentReports.length === 0 ? (
+                  <div className="rounded-2xl bg-[#FAF7F0] p-5 text-center">
+                    <p className="text-3xl">🚩</p>
+                    <p className="mt-2 text-sm font-black text-[#1F2933]">
+                      Henüz şikayet yok
+                    </p>
+                  </div>
+                ) : (
+                  recentReports.map((report) => {
+                    const reportedUser = first(report.reported_user);
+
+                    return (
+                      <Link
+                        key={report.id}
+                        href="/admin/sikayetler"
+                        className="block rounded-2xl bg-red-50 p-4 transition hover:-translate-y-0.5"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full px-3 py-1 text-[11px] font-black ${getReportStatusClass(
+                              report.status
+                            )}`}
+                          >
+                            {getReportStatusLabel(report.status)}
+                          </span>
+
+                          <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-red-600">
+                            {getReportReasonLabel(report.reason)}
+                          </span>
+                        </div>
+
+                        <p className="mt-3 break-words text-sm font-black text-[#1F2933]">
+                          {reportedUser?.full_name ||
+                            reportedUser?.username ||
+                            "Bildirilen kullanıcı"}
+                        </p>
+
+                        <p className="mt-1 break-words text-xs font-semibold text-slate-500">
+                          {reportedUser?.email || "E-posta yok"}
+                        </p>
+
+                        <p className="mt-2 text-xs font-bold text-slate-400">
+                          {formatDate(report.created_at)}
+                        </p>
+                      </Link>
+                    );
+                  })
+                )}
+              </div>
+            </div>
             </div>
           </section>
         </div>
