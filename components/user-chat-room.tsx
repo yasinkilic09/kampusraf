@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   markConversationMessagesAsReadAction,
+  markMessageNotificationsAsReadAction,
   sendMessageRealtimeAction,
 } from "@/app/actions/conversations";
 import { createClient } from "@/lib/supabase/client";
@@ -116,6 +117,16 @@ export function UserChatRoom({
     return [...conversationIds].sort().join("|");
   }, [conversationIds]);
 
+  useEffect(() => {
+  const idsToMark = conversationKey.split("|").filter(Boolean);
+
+  if (idsToMark.length > 0) {
+    markConversationMessagesAsReadAction(idsToMark);
+  }
+
+  markMessageNotificationsAsReadAction(otherUserId);
+}, [conversationKey, otherUserId]);
+
    useEffect(() => {
   markConversationMessagesAsReadAction(conversationIds);
 }, [conversationKey]);
@@ -173,7 +184,12 @@ export function UserChatRoom({
         (payload) => {
           const newMessage = payload.new as UserChatMessage;
 
-          setMessages((currentMessages) => {
+if (newMessage.receiver_id === currentUserId) {
+  markConversationMessagesAsReadAction([newMessage.conversation_id]);
+  markMessageNotificationsAsReadAction(newMessage.sender_id);
+}
+
+setMessages((currentMessages) => {
             const alreadyExists = currentMessages.some(
               (message) => message.id === newMessage.id
             );
@@ -192,6 +208,7 @@ export function UserChatRoom({
 
             if (newMessage.receiver_id === currentUserId) {
   markConversationMessagesAsReadAction([newMessage.conversation_id]);
+  markMessageNotificationsAsReadAction(newMessage.sender_id);
 }
 
             return [

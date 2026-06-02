@@ -3,6 +3,28 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireActiveAccount } from "@/lib/account-status";
+
+type MarkNotificationAndMessageInput =
+  | FormData
+  | {
+      notificationId: string;
+      targetUrl?: string | null;
+    };
+
+function parseMarkNotificationInput(input: MarkNotificationAndMessageInput) {
+  if (input instanceof FormData) {
+    return {
+      notificationId: String(input.get("notificationId") || ""),
+      targetUrl: String(input.get("targetUrl") || ""),
+    };
+  }
+
+  return {
+    notificationId: input.notificationId || "",
+    targetUrl: input.targetUrl || "",
+  };
+}
 
 export async function markNotificationReadAction(formData: FormData) {
   const notificationId = String(formData.get("notificationId") || "");
@@ -31,6 +53,7 @@ export async function markNotificationReadAction(formData: FormData) {
 
   revalidatePath("/bildirimler");
   revalidatePath("/dashboard");
+  revalidatePath("/mesajlar");
 }
 
 export async function markAllNotificationsReadAction() {
@@ -54,4 +77,51 @@ export async function markAllNotificationsReadAction() {
 
   revalidatePath("/bildirimler");
   revalidatePath("/dashboard");
+  revalidatePath("/mesajlar");
+}
+
+export async function markNotificationAndMessageAsReadAction(
+  input: MarkNotificationAndMessageInput
+) {
+  const { notificationId, targetUrl } = parseMarkNotificationInput(input);
+
+  const { supabase, user } = await requireActiveAccount("/bildirimler");
+
+  if (notificationId) {
+    await supabase
+      .from("notifications")
+      .update({
+        is_read: true,
+      })
+      .eq("id", notificationId)
+      .eq("user_id", user.id);
+  }
+
+  const safeTargetUrl = targetUrl || "";
+  const match = safeTargetUrl.match(/^\/mesajlar\/kullanici\/([^/]+)$/);
+  const otherUserId = match?.[1];
+
+  if (otherUserId) {
+    await supabase
+      .from("messages")
+      .update({
+        is_read: true,
+      })
+      .eq("receiver_id", user.id)
+      .eq("sender_id", otherUserId)
+      .eq("is_read", false);
+  }
+
+  revalidatePath("/mesajlar");
+  revalidatePath("/bildirimler");
+  revalidatePath("/dashboard");
+
+  if (safeTargetUrl.startsWith("/")) {
+    revalidatePath(safeTargetUrl);
+  }
+
+  return {
+    success: true,
+    error: null,
+  };
 }

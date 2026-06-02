@@ -404,3 +404,41 @@ export async function markConversationMessagesAsReadAction(
     error: null,
   };
 }
+
+export async function markMessageNotificationsAsReadAction(otherUserId: string) {
+  if (!otherUserId) {
+    return {
+      success: true,
+      error: null,
+    };
+  }
+
+  const { supabase, user } = await requireActiveAccount("/mesajlar");
+
+  const targetUrl = `/mesajlar/kullanici/${otherUserId}`;
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({
+      is_read: true,
+    })
+    .eq("user_id", user.id)
+    .eq("type", "message")
+    .eq("target_url", targetUrl)
+    .eq("is_read", false);
+
+  if (error) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+
+  revalidatePath("/mesajlar");
+  revalidatePath("/bildirimler");
+
+  return {
+    success: true,
+    error: null,
+  };
+}

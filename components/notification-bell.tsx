@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { markNotificationAndMessageAsReadAction } from "@/app/actions/notifications";
 
 type NotificationItem = {
   id: string;
@@ -11,11 +12,13 @@ type NotificationItem = {
   title: string;
   message: string;
   link_url: string | null;
+  target_url: string | null;
   is_read: boolean;
   created_at: string;
 };
 
 function getNotificationIcon(type: string) {
+  if (type === "message") return "💬";
   if (type === "new_message") return "💬";
   if (type === "book_found") return "📚";
   if (type === "new_match") return "🤝";
@@ -78,7 +81,9 @@ export function NotificationBell() {
 
     const { data } = await supabase
       .from("notifications")
-      .select("id, type, title, message, link_url, is_read, created_at")
+      .select(
+        "id, type, title, message, link_url, target_url, is_read, created_at"
+      )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5);
@@ -89,18 +94,22 @@ export function NotificationBell() {
     setIsLoading(false);
   }
 
-  async function markOneAsRead(notificationId: string) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  async function markOneAsRead(
+    notificationId: string,
+    targetUrl?: string | null
+  ) {
+    setItems((currentItems) =>
+      currentItems.map((item) =>
+        item.id === notificationId ? { ...item, is_read: true } : item
+      )
+    );
 
-    if (!user) return;
+    setUnreadCount((currentCount) => Math.max(currentCount - 1, 0));
 
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("id", notificationId)
-      .eq("user_id", user.id);
+    await markNotificationAndMessageAsReadAction({
+      notificationId,
+      targetUrl: targetUrl || "",
+    });
 
     await fetchNotifications();
   }
@@ -112,6 +121,28 @@ export function NotificationBell() {
 
     if (!user) return;
 
+    const unreadItems = items.filter((item) => !item.is_read);
+
+    setItems((currentItems) =>
+      currentItems.map((item) => ({
+        ...item,
+        is_read: true,
+      }))
+    );
+
+    setUnreadCount(0);
+
+    await Promise.all(
+      unreadItems
+        .filter((item) => item.target_url)
+        .map((item) =>
+          markNotificationAndMessageAsReadAction({
+            notificationId: item.id,
+            targetUrl: item.target_url,
+          })
+        )
+    );
+
     await supabase
       .from("notifications")
       .update({ is_read: true })
@@ -122,52 +153,52 @@ export function NotificationBell() {
   }
 
   useEffect(() => {
-  if (shouldHide) return;
+    if (shouldHide) return;
 
-  let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
-  let isActive = true;
+    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+    let isActive = true;
 
-  async function setupRealtimeNotifications() {
-    await fetchNotifications();
+    async function setupRealtimeNotifications() {
+      await fetchNotifications();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user || !isActive) return;
+      if (!user || !isActive) return;
 
-    realtimeChannel = supabase
-      .channel(`notifications:${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        async () => {
-          await fetchNotifications();
-        }
-      )
-      .subscribe();
-  }
-
-  setupRealtimeNotifications();
-
-  const backupInterval = window.setInterval(fetchNotifications, 60000);
-  window.addEventListener("focus", fetchNotifications);
-
-  return () => {
-    isActive = false;
-    window.clearInterval(backupInterval);
-    window.removeEventListener("focus", fetchNotifications);
-
-    if (realtimeChannel) {
-      supabase.removeChannel(realtimeChannel);
+      realtimeChannel = supabase
+        .channel(`notifications:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          async () => {
+            await fetchNotifications();
+          }
+        )
+        .subscribe();
     }
-  };
-}, [pathname, shouldHide, supabase]);
+
+    setupRealtimeNotifications();
+
+    const backupInterval = window.setInterval(fetchNotifications, 60000);
+    window.addEventListener("focus", fetchNotifications);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(backupInterval);
+      window.removeEventListener("focus", fetchNotifications);
+
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+      }
+    };
+  }, [pathname, shouldHide, supabase]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -220,6 +251,7 @@ export function NotificationBell() {
               <p className="text-sm font-black text-[#1F2933]">
                 Bildirimler
               </p>
+
               <p className="text-xs font-semibold text-slate-400">
                 {unreadCount > 0
                   ? `${unreadCount} okunmamış bildirim`
@@ -246,70 +278,85 @@ export function NotificationBell() {
             ) : items.length === 0 ? (
               <div className="p-6 text-center">
                 <p className="text-3xl">🔕</p>
+
                 <p className="mt-2 text-sm font-black text-[#1F2933]">
                   Henüz bildirim yok
                 </p>
+
                 <p className="mt-1 text-xs leading-5 text-slate-400">
                   Yeni mesaj ve eşleşmeler burada görünecek.
                 </p>
               </div>
             ) : (
-              items.map((item) => (
-                <div
-                  key={item.id}
-                  className={`rounded-2xl p-3 ${
-                    item.is_read ? "bg-white" : "bg-[#2E7D5B]/5"
-                  }`}
-                >
-                  <div className="flex gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FAF7F0] text-lg">
-                      {getNotificationIcon(item.type)}
-                    </div>
+              items.map((item) => {
+                const actionUrl = item.target_url || item.link_url;
+                const actionLabel = item.target_url ? "Mesaja Git" : "Git";
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="break-words text-sm font-black text-[#1F2933]">
-                          {item.title}
-                        </p>
-
-                        {!item.is_read && (
-                          <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-600" />
-                        )}
+                return (
+                  <div
+                    key={item.id}
+                    className={`rounded-2xl p-3 ${
+                      item.is_read ? "bg-white" : "bg-[#2E7D5B]/5"
+                    }`}
+                  >
+                    <div className="flex gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FAF7F0] text-lg">
+                        {getNotificationIcon(item.type)}
                       </div>
 
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                        {item.message}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="break-words text-sm font-black text-[#1F2933]">
+                            {item.title}
+                          </p>
 
-                      <p className="mt-1 text-[11px] font-bold text-slate-400">
-                        {formatShortDate(item.created_at)}
-                      </p>
+                          {!item.is_read && (
+                            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-600" />
+                          )}
+                        </div>
 
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {item.link_url && (
-                          <Link
-                            href={item.link_url}
-                            onClick={() => setIsOpen(false)}
-                            className="rounded-full bg-[#2E7D5B] px-3 py-2 text-[11px] font-black text-white"
-                          >
-                            Git
-                          </Link>
-                        )}
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                          {item.message}
+                        </p>
 
-                        {!item.is_read && (
-                          <button
-                            type="button"
-                            onClick={() => markOneAsRead(item.id)}
-                            className="rounded-full bg-slate-100 px-3 py-2 text-[11px] font-black text-slate-600"
-                          >
-                            Okundu
-                          </button>
-                        )}
+                        <p className="mt-1 text-[11px] font-bold text-slate-400">
+                          {formatShortDate(item.created_at)}
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {actionUrl && (
+                            <Link
+                              href={actionUrl}
+                              onClick={() => {
+                                setIsOpen(false);
+                                void markOneAsRead(item.id, actionUrl);
+                              }}
+                              className="rounded-full bg-[#2E7D5B] px-3 py-2 text-[11px] font-black text-white"
+                            >
+                              {actionLabel}
+                            </Link>
+                          )}
+
+                          {!item.is_read && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void markOneAsRead(
+                                  item.id,
+                                  item.target_url || item.link_url
+                                )
+                              }
+                              className="rounded-full bg-slate-100 px-3 py-2 text-[11px] font-black text-slate-600"
+                            >
+                              Okundu
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
