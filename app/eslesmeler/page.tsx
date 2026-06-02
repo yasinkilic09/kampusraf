@@ -105,6 +105,12 @@ type MatchItem = {
   requester: ProfileSummary | ProfileSummary[] | null;
 };
 
+type MatchesSearchParams = {
+  level?: string;
+  view?: string;
+  status?: string;
+};
+
 const conditionLabels: Record<string, string> = {
   yeni: "Yeni",
   temiz: "Temiz",
@@ -248,7 +254,51 @@ function getSignalItems(breakdown: ScoreBreakdown) {
   return items.filter((item) => item.value > 0);
 }
 
-export default async function MatchesPage() {
+function getSafeLevelFilter(value: string) {
+  return ["super", "strong", "good", "normal"].includes(value) ? value : "";
+}
+
+function getSafeViewFilter(value: string) {
+  return ["requester", "owner"].includes(value) ? value : "";
+}
+
+function getSafeStatusFilter(value: string) {
+  return ["pending", "contacted", "completed", "rejected"].includes(value)
+    ? value
+    : "";
+}
+
+function buildMatchesHref({
+  level,
+  view,
+  status,
+}: {
+  level?: string;
+  view?: string;
+  status?: string;
+}) {
+  const params = new URLSearchParams();
+
+  if (level) params.set("level", level);
+  if (view) params.set("view", view);
+  if (status) params.set("status", status);
+
+  const query = params.toString();
+
+  return query ? `/eslesmeler?${query}` : "/eslesmeler";
+}
+
+function getFilterLinkClass(active: boolean) {
+  return active
+    ? "rounded-full bg-[#2E7D5B] px-4 py-2 text-xs font-black text-white shadow-sm"
+    : "rounded-full border border-[#2E7D5B]/15 bg-white px-4 py-2 text-xs font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5";
+}
+
+export default async function MatchesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<MatchesSearchParams>;
+}) {
   const supabase = await createClient();
 
   const {
@@ -258,6 +308,14 @@ export default async function MatchesPage() {
   if (!user) {
     redirect("/auth/login");
   }
+
+    const params = (await searchParams) || {};
+
+  const levelFilter = getSafeLevelFilter(params.level?.trim() || "");
+  const viewFilter = getSafeViewFilter(params.view?.trim() || "");
+  const statusFilter = getSafeStatusFilter(params.status?.trim() || "");
+
+  const hasActiveFilter = Boolean(levelFilter || viewFilter || statusFilter);
 
   const { data, error } = await supabase
     .from("book_matches")
@@ -330,11 +388,28 @@ export default async function MatchesPage() {
     .order("match_score", { ascending: false })
     .order("created_at", { ascending: false });
 
-  const matches = (data || []) as MatchItem[];
+    const allMatches = (data || []) as MatchItem[];
 
-  const superMatches = matches.filter((match) => match.match_level === "super");
-  const strongMatches = matches.filter((match) => match.match_level === "strong");
-  const goodMatches = matches.filter((match) => match.match_level === "good");
+  const matches = allMatches.filter((match) => {
+    const levelMatches = !levelFilter || match.match_level === levelFilter;
+
+    const viewMatches =
+      !viewFilter ||
+      (viewFilter === "requester" && match.requester_id === user.id) ||
+      (viewFilter === "owner" && match.owner_id === user.id);
+
+    const statusMatches = !statusFilter || match.status === statusFilter;
+
+    return levelMatches && viewMatches && statusMatches;
+  });
+
+  const superMatches = allMatches.filter(
+    (match) => match.match_level === "super"
+  );
+  const strongMatches = allMatches.filter(
+    (match) => match.match_level === "strong"
+  );
+  const goodMatches = allMatches.filter((match) => match.match_level === "good");
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
@@ -422,7 +497,7 @@ export default async function MatchesPage() {
           <div className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
             <p className="text-sm font-bold text-slate-500">Toplam Eşleşme</p>
             <p className="mt-3 text-4xl font-black text-[#2E7D5B]">
-              {matches.length}
+              {allMatches.length}
             </p>
           </div>
 
@@ -431,7 +506,7 @@ export default async function MatchesPage() {
               Benim Aramalarıma Gelen
             </p>
             <p className="mt-3 text-4xl font-black text-[#F59E0B]">
-              {matches.filter((match) => match.requester_id === user.id).length}
+              {allMatches.filter((match) => match.requester_id === user.id).length}
             </p>
           </div>
 
@@ -440,7 +515,7 @@ export default async function MatchesPage() {
               Benim Kitaplarımla Eşleşen
             </p>
             <p className="mt-3 text-4xl font-black text-[#2E7D5B]">
-              {matches.filter((match) => match.owner_id === user.id).length}
+              {allMatches.filter((match) => match.owner_id === user.id).length}
             </p>
           </div>
 
@@ -451,6 +526,183 @@ export default async function MatchesPage() {
             <p className="mt-3 text-4xl font-black text-red-600">
               {superMatches.length + strongMatches.length}
             </p>
+          </div>
+        </div>
+
+                <div className="mt-5 rounded-[1.7rem] bg-white p-4 shadow-sm md:rounded-[2rem] md:p-6">
+          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+            <div>
+              <p className="text-sm font-black text-[#2E7D5B]">
+                Eşleşmeleri Filtrele
+              </p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                {matches.length} eşleşme gösteriliyor.
+              </p>
+            </div>
+
+            {hasActiveFilter && (
+              <Link
+                href="/eslesmeler"
+                className="rounded-full border border-red-100 bg-red-50 px-4 py-2 text-center text-xs font-black text-red-600 transition hover:-translate-y-0.5"
+              >
+                Filtreleri Temizle
+              </Link>
+            )}
+          </div>
+
+          <div className="mt-5 grid gap-5 lg:grid-cols-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                Eşleşme Seviyesi
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  href={buildMatchesHref({
+                    view: viewFilter,
+                    status: statusFilter,
+                  })}
+                  className={getFilterLinkClass(!levelFilter)}
+                >
+                  Tümü
+                </Link>
+
+                <Link
+                  href={buildMatchesHref({
+                    level: "super",
+                    view: viewFilter,
+                    status: statusFilter,
+                  })}
+                  className={getFilterLinkClass(levelFilter === "super")}
+                >
+                  🔥 Süper
+                </Link>
+
+                <Link
+                  href={buildMatchesHref({
+                    level: "strong",
+                    view: viewFilter,
+                    status: statusFilter,
+                  })}
+                  className={getFilterLinkClass(levelFilter === "strong")}
+                >
+                  ⭐ Güçlü
+                </Link>
+
+                <Link
+                  href={buildMatchesHref({
+                    level: "good",
+                    view: viewFilter,
+                    status: statusFilter,
+                  })}
+                  className={getFilterLinkClass(levelFilter === "good")}
+                >
+                  ✅ İyi
+                </Link>
+
+                <Link
+                  href={buildMatchesHref({
+                    level: "normal",
+                    view: viewFilter,
+                    status: statusFilter,
+                  })}
+                  className={getFilterLinkClass(levelFilter === "normal")}
+                >
+                  📌 Normal
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                Eşleşme Türü
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  href={buildMatchesHref({
+                    level: levelFilter,
+                    status: statusFilter,
+                  })}
+                  className={getFilterLinkClass(!viewFilter)}
+                >
+                  Tümü
+                </Link>
+
+                <Link
+                  href={buildMatchesHref({
+                    level: levelFilter,
+                    view: "requester",
+                    status: statusFilter,
+                  })}
+                  className={getFilterLinkClass(viewFilter === "requester")}
+                >
+                  Aramalarıma Gelen
+                </Link>
+
+                <Link
+                  href={buildMatchesHref({
+                    level: levelFilter,
+                    view: "owner",
+                    status: statusFilter,
+                  })}
+                  className={getFilterLinkClass(viewFilter === "owner")}
+                >
+                  Kitaplarımla Eşleşen
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                Durum
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link
+                  href={buildMatchesHref({
+                    level: levelFilter,
+                    view: viewFilter,
+                  })}
+                  className={getFilterLinkClass(!statusFilter)}
+                >
+                  Tümü
+                </Link>
+
+                <Link
+                  href={buildMatchesHref({
+                    level: levelFilter,
+                    view: viewFilter,
+                    status: "pending",
+                  })}
+                  className={getFilterLinkClass(statusFilter === "pending")}
+                >
+                  Bekleyen
+                </Link>
+
+                <Link
+                  href={buildMatchesHref({
+                    level: levelFilter,
+                    view: viewFilter,
+                    status: "contacted",
+                  })}
+                  className={getFilterLinkClass(statusFilter === "contacted")}
+                >
+                  İletişime Geçilen
+                </Link>
+
+                <Link
+                  href={buildMatchesHref({
+                    level: levelFilter,
+                    view: viewFilter,
+                    status: "completed",
+                  })}
+                  className={getFilterLinkClass(statusFilter === "completed")}
+                >
+                  Tamamlanan
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -466,12 +718,15 @@ export default async function MatchesPage() {
               ✨
             </div>
 
-            <h2 className="mt-5 text-2xl font-black">Henüz eşleşme yok</h2>
+            <h2 className="mt-5 text-2xl font-black">
+  {hasActiveFilter ? "Bu filtrelerde eşleşme yok" : "Henüz eşleşme yok"}
+</h2>
 
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-500">
-              Bir kullanıcı aradığı kitabı kaydeder ve başka bir kullanıcı o
-              kitaba benzer bir kitabı eklerse burada otomatik eşleşme oluşur.
-            </p>
+  {hasActiveFilter
+    ? "Seçtiğin filtrelerde eşleşme bulunamadı. Filtreleri temizleyerek tüm eşleşmeleri tekrar görüntüleyebilirsin."
+    : "Bir kullanıcı aradığı kitabı kaydeder ve başka bir kullanıcı o kitaba benzer bir kitabı eklerse burada otomatik eşleşme oluşur."}
+</p>
 
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
