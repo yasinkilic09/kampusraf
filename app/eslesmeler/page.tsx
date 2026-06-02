@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { startMatchConversationAction } from "@/app/actions/conversations";
+import { sendFriendRequestAction } from "@/app/actions/friends";
 
 type ProfileSummary = {
   full_name: string | null;
@@ -103,6 +104,13 @@ type MatchItem = {
     | null;
   owner: ProfileSummary | ProfileSummary[] | null;
   requester: ProfileSummary | ProfileSummary[] | null;
+};
+
+type FriendshipSummary = {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: string;
 };
 
 type MatchesSearchParams = {
@@ -254,6 +262,53 @@ function getSignalItems(breakdown: ScoreBreakdown) {
   return items.filter((item) => item.value > 0);
 }
 
+function getFriendshipPairKey(userOneId: string, userTwoId: string) {
+  return [userOneId, userTwoId].sort().join(":");
+}
+
+function getFriendshipViewState(
+  friendship: FriendshipSummary | null,
+  currentUserId: string
+) {
+  if (!friendship) {
+    return {
+      label: "Arkadaş Ekle",
+      description: "Bu eşleşmedeki kullanıcıya arkadaşlık isteği gönder.",
+      type: "send",
+    };
+  }
+
+  if (friendship.status === "accepted") {
+    return {
+      label: "Arkadaşsınız",
+      description: "Bu kullanıcı arkadaş listende.",
+      type: "accepted",
+    };
+  }
+
+  if (friendship.status === "pending") {
+    if (friendship.requester_id === currentUserId) {
+      return {
+        label: "İstek Gönderildi",
+        description: "Karşı tarafın isteğini kabul etmesi bekleniyor.",
+        type: "outgoing",
+      };
+    }
+
+    return {
+      label: "İsteği Yanıtla",
+      description: "Bu kullanıcı sana arkadaşlık isteği göndermiş.",
+      type: "incoming",
+    };
+  }
+
+  return {
+    label: "Tekrar Arkadaş Ekle",
+    description: "Daha önceki istek kapandı. Yeniden istek gönderebilirsin.",
+    type: "send",
+  };
+}
+
 function getSafeLevelFilter(value: string) {
   return ["super", "strong", "good", "normal"].includes(value) ? value : "";
 }
@@ -316,6 +371,12 @@ export default async function MatchesPage({
   const statusFilter = getSafeStatusFilter(params.status?.trim() || "");
 
   const hasActiveFilter = Boolean(levelFilter || viewFilter || statusFilter);
+
+    const currentPageHref = buildMatchesHref({
+    level: levelFilter,
+    view: viewFilter,
+    status: statusFilter,
+  });
 
   const { data, error } = await supabase
     .from("book_matches")
@@ -387,6 +448,20 @@ export default async function MatchesPage({
     .or(`requester_id.eq.${user.id},owner_id.eq.${user.id}`)
     .order("match_score", { ascending: false })
     .order("created_at", { ascending: false });
+
+      const { data: friendshipData } = await supabase
+    .from("friendships")
+    .select("id, requester_id, addressee_id, status")
+    .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+
+  const friendships = (friendshipData || []) as FriendshipSummary[];
+
+  const friendshipMap = new Map(
+    friendships.map((friendship) => [
+      getFriendshipPairKey(friendship.requester_id, friendship.addressee_id),
+      friendship,
+    ])
+  );
 
     const allMatches = (data || []) as MatchItem[];
 
@@ -765,7 +840,20 @@ export default async function MatchesPage({
                 "Yazar bilgisi yok";
               const image = userBook?.image_url || relatedBook?.cover_url || null;
 
-              const otherPerson = isRequester ? owner : requester;
+                            const otherPerson = isRequester ? owner : requester;
+              const otherPersonId = isRequester
+                ? match.owner_id
+                : match.requester_id;
+
+              const friendship =
+                friendshipMap.get(getFriendshipPairKey(user.id, otherPersonId)) ||
+                null;
+
+              const friendshipState = getFriendshipViewState(
+                friendship,
+                user.id
+              );
+
               const levelMeta = getMatchLevelMeta(match.match_level);
               const score = getScorePercent(match.match_score);
               const signalItems = getSignalItems(match.score_breakdown);
@@ -914,6 +1002,24 @@ export default async function MatchesPage({
                                 {getGenderLabel(otherPerson.gender)}
                               </span>
                             )}
+
+                                                        {friendshipState.type === "accepted" && (
+                              <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-xs font-black text-[#B45309]">
+                                Arkadaşın
+                              </span>
+                            )}
+
+                            {friendshipState.type === "outgoing" && (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                                İstek gönderildi
+                              </span>
+                            )}
+
+                            {friendshipState.type === "incoming" && (
+                              <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-xs font-black text-[#B45309]">
+                                Gelen arkadaşlık isteği
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -931,7 +1037,7 @@ export default async function MatchesPage({
                         )}
                       </div>
 
-                      <div className="mt-4 grid gap-2 sm:flex sm:flex-row md:mt-5 md:gap-3">
+                                            <div className="mt-4 grid gap-2 sm:flex sm:flex-row sm:flex-wrap md:mt-5 md:gap-3">
                         <Link
                           href={`/kitaplar/${match.user_book_id}`}
                           className="w-full rounded-full bg-[#2E7D5B] px-5 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5 sm:w-auto"
@@ -951,7 +1057,51 @@ export default async function MatchesPage({
                             Mesaj Gönder
                           </button>
                         </form>
+
+                        {friendshipState.type === "accepted" ? (
+                          <Link
+                            href="/arkadaslar"
+                            className="w-full rounded-full border border-[#F59E0B]/20 bg-[#F59E0B]/10 px-5 py-3 text-center text-sm font-black text-[#B45309] transition hover:-translate-y-0.5 sm:w-auto"
+                          >
+                            Arkadaşsınız
+                          </Link>
+                        ) : friendshipState.type === "incoming" ? (
+                          <Link
+                            href="/arkadaslar"
+                            className="w-full rounded-full bg-[#F59E0B] px-5 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5 sm:w-auto"
+                          >
+                            İsteği Yanıtla
+                          </Link>
+                        ) : (
+                          <form
+                            action={sendFriendRequestAction}
+                            className="w-full sm:w-auto"
+                          >
+                            <input
+                              type="hidden"
+                              name="addresseeId"
+                              value={otherPersonId}
+                            />
+                            <input
+                              type="hidden"
+                              name="redirectTo"
+                              value={currentPageHref}
+                            />
+
+                            <button
+                              type="submit"
+                              disabled={friendshipState.type === "outgoing"}
+                              className="w-full rounded-full border border-[#2E7D5B]/20 px-5 py-3 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                            >
+                              {friendshipState.label}
+                            </button>
+                          </form>
+                        )}
                       </div>
+
+                      <p className="mt-3 text-xs font-semibold text-slate-400">
+                        {friendshipState.description}
+                      </p>
                     </div>
                   </div>
                 </article>

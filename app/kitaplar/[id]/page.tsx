@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { startConversationAction } from "@/app/actions/conversations";
+import { sendFriendRequestAction } from "@/app/actions/friends";
 import { ProfileTrustCard } from "@/components/profile-trust-card";
 
 const conditionLabels: Record<string, string> = {
@@ -78,6 +79,13 @@ type BookDetail = {
  profiles: OwnerProfile | OwnerProfile[] | null;
 };
 
+type FriendshipSummary = {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: string;
+};
+
 function getBookInfo(userBook: BookDetail) {
   const relatedBook = Array.isArray(userBook.books)
     ? userBook.books[0]
@@ -127,6 +135,49 @@ return {
   responseScore: owner?.response_score ?? 0,
   profileCompletionScore: Math.round((completedFields / profileFields.length) * 100),
 };
+}
+
+function getFriendshipViewState(
+  friendship: FriendshipSummary | null,
+  currentUserId: string
+) {
+  if (!friendship) {
+    return {
+      label: "Arkadaş Ekle",
+      description: "Kitap sahibine arkadaşlık isteği gönder.",
+      type: "send",
+    };
+  }
+
+  if (friendship.status === "accepted") {
+    return {
+      label: "Arkadaşsınız",
+      description: "Bu kullanıcı arkadaş listende.",
+      type: "accepted",
+    };
+  }
+
+  if (friendship.status === "pending") {
+    if (friendship.requester_id === currentUserId) {
+      return {
+        label: "İstek Gönderildi",
+        description: "Karşı tarafın isteğini kabul etmesi bekleniyor.",
+        type: "outgoing",
+      };
+    }
+
+    return {
+      label: "İsteği Yanıtla",
+      description: "Bu kullanıcı sana arkadaşlık isteği göndermiş.",
+      type: "incoming",
+    };
+  }
+
+  return {
+    label: "Tekrar Arkadaş Ekle",
+    description: "Daha önceki istek kapandı. Yeniden istek gönderebilirsin.",
+    type: "send",
+  };
 }
 
 export default async function BookDetailPage({
@@ -199,6 +250,22 @@ export default async function BookDetailPage({
   const book = getBookInfo(userBook);
   const owner = getOwnerInfo(userBook);
   const isMine = userBook.user_id === user.id;
+
+    let friendship: FriendshipSummary | null = null;
+
+  if (!isMine) {
+    const { data: friendshipData } = await supabase
+      .from("friendships")
+      .select("id, requester_id, addressee_id, status")
+      .or(
+        `and(requester_id.eq.${user.id},addressee_id.eq.${userBook.user_id}),and(requester_id.eq.${userBook.user_id},addressee_id.eq.${user.id})`
+      )
+      .maybeSingle();
+
+    friendship = friendshipData as FriendshipSummary | null;
+  }
+
+  const friendshipState = getFriendshipViewState(friendship, user.id);
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
@@ -324,33 +391,78 @@ export default async function BookDetailPage({
                 </p>
               )}
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row md:mt-8">
-               {isMine ? (
-  <Link
-    href="/kitaplarim"
-    className="w-full rounded-full bg-white px-7 py-4 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-1 sm:w-auto"
-  >
-    Kitaplarım’a Git
-  </Link>
-) : (
-  <form action={startConversationAction} className="w-full sm:w-auto">
-    <input type="hidden" name="userBookId" value={userBook.id} />
-    <button
-      type="submit"
-      className="w-full rounded-full bg-white px-7 py-4 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-1"
-    >
-      Mesaj Gönder
-    </button>
-  </form>
-)}
+                            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                {isMine ? (
+                  <Link
+                    href="/kitaplarim"
+                    className="rounded-full bg-white px-7 py-4 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-1"
+                  >
+                    Kitaplarım’a Git
+                  </Link>
+                ) : (
+                  <>
+                    <form action={startConversationAction}>
+                      <input type="hidden" name="userBookId" value={userBook.id} />
+                      <button
+                        type="submit"
+                        className="w-full rounded-full bg-white px-7 py-4 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-1 sm:w-auto"
+                      >
+                        Mesaj Gönder
+                      </button>
+                    </form>
+
+                    {friendshipState.type === "accepted" ? (
+                      <Link
+                        href="/arkadaslar"
+                        className="rounded-full border border-white/25 bg-white/10 px-7 py-4 text-center text-sm font-black text-white transition hover:-translate-y-1 hover:bg-white/15"
+                      >
+                        Arkadaşsınız
+                      </Link>
+                    ) : friendshipState.type === "incoming" ? (
+                      <Link
+                        href="/arkadaslar"
+                        className="rounded-full border border-white/25 bg-[#F59E0B] px-7 py-4 text-center text-sm font-black text-white transition hover:-translate-y-1"
+                      >
+                        İsteği Yanıtla
+                      </Link>
+                    ) : (
+                      <form action={sendFriendRequestAction}>
+                        <input
+                          type="hidden"
+                          name="addresseeId"
+                          value={userBook.user_id}
+                        />
+                        <input
+                          type="hidden"
+                          name="redirectTo"
+                          value={`/kitaplar/${userBook.id}`}
+                        />
+
+                        <button
+                          type="submit"
+                          disabled={friendshipState.type === "outgoing"}
+                          className="w-full rounded-full border border-white/25 px-7 py-4 text-center text-sm font-black text-white transition hover:-translate-y-1 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                        >
+                          {friendshipState.label}
+                        </button>
+                      </form>
+                    )}
+                  </>
+                )}
 
                 <Link
-  href="/kitap-ara"
-  className="w-full rounded-full border border-white/25 px-7 py-4 text-center text-sm font-black text-white transition hover:-translate-y-1 hover:bg-white/10 sm:w-auto"
->
-  Benzer Kitapları Ara
-</Link>
+                  href="/kitap-ara"
+                  className="rounded-full border border-white/25 px-7 py-4 text-center text-sm font-black text-white transition hover:-translate-y-1 hover:bg-white/10"
+                >
+                  Benzer Kitapları Ara
+                </Link>
               </div>
+
+              {!isMine && (
+                <p className="mt-4 text-xs font-semibold text-white/55">
+                  {friendshipState.description}
+                </p>
+              )}
             </div>
 
             <div className="mt-5 rounded-[1.7rem] bg-white p-5 shadow-sm md:mt-6 md:rounded-[2rem] md:p-7">
@@ -391,6 +503,24 @@ export default async function BookDetailPage({
                     {owner.isVerified && (
                       <span className="rounded-full bg-[#2E7D5B]/10 px-3 py-1 text-xs font-black text-[#2E7D5B]">
                         Doğrulanmış
+                      </span>
+                    )}
+
+                                        {!isMine && friendshipState.type === "accepted" && (
+                      <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-xs font-black text-[#B45309]">
+                        Arkadaşın
+                      </span>
+                    )}
+
+                    {!isMine && friendshipState.type === "outgoing" && (
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                        İstek gönderildi
+                      </span>
+                    )}
+
+                    {!isMine && friendshipState.type === "incoming" && (
+                      <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-xs font-black text-[#B45309]">
+                        Gelen arkadaşlık isteği
                       </span>
                     )}
                   </div>
