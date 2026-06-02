@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { signOutAction, updateProfileAction } from "@/app/actions/profile";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileTrustCard } from "@/components/profile-trust-card";
+import { updateSocialProfileAction } from "@/app/actions/social-profile";
 
 type SearchParams = {
   success?: string;
@@ -15,6 +16,13 @@ type Profile = {
   username: string | null;
   email: string | null;
   avatar_url: string | null;
+  cover_url: string | null;
+  profile_visibility: string | null;
+  allow_friend_requests: boolean | null;
+  show_books_on_profile: boolean | null;
+  show_city_on_profile: boolean | null;
+  show_university_on_profile: boolean | null;
+  social_profile_updated_at: string | null;
   university: string | null;
   department: string | null;
   city: string | null;
@@ -76,6 +84,12 @@ function getMatchGenderPreferenceLabel(preference?: string | null) {
   if (preference === "male") return "Erkek kullanıcılar";
   if (preference === "female") return "Kadın kullanıcılar";
   return "Herkes";
+}
+
+function getProfileVisibilityLabel(value?: string | null) {
+  if (value === "public") return "Herkese Açık";
+  if (value === "private") return "Gizli";
+  return "Sadece Arkadaşlar";
 }
 
 function getStatusLabel(status?: string | null) {
@@ -159,7 +173,14 @@ export default async function ProfilePage({
       full_name,
       username,
       email,
-      avatar_url,
+            avatar_url,
+      cover_url,
+      profile_visibility,
+      allow_friend_requests,
+      show_books_on_profile,
+      show_city_on_profile,
+      show_university_on_profile,
+      social_profile_updated_at,
       university,
       department,
       city,
@@ -236,6 +257,11 @@ const { count: monthlyMatchesCount } = await supabase
   const currentGender = profile?.gender || "prefer_not_to_say";
   const currentMatchPreference = profile?.match_gender_preference || "everyone";
   const showGenderOnProfile = profile?.show_gender_on_profile || false;
+    const profileVisibility = profile?.profile_visibility || "friends";
+  const allowFriendRequests = profile?.allow_friend_requests ?? true;
+  const showBooksOnProfile = profile?.show_books_on_profile ?? true;
+  const showCityOnProfile = profile?.show_city_on_profile ?? true;
+  const showUniversityOnProfile = profile?.show_university_on_profile ?? true;
   const accountStatus = profile?.account_status || "active";
   const monthlyBookLimit = profile?.monthly_book_limit || 10;
   const monthlyRequestLimit = profile?.monthly_request_limit || 10;
@@ -286,18 +312,18 @@ const profileCompletionScore = getProfileCompletionScore(profile);
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
-        <div className="rounded-[1.7rem] bg-[#2E7D5B] p-6 text-white shadow-2xl shadow-[#2E7D5B]/20 md:rounded-[2rem] md:p-12">
+        <div className="rounded-[1.7rem] bg-[#2E7D5B] p-5 text-white shadow-xl shadow-[#2E7D5B]/15 md:rounded-[2rem] md:p-8">
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F5EBDD]">
-                Kullanıcı Profili
+                           <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F5EBDD]">
+                Profil Ayar Paneli
               </p>
-              <h1 className="mt-3 break-words text-3xl font-black tracking-tight md:text-6xl">
+              <h1 className="mt-3 break-words text-3xl font-black tracking-tight md:text-4xl">
   {profile?.full_name || user.email}
 </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75 md:text-base">
-                Profil bilgilerini, kampüs bilgilerini ve üyelik statünü buradan
-                takip edebilirsin.
+                                Hesap bilgilerini, sosyal profil görünümünü, eşleşme tercihlerini
+                ve üyelik statünü buradan yönetebilirsin.
               </p>
             </div>
 
@@ -317,7 +343,9 @@ const profileCompletionScore = getProfileCompletionScore(profile);
 
         {params.success && (
           <div className="mt-4 rounded-2xl bg-[#2E7D5B]/10 p-4 text-sm font-black text-[#2E7D5B] md:mt-6">
-            Profil bilgilerin güncellendi.
+                        {params.success === "social"
+              ? "Sosyal profil ayarların güncellendi."
+              : "Profil bilgilerin güncellendi."}
           </div>
         )}
 
@@ -620,6 +648,175 @@ const profileCompletionScore = getProfileCompletionScore(profile);
           </section>
 
           <aside className="space-y-5 md:space-y-6">
+                        <section className="overflow-hidden rounded-[1.7rem] bg-white shadow-sm md:rounded-[2rem]">
+              <div className="relative h-28 bg-[#2E7D5B] md:h-32">
+                {profile?.cover_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.cover_url}
+                    alt="Kapak fotoğrafı"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#2E7D5B] to-[#1F2933] text-xs font-black uppercase tracking-[0.18em] text-white/45">
+                    Sosyal Profil
+                  </div>
+                )}
+
+                <div className="absolute -bottom-9 left-5 flex h-20 w-20 items-center justify-center overflow-hidden rounded-[1.5rem] border-4 border-white bg-[#FAF7F0] text-3xl shadow-lg">
+                  {profile?.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={profile.avatar_url}
+                      alt="Profil fotoğrafı"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    "👤"
+                  )}
+                </div>
+              </div>
+
+              <div className="p-5 pt-12 md:p-6 md:pt-12">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#F59E0B]">
+                      Sosyal Profil
+                    </p>
+
+                    <h2 className="mt-2 line-clamp-1 text-xl font-black">
+                      {profile?.full_name || user.email}
+                    </h2>
+
+                    <p className="mt-1 text-xs font-black text-[#2E7D5B]">
+                      @{profile?.username || "kullaniciadi"}
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-[#2E7D5B]/10 px-3 py-1 text-[11px] font-black text-[#2E7D5B]">
+                    {getProfileVisibilityLabel(profileVisibility)}
+                  </span>
+                </div>
+
+                {profile?.username ? (
+                  <Link
+                    href={`/profil/${profile.username}`}
+                    className="mt-4 block rounded-full bg-[#2E7D5B] px-5 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5"
+                  >
+                    Profilimi Gör
+                  </Link>
+                ) : (
+                  <div className="mt-4 rounded-2xl bg-[#F59E0B]/10 p-4 text-xs font-black text-[#B45309]">
+                    Sosyal profil linki için kullanıcı adı gerekli.
+                  </div>
+                )}
+
+                <form action={updateSocialProfileAction} className="mt-5 space-y-4">
+                  <div>
+                    <label className="text-sm font-black text-[#1F2933]">
+                      Profil Fotoğrafı
+                    </label>
+
+                    <input
+                      type="file"
+                      name="avatar"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-[#FAF7F0] px-3 py-3 text-xs font-semibold text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-[#2E7D5B] file:px-3 file:py-2 file:text-[11px] file:font-black file:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-black text-[#1F2933]">
+                      Kapak Fotoğrafı
+                    </label>
+
+                    <input
+                      type="file"
+                      name="cover"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-[#FAF7F0] px-3 py-3 text-xs font-semibold text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-[#2E7D5B] file:px-3 file:py-2 file:text-[11px] file:font-black file:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-black text-[#1F2933]">
+                      Profil Görünürlüğü
+                    </label>
+
+                    <select
+                      name="profileVisibility"
+                      defaultValue={profileVisibility}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-[#FAF7F0] px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B] focus:bg-white"
+                    >
+                      <option value="public">Herkese açık</option>
+                      <option value="friends">Sadece arkadaşlar</option>
+                      <option value="private">Gizli</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-3 rounded-[1.4rem] bg-[#FAF7F0] p-4">
+                    <label className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        name="allowFriendRequests"
+                        defaultChecked={allowFriendRequests}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#2E7D5B]"
+                      />
+
+                      <span className="text-xs font-bold leading-5 text-slate-600">
+                        Arkadaşlık isteği al
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        name="showBooksOnProfile"
+                        defaultChecked={showBooksOnProfile}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#2E7D5B]"
+                      />
+
+                      <span className="text-xs font-bold leading-5 text-slate-600">
+                        Kitaplarım profilimde görünsün
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        name="showUniversityOnProfile"
+                        defaultChecked={showUniversityOnProfile}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#2E7D5B]"
+                      />
+
+                      <span className="text-xs font-bold leading-5 text-slate-600">
+                        Üniversitem görünsün
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        name="showCityOnProfile"
+                        defaultChecked={showCityOnProfile}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#2E7D5B]"
+                      />
+
+                      <span className="text-xs font-bold leading-5 text-slate-600">
+                        Şehrim görünsün
+                      </span>
+                    </label>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full rounded-full bg-[#2E7D5B] px-6 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
+                  >
+                    Sosyal Profili Kaydet
+                  </button>
+                </form>
+              </div>
+            </section>
             <section className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
               <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
                 Üyelik Statüsü
