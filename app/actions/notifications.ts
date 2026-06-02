@@ -125,3 +125,15 @@ export async function markNotificationAndMessageAsReadAction(
     error: null,
   };
 }
+
+export async function markNotificationAndMessageAsReadFormAction(
+  formData: FormData
+): Promise<void> {
+  const notificationId = String(formData.get("notificationId") || "");
+  const targetUrl = String(formData.get("targetUrl") || "");
+
+  await markNotificationAndMessageAsReadAction({
+    notificationId,
+    targetUrl,
+  });
+}

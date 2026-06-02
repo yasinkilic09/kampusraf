@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   markAllNotificationsReadAction,
-  markNotificationReadAction,
+  markNotificationAndMessageAsReadFormAction,
 } from "@/app/actions/notifications";
 
 type Notification = {
@@ -12,6 +12,7 @@ type Notification = {
   title: string;
   message: string;
   link_url: string | null;
+  target_url: string | null;
   is_read: boolean;
   created_at: string;
 };
@@ -27,11 +28,23 @@ function formatDate(value: string) {
 }
 
 function getNotificationIcon(type: string) {
+  if (type === "message") return "💬";
   if (type === "new_message") return "💬";
   if (type === "book_found") return "📚";
   if (type === "new_match") return "🤝";
+  if (type === "exchange_requested") return "🔄";
+  if (type === "exchange_meeting_planned") return "📍";
+  if (type === "exchange_handed_over") return "📦";
+  if (type === "exchange_completed") return "✅";
+  if (type === "exchange_canceled") return "❌";
   if (type === "limit_warning") return "⚠️";
   return "🔔";
+}
+
+function getActionLabel(item: Notification) {
+  if (item.target_url) return "Mesaja Git";
+  if (item.link_url) return "Detaya Git";
+  return "Detay Yok";
 }
 
 export default async function NotificationsPage() {
@@ -47,7 +60,7 @@ export default async function NotificationsPage() {
 
   const { data: notifications } = await supabase
     .from("notifications")
-    .select("id, type, title, message, link_url, is_read, created_at")
+    .select("id, type, title, message, link_url, target_url, is_read, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -70,8 +83,8 @@ export default async function NotificationsPage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/75 md:text-base">
-                Yeni mesajları, kitap eşleşmelerini ve sistem uyarılarını buradan
-                takip edebilirsin.
+                Yeni mesajları, kitap eşleşmelerini, takas süreçlerini ve sistem
+                uyarılarını buradan takip edebilirsin.
               </p>
             </div>
 
@@ -106,80 +119,94 @@ export default async function NotificationsPage() {
           {items.length === 0 ? (
             <div className="rounded-[1.7rem] bg-white p-8 text-center shadow-sm md:rounded-[2rem]">
               <p className="text-4xl">🔕</p>
+
               <h2 className="mt-3 text-xl font-black">Henüz bildirim yok</h2>
+
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Yeni mesaj veya eşleşme oluştuğunda burada görünecek.
+                Yeni mesaj, eşleşme veya takas bildirimi oluştuğunda burada
+                görünecek.
               </p>
             </div>
           ) : (
-            items.map((item) => (
-              <article
-                key={item.id}
-                className={`rounded-[1.4rem] border p-4 shadow-sm md:rounded-[1.7rem] md:p-5 ${
-                  item.is_read
-                    ? "border-slate-100 bg-white"
-                    : "border-[#2E7D5B]/20 bg-[#2E7D5B]/5"
-                }`}
-              >
-                <div className="flex gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
-                    {getNotificationIcon(item.type)}
-                  </div>
+            items.map((item) => {
+              const actionUrl = item.target_url || item.link_url;
+              const actionLabel = getActionLabel(item);
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <h2 className="break-words text-base font-black text-[#1F2933]">
-                          {item.title}
-                        </h2>
+              return (
+                <article
+                  key={item.id}
+                  className={`rounded-[1.4rem] border p-4 shadow-sm md:rounded-[1.7rem] md:p-5 ${
+                    item.is_read
+                      ? "border-slate-100 bg-white"
+                      : "border-[#2E7D5B]/20 bg-[#2E7D5B]/5"
+                  }`}
+                >
+                  <div className="flex gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+                      {getNotificationIcon(item.type)}
+                    </div>
 
-                        <p className="mt-1 break-words text-sm leading-6 text-slate-500">
-                          {item.message}
-                        </p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <h2 className="break-words text-base font-black text-[#1F2933]">
+                            {item.title}
+                          </h2>
 
-                        <p className="mt-2 text-xs font-bold text-slate-400">
-                          {formatDate(item.created_at)}
-                        </p>
+                          <p className="mt-1 break-words text-sm leading-6 text-slate-500">
+                            {item.message}
+                          </p>
+
+                          <p className="mt-2 text-xs font-bold text-slate-400">
+                            {formatDate(item.created_at)}
+                          </p>
+                        </div>
+
+                        {!item.is_read && (
+                          <span className="w-fit rounded-full bg-[#2E7D5B] px-3 py-1 text-[11px] font-black text-white">
+                            Yeni
+                          </span>
+                        )}
                       </div>
 
-                      {!item.is_read && (
-                        <span className="w-fit rounded-full bg-[#2E7D5B] px-3 py-1 text-[11px] font-black text-white">
-                          Yeni
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                      {item.link_url && (
-                        <Link
-                          href={item.link_url}
-                          className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-center text-xs font-black text-white transition hover:-translate-y-0.5"
-                        >
-                          Detaya Git
-                        </Link>
-                      )}
-
-                      {!item.is_read && (
-                        <form action={markNotificationReadAction}>
-                          <input
-                            type="hidden"
-                            name="notificationId"
-                            value={item.id}
-                          />
-
-                          <button
-                            type="submit"
-                            className="w-full rounded-full bg-slate-100 px-5 py-2.5 text-xs font-black text-slate-600 transition hover:-translate-y-0.5 sm:w-auto"
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        {actionUrl && (
+                          <Link
+                            href={actionUrl}
+                            className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-center text-xs font-black text-white transition hover:-translate-y-0.5"
                           >
-                            Okundu Yap
-                          </button>
-                        </form>
-                      )}
+                            {actionLabel}
+                          </Link>
+                        )}
+
+                        {!item.is_read && (
+                          <form action={markNotificationAndMessageAsReadFormAction}>
+                            <input
+                              type="hidden"
+                              name="notificationId"
+                              value={item.id}
+                            />
+
+                            <input
+                              type="hidden"
+                              name="targetUrl"
+                              value={actionUrl || ""}
+                            />
+
+                            <button
+                              type="submit"
+                              className="w-full rounded-full bg-slate-100 px-5 py-2.5 text-xs font-black text-slate-600 transition hover:-translate-y-0.5 sm:w-auto"
+                            >
+                              Okundu Yap
+                            </button>
+                          </form>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
-            ))
+                </article>
+              );
+            })
           )}
         </section>
       </div>
