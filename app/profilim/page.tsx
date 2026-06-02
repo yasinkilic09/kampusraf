@@ -33,6 +33,10 @@ type Profile = {
   monthly_request_limit: number | null;
   monthly_message_limit: number | null;
   monthly_match_limit: number | null;
+  gender: string | null;
+  match_gender_preference: string | null;
+  show_gender_on_profile: boolean | null;
+  match_preferences_updated_at: string | null;
 };
 
 function getPlanLabel(planType?: string | null) {
@@ -56,6 +60,22 @@ function getPlanDescription(planType?: string | null) {
   }
 
   return "Başlangıç seviyesi. Temel kitap ekleme, arama, mesajlaşma ve eşleşme özellikleri.";
+}
+
+function canUseGenderMatchPreference(planType?: string | null) {
+  return planType === "premium" || planType === "pro";
+}
+
+function getGenderLabel(gender?: string | null) {
+  if (gender === "male") return "Erkek";
+  if (gender === "female") return "Kadın";
+  return "Belirtmek istemiyorum";
+}
+
+function getMatchGenderPreferenceLabel(preference?: string | null) {
+  if (preference === "male") return "Erkek kullanıcılar";
+  if (preference === "female") return "Kadın kullanıcılar";
+  return "Herkes";
 }
 
 function getStatusLabel(status?: string | null) {
@@ -157,7 +177,11 @@ export default async function ProfilePage({
       monthly_book_limit,
       monthly_request_limit,
       monthly_message_limit,
-      monthly_match_limit
+      monthly_match_limit,
+      gender,
+      match_gender_preference,
+      show_gender_on_profile,
+      match_preferences_updated_at
     `
     )
     .eq("id", user.id)
@@ -208,11 +232,15 @@ const { count: monthlyMatchesCount } = await supabase
 
   const planType = profile?.plan_type || "free";
   const planStatus = profile?.plan_status || "active";
+  const canUseMatchPreference = canUseGenderMatchPreference(planType);
+  const currentGender = profile?.gender || "prefer_not_to_say";
+  const currentMatchPreference = profile?.match_gender_preference || "everyone";
+  const showGenderOnProfile = profile?.show_gender_on_profile || false;
   const accountStatus = profile?.account_status || "active";
   const monthlyBookLimit = profile?.monthly_book_limit || 10;
   const monthlyRequestLimit = profile?.monthly_request_limit || 10;
-const monthlyMessageLimit = profile?.monthly_message_limit || 30;
-const monthlyMatchLimit = profile?.monthly_match_limit || 10;
+  const monthlyMessageLimit = profile?.monthly_message_limit || 30;
+  const monthlyMatchLimit = profile?.monthly_match_limit || 10;
 const profileCompletionScore = getProfileCompletionScore(profile);
 
   return (
@@ -421,6 +449,165 @@ const profileCompletionScore = getProfileCompletionScore(profile);
                   placeholder="Kısaca kendinden, okuduğun kitaplardan veya takas tercihinden bahsedebilirsin."
                   className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-[#FAF7F0] px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B] focus:bg-white"
                 />
+              </div>
+
+                            <div className="rounded-[1.5rem] border border-[#2E7D5B]/10 bg-[#FAF7F0] p-4 md:p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-[0.16em] text-[#2E7D5B]">
+                      Eşleşme Tercihleri
+                    </p>
+
+                    <h3 className="mt-2 text-xl font-black text-[#1F2933]">
+                      Karşına çıkacak kullanıcıları özelleştir
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      Cinsiyet bilgisi isteğe bağlıdır. Eşleşme tercihi ise
+                      Premium ve Pro paketlerde aktif olur.
+                    </p>
+                  </div>
+
+                  <span
+                    className={`w-fit rounded-full px-4 py-2 text-xs font-black ${
+                      canUseMatchPreference
+                        ? "bg-[#2E7D5B]/10 text-[#2E7D5B]"
+                        : "bg-[#F59E0B]/10 text-[#B45309]"
+                    }`}
+                  >
+                    {canUseMatchPreference ? "Aktif" : "Premium Özellik"}
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-3 md:grid-cols-2 md:gap-4">
+                  <div>
+                    <label className="text-sm font-bold text-slate-700">
+                      Cinsiyet
+                    </label>
+
+                    <select
+                      name="gender"
+                      defaultValue={currentGender}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B]"
+                    >
+                      <option value="prefer_not_to_say">
+                        Belirtmek istemiyorum
+                      </option>
+                      <option value="female">Kadın</option>
+                      <option value="male">Erkek</option>
+                    </select>
+
+                    <p className="mt-2 text-xs font-semibold text-slate-400">
+                      Bu bilgi isteğe bağlıdır. İstersen profilinde gizli kalır.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-bold text-slate-700">
+                      Karşıma çıkmasını istediğim kullanıcılar
+                    </label>
+
+                    <select
+                      name="matchGenderPreference"
+                      defaultValue={
+                        canUseMatchPreference
+                          ? currentMatchPreference
+                          : "everyone"
+                      }
+                      disabled={!canUseMatchPreference}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      <option value="everyone">Herkes</option>
+                      <option value="female">Kadın kullanıcılar</option>
+                      <option value="male">Erkek kullanıcılar</option>
+                    </select>
+
+                    {!canUseMatchPreference && (
+                      <input
+                        type="hidden"
+                        name="matchGenderPreference"
+                        value="everyone"
+                      />
+                    )}
+
+                    <p className="mt-2 text-xs font-semibold text-slate-400">
+                      Premium ve Pro kullanıcılar cinsiyet bazlı eşleşme
+                      tercihi yapabilir.
+                    </p>
+                  </div>
+                </div>
+
+                <label className="mt-5 flex items-start gap-3 rounded-2xl bg-white p-4">
+                  <input
+                    type="checkbox"
+                    name="showGenderOnProfile"
+                    defaultChecked={showGenderOnProfile}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#2E7D5B]"
+                  />
+
+                  <span>
+                    <span className="block text-sm font-black text-[#1F2933]">
+                      Cinsiyetimi profilimde göster
+                    </span>
+
+                    <span className="mt-1 block text-xs leading-5 text-slate-500">
+                      Kapalı bırakırsan bu bilgi yalnızca eşleşme tercihlerinde
+                      kullanılır, profil kartında görünmez.
+                    </span>
+                  </span>
+                </label>
+
+                {!canUseMatchPreference && (
+                  <div className="mt-5 rounded-2xl border border-[#F59E0B]/20 bg-[#F59E0B]/10 p-4">
+                    <p className="text-sm font-black text-[#1F2933]">
+                      Daha isabetli eşleşmeler için Premium’a geç
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
+                      Premium ve Pro paketlerde karşına çıkacak kullanıcıları
+                      tercihine göre filtreleyebilir, daha uygun kitap
+                      sahiplerine ulaşabilirsin.
+                    </p>
+
+                    <Link
+                      href="/paketler"
+                      className="mt-3 inline-flex rounded-full bg-[#F59E0B] px-5 py-2.5 text-xs font-black text-white transition hover:-translate-y-0.5"
+                    >
+                      Paketleri İncele
+                    </Link>
+                  </div>
+                )}
+
+                <div className="mt-5 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-2xl bg-white p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                      Cinsiyet
+                    </p>
+                    <p className="mt-2 text-sm font-black text-[#1F2933]">
+                      {getGenderLabel(currentGender)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                      Tercih
+                    </p>
+                    <p className="mt-2 text-sm font-black text-[#1F2933]">
+                      {canUseMatchPreference
+                        ? getMatchGenderPreferenceLabel(currentMatchPreference)
+                        : "Herkes"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                      Profilde Gösterim
+                    </p>
+                    <p className="mt-2 text-sm font-black text-[#1F2933]">
+                      {showGenderOnProfile ? "Açık" : "Kapalı"}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <button

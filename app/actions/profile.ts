@@ -19,6 +19,22 @@ function cleanUsername(value: string) {
     .trim();
 }
 
+function canUseGenderMatchPreference(planType?: string | null) {
+  return planType === "premium" || planType === "pro";
+}
+
+function normalizeGender(value: string) {
+  if (value === "male") return "male";
+  if (value === "female") return "female";
+  return "prefer_not_to_say";
+}
+
+function normalizeMatchGenderPreference(value: string) {
+  if (value === "male") return "male";
+  if (value === "female") return "female";
+  return "everyone";
+}
+
 export async function updateProfileAction(formData: FormData) {
   const fullName = String(formData.get("fullName") || "").trim();
   const usernameInput = String(formData.get("username") || "").trim();
@@ -26,6 +42,12 @@ export async function updateProfileAction(formData: FormData) {
   const department = String(formData.get("department") || "").trim();
   const city = String(formData.get("city") || "").trim();
   const bio = String(formData.get("bio") || "").trim();
+
+  const gender = normalizeGender(String(formData.get("gender") || ""));
+  const requestedMatchPreference = normalizeMatchGenderPreference(
+    String(formData.get("matchGenderPreference") || "")
+  );
+  const showGenderOnProfile = formData.get("showGenderOnProfile") === "on";
 
   const username = usernameInput ? cleanUsername(usernameInput) : null;
 
@@ -39,6 +61,20 @@ export async function updateProfileAction(formData: FormData) {
     redirect("/auth/login");
   }
 
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("plan_type")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const currentPlanType = currentProfile?.plan_type || "free";
+  const canUseMatchPreference = canUseGenderMatchPreference(currentPlanType);
+
+  const finalMatchGenderPreference =
+    canUseMatchPreference && gender !== "prefer_not_to_say"
+      ? requestedMatchPreference
+      : "everyone";
+
   const { error } = await supabase.from("profiles").upsert(
     {
       id: user.id,
@@ -49,6 +85,10 @@ export async function updateProfileAction(formData: FormData) {
       department: department || null,
       city: city || null,
       bio: bio || null,
+      gender,
+      match_gender_preference: finalMatchGenderPreference,
+      show_gender_on_profile: showGenderOnProfile,
+      match_preferences_updated_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
     {
@@ -67,6 +107,8 @@ export async function updateProfileAction(formData: FormData) {
 
   revalidatePath("/profilim");
   revalidatePath("/dashboard");
+  revalidatePath("/kitap-ara");
+  revalidatePath("/eslesmeler");
 
   redirect("/profilim?success=1");
 }
@@ -124,6 +166,7 @@ export async function updatePlanAction(formData: FormData) {
   }
 
   const selectedPlan = planType as keyof typeof planLimits;
+  const canKeepMatchPreference = canUseGenderMatchPreference(selectedPlan);
 
   const { error } = await supabase
     .from("profiles")
@@ -133,6 +176,12 @@ export async function updatePlanAction(formData: FormData) {
       plan_started_at: new Date().toISOString(),
       plan_expires_at: null,
       ...planLimits[selectedPlan],
+      ...(canKeepMatchPreference
+        ? {}
+        : {
+            match_gender_preference: "everyone",
+            match_preferences_updated_at: new Date().toISOString(),
+          }),
       updated_at: new Date().toISOString(),
     })
     .eq("id", user.id);
@@ -144,6 +193,8 @@ export async function updatePlanAction(formData: FormData) {
   revalidatePath("/paketler");
   revalidatePath("/profilim");
   revalidatePath("/dashboard");
+  revalidatePath("/kitap-ara");
+  revalidatePath("/eslesmeler");
 
   redirect("/paketler?success=plan-updated");
 }
