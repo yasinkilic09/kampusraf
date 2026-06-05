@@ -67,19 +67,19 @@ export default function AddBookPage() {
   const [isSearchingCatalog, setIsSearchingCatalog] = useState(false);
   const [hasSearchedCatalog, setHasSearchedCatalog] = useState(false);
 
+  const [publisher, setPublisher] = useState("");
+  const [publishedYear, setPublishedYear] = useState("");
+  const [description, setDescription] = useState("");
+
+  const [externalResults, setExternalResults] = useState<ExternalBook[]>([]);
+  const [isSearchingExternal, setIsSearchingExternal] = useState(false);
+  const [externalError, setExternalError] = useState("");
+
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   const isCatalogBookSelected = Boolean(selectedCatalogBook);
-
-  const [publisher, setPublisher] = useState("");
-const [publishedYear, setPublishedYear] = useState("");
-const [description, setDescription] = useState("");
-
-const [externalResults, setExternalResults] = useState<ExternalBook[]>([]);
-const [isSearchingExternal, setIsSearchingExternal] = useState(false);
-const [externalError, setExternalError] = useState("");
 
   useEffect(() => {
     async function loadProfile() {
@@ -104,7 +104,9 @@ const [externalError, setExternalError] = useState("");
       }
 
       if (profile?.account_status === "suspended") {
-        setError("Hesabın geçici olarak askıya alındığı için kitap ekleyemezsin.");
+        setError(
+          "Hesabın geçici olarak askıya alındığı için kitap ekleyemezsin."
+        );
         return;
       }
 
@@ -204,72 +206,76 @@ const [externalError, setExternalError] = useState("");
     setPublisher("");
     setPublishedYear(book.published_year ? String(book.published_year) : "");
     setDescription("");
-    setMessage("Kitap kütüphaneden seçildi. Şimdi kendi kopya bilgilerini gir.");
+    setMessage(
+      "Kitap kütüphaneden seçildi. Şimdi kendi kopya bilgilerini gir."
+    );
   }
 
   async function searchExternalBooks() {
-  const query = catalogQuery.trim() || title.trim();
+    const query = catalogQuery.trim() || title.trim();
 
-  if (query.length < 2) {
-    setExternalError("İnternetten arama için kitap adı, yazar veya ISBN gir.");
-    return;
+    if (query.length < 2) {
+      setExternalError("İnternetten arama için kitap adı, yazar veya ISBN gir.");
+      return;
+    }
+
+    setIsSearchingExternal(true);
+    setExternalError("");
+    setExternalResults([]);
+
+    try {
+      const response = await fetch(
+        `/api/books/external-search?q=${encodeURIComponent(query)}`
+      );
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "İnternetten kitap bilgisi alınamadı.");
+      }
+
+      setExternalResults((payload.books || []) as ExternalBook[]);
+
+      if (!payload.books || payload.books.length === 0) {
+        setExternalError("İnternette uygun kitap bilgisi bulunamadı.");
+      }
+    } catch (searchError) {
+      const searchMessage =
+        searchError instanceof Error
+          ? searchError.message
+          : "İnternetten kitap bilgisi alınamadı.";
+
+      setExternalError(searchMessage);
+    } finally {
+      setIsSearchingExternal(false);
+    }
   }
 
-  setIsSearchingExternal(true);
-  setExternalError("");
-  setExternalResults([]);
+  function selectExternalBook(book: ExternalBook) {
+    setSelectedCatalogBook(null);
 
-  try {
-    const response = await fetch(
-      `/api/books/external-search?q=${encodeURIComponent(query)}`
+    setTitle(book.title || "");
+    setAuthor(book.author || "");
+    setCategory(book.category || "");
+    setIsbn(book.isbn || "");
+    setCoverUrl(book.cover_url || "");
+    setPublisher(book.publisher || "");
+    setPublishedYear(book.published_year ? String(book.published_year) : "");
+    setDescription(book.description || "");
+
+    setMessage(
+      "Kitap bilgileri internetten otomatik dolduruldu. Bilgileri kontrol edip rafına ekleyebilirsin."
     );
-
-    const payload = await response.json();
-
-    if (!response.ok) {
-      throw new Error(payload?.error || "İnternetten kitap bilgisi alınamadı.");
-    }
-
-    setExternalResults((payload.books || []) as ExternalBook[]);
-
-    if (!payload.books || payload.books.length === 0) {
-      setExternalError("İnternette uygun kitap bilgisi bulunamadı.");
-    }
-  } catch (searchError) {
-    const searchMessage =
-      searchError instanceof Error
-        ? searchError.message
-        : "İnternetten kitap bilgisi alınamadı.";
-
-    setExternalError(searchMessage);
-  } finally {
-    setIsSearchingExternal(false);
   }
-}
-
-function selectExternalBook(book: ExternalBook) {
-  setSelectedCatalogBook(null);
-
-  setTitle(book.title || "");
-  setAuthor(book.author || "");
-  setCategory(book.category || "");
-  setIsbn(book.isbn || "");
-  setCoverUrl(book.cover_url || "");
-  setPublisher(book.publisher || "");
-  setPublishedYear(book.published_year ? String(book.published_year) : "");
-  setDescription(book.description || "");
-
-  setMessage(
-    "Kitap bilgileri internetten otomatik dolduruldu. Bilgileri kontrol edip rafına ekleyebilirsin."
-  );
-}
 
   function clearSelectedCatalogBook() {
     setSelectedCatalogBook(null);
     setPublisher("");
     setPublishedYear("");
     setDescription("");
-    setMessage("Seçim kaldırıldı. Kitabı manuel katalog kaydı olarak ekleyebilirsin.");
+    setMessage(
+      "Seçim kaldırıldı. Kitabı manuel katalog kaydı olarak ekleyebilirsin."
+    );
   }
 
   async function findExistingBookId() {
@@ -307,15 +313,17 @@ function selectExternalBook(book: ExternalBook) {
     const { data: book, error: bookError } = await supabase
       .from("books")
       .insert({
-  title: title.trim(),
-  author: author.trim(),
-  category: category.trim() || null,
-  isbn: isbn.trim() || null,
-  cover_url: coverUrl.trim() || null,
-  publisher: publisher.trim() || null,
-  published_year: publishedYear.trim() ? Number(publishedYear.trim()) : null,
-  description: description.trim() || null,
-})
+        title: title.trim(),
+        author: author.trim(),
+        category: category.trim() || null,
+        isbn: isbn.trim() || null,
+        cover_url: coverUrl.trim() || null,
+        publisher: publisher.trim() || null,
+        published_year: publishedYear.trim()
+          ? Number(publishedYear.trim())
+          : null,
+        description: description.trim() || null,
+      })
       .select("id")
       .single();
 
@@ -449,16 +457,16 @@ function selectExternalBook(book: ExternalBook) {
   }
 
   return (
-    <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
-      <header className="border-b border-[#2E7D5B]/10 bg-white/80 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
+    <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">
+      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
               📚
             </div>
 
-            <div>
-              <p className="text-xl font-black">
+            <div className="min-w-0">
+              <p className="truncate text-xl font-black">
                 Kampüs<span className="text-[#F59E0B]">Raf</span>
               </p>
               <p className="text-xs font-semibold text-slate-500">
@@ -467,296 +475,378 @@ function selectExternalBook(book: ExternalBook) {
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-6 text-sm font-bold text-slate-600 md:flex">
+          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
             <Link href="/dashboard" className="hover:text-[#2E7D5B]">
               Panel
             </Link>
-            <Link href="/kitaplarim" className="hover:text-[#2E7D5B]">
-              Kitaplarım
+            <Link href="/akis" className="hover:text-[#2E7D5B]">
+              Akış
             </Link>
             <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
               Kitap Ara
             </Link>
+            <Link href="/kitaplarim" className="hover:text-[#2E7D5B]">
+              Kitaplarım
+            </Link>
+            <Link href="/eslesmeler" className="hover:text-[#2E7D5B]">
+              Eşleşmeler
+            </Link>
           </nav>
+
+          <Link
+            href="/kitaplarim"
+            className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
+          >
+            Rafım
+          </Link>
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-5 px-4 py-6 md:px-6 md:py-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-8">
-        <aside className="rounded-[1.7rem] bg-[#2E7D5B] p-6 text-white shadow-2xl shadow-[#2E7D5B]/20 md:rounded-[2rem] md:p-8">
-          <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F5EBDD]">
-            Hazır Kütüphane
-          </p>
+      <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
+        <section className="overflow-hidden rounded-[1.8rem] bg-[#2E7D5B] text-white shadow-xl shadow-[#2E7D5B]/15 md:rounded-[2.2rem]">
+          <div className="relative p-6 md:p-8">
+            <div className="absolute right-0 top-0 h-52 w-52 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute bottom-0 left-1/2 h-40 w-40 rounded-full bg-[#F59E0B]/20 blur-3xl" />
 
-          <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight md:text-4xl">
-            Kitabını daha hızlı rafa ekle.
-          </h1>
+            <div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.22em] text-[#F5EBDD]">
+                  Kitap Ekleme Merkezi
+                </p>
 
-          <p className="mt-4 text-sm leading-7 text-white/75 md:text-base">
-            Önce KampüsRaf kütüphanesinde kitap ara. Kitap zaten varsa tek tıkla
-            seç, sadece kendi kopya bilgilerini gir. Yoksa yeni katalog kaydı
-            oluştur.
-          </p>
+                <h1 className="mt-3 max-w-4xl break-words text-3xl font-black tracking-tight md:text-5xl">
+                  Kitabını rafa ekle, doğru öğrenciyle eşleş.
+                </h1>
 
-          <div className="mt-6 space-y-3 md:mt-8 md:space-y-4">
-            {[
-              "Kitap adı, yazar veya ISBN ile arama yap.",
-              "Hazır kaydı seçersen form otomatik dolar.",
-              "Kendi kitabının durumunu ve paylaşım türünü gir.",
-              "KampüsRaf arşivi her yeni kayıtla güçlenir.",
-            ].map((item) => (
-              <div
-                key={item}
-                className="rounded-2xl border border-white/10 bg-white/10 p-3 text-sm font-semibold text-white/85 md:rounded-3xl md:p-4"
-              >
-                {item}
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75 md:text-base">
+                  Önce KampüsRaf katalogunda ara. Bulamazsan internetten kitap
+                  bilgisi çek veya manuel katalog kaydı oluştur.
+                </p>
               </div>
-            ))}
+
+              <div className="grid grid-cols-3 gap-2 rounded-[1.5rem] bg-white/10 p-3 backdrop-blur sm:min-w-80">
+                <div className="rounded-2xl bg-white/10 p-3 text-center">
+                  <p className="text-xl font-black md:text-2xl">1</p>
+                  <p className="mt-1 text-[11px] font-bold text-white/65">
+                    Katalog Ara
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white/10 p-3 text-center">
+                  <p className="text-xl font-black md:text-2xl">2</p>
+                  <p className="mt-1 text-[11px] font-bold text-white/65">
+                    Bilgi Doldur
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white/10 p-3 text-center">
+                  <p className="text-xl font-black md:text-2xl">3</p>
+                  <p className="mt-1 text-[11px] font-bold text-white/65">
+                    Rafa Ekle
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-        </aside>
+        </section>
 
-        <section className="space-y-5">
-          <div className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
-                1. Adım
-              </p>
+        <section className="mt-6 grid gap-6 md:mt-8 lg:grid-cols-[0.92fr_1.08fr] lg:gap-8">
+          <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+            <section className="rounded-[1.8rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-7">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F59E0B]">
+                    1. Adım
+                  </p>
 
-              <h2 className="mt-3 text-2xl font-black md:text-3xl">
-                KampüsRaf kütüphanesinde ara
-              </h2>
+                  <h2 className="mt-2 text-2xl font-black">
+                    Kütüphanede ara
+                  </h2>
 
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Kitap daha önce eklenmişse tekrar yazmana gerek yok. Seçtiğin
-                kitap hazır katalogdan gelir.
-              </p>
-            </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Kitap daha önce eklenmişse hazır kaydı seç, form otomatik
+                    dolsun.
+                  </p>
+                </div>
 
-            <div className="mt-5">
-              <label className="text-sm font-bold text-slate-700">
-                Kitap adı, yazar veya ISBN
-              </label>
-
-              <input
-                value={catalogQuery}
-                onChange={(event) => setCatalogQuery(event.target.value)}
-                placeholder="Örn: Suç ve Ceza, Dostoyevski, 978..."
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-[#FAF7F0] px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B] focus:bg-white"
-              />
-            </div>
-
-            {isSearchingCatalog && (
-              <div className="mt-4 rounded-2xl bg-[#FAF7F0] px-4 py-3 text-sm font-bold text-slate-500">
-                Kütüphane aranıyor...
+                <Link
+                  href="/kitap-ara"
+                  className="rounded-full border border-[#2E7D5B]/20 px-5 py-2.5 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
+                >
+                  Kitap Ara
+                </Link>
               </div>
-            )}
 
-            {!isSearchingCatalog &&
-              hasSearchedCatalog &&
-              catalogQuery.trim().length >= 2 &&
-              catalogResults.length === 0 && (
-                <div className="mt-4 rounded-2xl border border-dashed border-[#2E7D5B]/25 bg-[#FAF7F0] p-4">
-                  <p className="text-sm font-black text-[#1F2933]">
-                    Bu kitap hazır kütüphanede bulunamadı.
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Aşağıdaki formu doldurarak bu kitabı KampüsRaf kataloguna
-                    yeni kayıt olarak ekleyebilirsin.
-                  </p>
+              <div className="mt-5">
+                <label className="text-sm font-bold text-slate-700">
+                  Kitap adı, yazar veya ISBN
+                </label>
+
+                <input
+                  value={catalogQuery}
+                  onChange={(event) => setCatalogQuery(event.target.value)}
+                  placeholder="Örn: Suç ve Ceza, Dostoyevski, 978..."
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-[#FAF7F0] px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B] focus:bg-white"
+                />
+              </div>
+
+              {isSearchingCatalog && (
+                <div className="mt-4 rounded-2xl bg-[#FAF7F0] px-4 py-3 text-sm font-bold text-slate-500">
+                  Kütüphane aranıyor...
                 </div>
               )}
 
-            {catalogResults.length > 0 && (
-              <div className="mt-4 grid gap-3">
-                {catalogResults.map((book) => (
-                  <button
-                    key={book.id}
-                    type="button"
-                    onClick={() => selectCatalogBook(book)}
-                    className={`w-full rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 ${
-                      selectedCatalogBook?.id === book.id
-                        ? "border-[#2E7D5B] bg-[#2E7D5B]/5"
-                        : "border-slate-100 bg-[#FAF7F0] hover:border-[#2E7D5B]/30"
-                    }`}
-                  >
-                    <div className="flex gap-3">
-                      <div className="flex h-16 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-xl shadow-sm">
-                        {book.cover_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={book.cover_url}
-                            alt={book.title}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          "📘"
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-1 text-sm font-black text-[#1F2933]">
-                          {book.title}
-                        </p>
-
-                        <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">
-                          {book.author}
-                        </p>
-
-                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-black">
-                          {book.category && (
-                            <span className="rounded-full bg-white px-3 py-1 text-slate-500">
-                              {book.category}
-                            </span>
-                          )}
-
-                          {book.published_year && (
-                            <span className="rounded-full bg-white px-3 py-1 text-slate-500">
-                              {book.published_year}
-                            </span>
-                          )}
-
-                          <span className="rounded-full bg-[#2E7D5B]/10 px-3 py-1 text-[#2E7D5B]">
-                            {Number(book.owner_count || 0)} rafta
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {selectedCatalogBook && (
-              <div className="mt-4 rounded-2xl border border-[#2E7D5B]/20 bg-[#2E7D5B]/5 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-black text-[#2E7D5B]">
-                      Hazır kütüphaneden seçildi
+              {!isSearchingCatalog &&
+                hasSearchedCatalog &&
+                catalogQuery.trim().length >= 2 &&
+                catalogResults.length === 0 && (
+                  <div className="mt-4 rounded-2xl border border-dashed border-[#2E7D5B]/25 bg-[#FAF7F0] p-4">
+                    <p className="text-sm font-black text-[#1F2933]">
+                      Hazır kütüphanede bulunamadı.
                     </p>
-
-                    <p className="mt-1 text-sm font-bold text-[#1F2933]">
-                      {selectedCatalogBook.title} — {selectedCatalogBook.author}
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      İnternetten bilgi çekebilir veya formu manuel
+                      doldurabilirsin.
                     </p>
                   </div>
+                )}
 
-                  <button
-                    type="button"
-                    onClick={clearSelectedCatalogBook}
-                    className="rounded-full bg-white px-4 py-2 text-xs font-black text-slate-600 transition hover:-translate-y-0.5"
-                  >
-                    Seçimi kaldır
-                  </button>
+              {catalogResults.length > 0 && (
+                <div className="mt-4 grid gap-3">
+                  {catalogResults.map((book) => (
+                    <button
+                      key={book.id}
+                      type="button"
+                      onClick={() => selectCatalogBook(book)}
+                      className={`w-full rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 ${
+                        selectedCatalogBook?.id === book.id
+                          ? "border-[#2E7D5B] bg-[#2E7D5B]/5"
+                          : "border-slate-100 bg-[#FAF7F0] hover:border-[#2E7D5B]/30"
+                      }`}
+                    >
+                      <div className="flex gap-3">
+                        <div className="flex h-16 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-xl shadow-sm">
+                          {book.cover_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={book.cover_url}
+                              alt={book.title}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            "📘"
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-1 text-sm font-black text-[#1F2933]">
+                            {book.title}
+                          </p>
+
+                          <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">
+                            {book.author}
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-black">
+                            {book.category && (
+                              <span className="rounded-full bg-white px-3 py-1 text-slate-500">
+                                {book.category}
+                              </span>
+                            )}
+
+                            {book.published_year && (
+                              <span className="rounded-full bg-white px-3 py-1 text-slate-500">
+                                {book.published_year}
+                              </span>
+                            )}
+
+                            <span className="rounded-full bg-[#2E7D5B]/10 px-3 py-1 text-[#2E7D5B]">
+                              {Number(book.owner_count || 0)} rafta
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </div>
-            )}
-
-            <div className="mt-5 rounded-2xl border border-[#F59E0B]/20 bg-[#F59E0B]/5 p-4">
-  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div>
-      <p className="text-sm font-black text-[#1F2933]">
-        Kitap kütüphanede yok mu?
-      </p>
-
-      <p className="mt-1 text-xs leading-5 text-slate-500">
-        Kitap adını veya ISBN bilgisini yazıp internetten otomatik kitap bilgisi
-        çekebilirsin.
-      </p>
-    </div>
-
-    <button
-      type="button"
-      onClick={searchExternalBooks}
-      disabled={isSearchingExternal}
-      className="rounded-full bg-[#F59E0B] px-5 py-3 text-xs font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {isSearchingExternal ? "Bilgi çekiliyor..." : "İnternetten Bilgi Çek"}
-    </button>
-  </div>
-
-  {externalError && (
-    <div className="mt-3 rounded-2xl bg-white px-4 py-3 text-xs font-bold text-red-600">
-      {externalError}
-    </div>
-  )}
-
-  {externalResults.length > 0 && (
-    <div className="mt-4 grid gap-3">
-      {externalResults.map((book) => (
-        <button
-          key={`${book.source}-${book.source_id}`}
-          type="button"
-          onClick={() => selectExternalBook(book)}
-          className="w-full rounded-2xl border border-white bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#F59E0B]/40"
-        >
-          <div className="flex gap-3">
-            <div className="flex h-16 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#FAF7F0] text-xl shadow-sm">
-              {book.cover_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={book.cover_url}
-                  alt={book.title}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                "📗"
               )}
-            </div>
 
-            <div className="min-w-0 flex-1">
-              <p className="line-clamp-1 text-sm font-black text-[#1F2933]">
-                {book.title}
-              </p>
+              {selectedCatalogBook && (
+                <div className="mt-4 rounded-2xl border border-[#2E7D5B]/20 bg-[#2E7D5B]/5 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-black text-[#2E7D5B]">
+                        Hazır kütüphaneden seçildi
+                      </p>
 
-              <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">
-                {book.author}
-              </p>
+                      <p className="mt-1 text-sm font-bold text-[#1F2933]">
+                        {selectedCatalogBook.title} —{" "}
+                        {selectedCatalogBook.author}
+                      </p>
+                    </div>
 
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-black">
-                {book.source && (
-                  <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-[#B45309]">
-                    {book.source === "google_books"
-                      ? "Google Books"
-                      : "Open Library"}
-                  </span>
-                )}
+                    <button
+                      type="button"
+                      onClick={clearSelectedCatalogBook}
+                      className="rounded-full bg-white px-4 py-2 text-xs font-black text-slate-600 transition hover:-translate-y-0.5"
+                    >
+                      Seçimi kaldır
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
 
-                {book.published_year && (
-                  <span className="rounded-full bg-[#FAF7F0] px-3 py-1 text-slate-500">
-                    {book.published_year}
-                  </span>
-                )}
+            <section className="rounded-[1.8rem] border border-[#F59E0B]/20 bg-[#F59E0B]/5 p-5 shadow-sm md:rounded-[2rem] md:p-7">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F59E0B]">
+                    Alternatif
+                  </p>
 
-                {book.isbn && (
-                  <span className="rounded-full bg-[#FAF7F0] px-3 py-1 text-slate-500">
-                    ISBN: {book.isbn}
-                  </span>
-                )}
+                  <h2 className="mt-2 text-2xl font-black">
+                    İnternetten bilgi çek
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Kitap katalogda yoksa Google Books veya Open Library
+                    üzerinden otomatik bilgi çekebilirsin.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={searchExternalBooks}
+                  disabled={isSearchingExternal}
+                  className="rounded-full bg-[#F59E0B] px-5 py-3 text-xs font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSearchingExternal ? "Bilgi çekiliyor..." : "Bilgi Çek"}
+                </button>
               </div>
-            </div>
-          </div>
-        </button>
-      ))}
-    </div>
-  )}
-</div>
-          </div>
 
-          <section className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-9">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
-                2. Adım
+              {externalError && (
+                <div className="mt-4 rounded-2xl bg-white px-4 py-3 text-xs font-bold text-red-600">
+                  {externalError}
+                </div>
+              )}
+
+              {externalResults.length > 0 && (
+                <div className="mt-4 grid gap-3">
+                  {externalResults.map((book) => (
+                    <button
+                      key={`${book.source}-${book.source_id}`}
+                      type="button"
+                      onClick={() => selectExternalBook(book)}
+                      className="w-full rounded-2xl border border-white bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#F59E0B]/40"
+                    >
+                      <div className="flex gap-3">
+                        <div className="flex h-16 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#FAF7F0] text-xl shadow-sm">
+                          {book.cover_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={book.cover_url}
+                              alt={book.title}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            "📗"
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-1 text-sm font-black text-[#1F2933]">
+                            {book.title}
+                          </p>
+
+                          <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">
+                            {book.author}
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-black">
+                            <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-[#B45309]">
+                              {book.source === "google_books"
+                                ? "Google Books"
+                                : "Open Library"}
+                            </span>
+
+                            {book.published_year && (
+                              <span className="rounded-full bg-[#FAF7F0] px-3 py-1 text-slate-500">
+                                {book.published_year}
+                              </span>
+                            )}
+
+                            {book.isbn && (
+                              <span className="rounded-full bg-[#FAF7F0] px-3 py-1 text-slate-500">
+                                ISBN: {book.isbn}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-[1.8rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-7">
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#2E7D5B]">
+                Kısa Akış
               </p>
 
-              <h2 className="mt-3 text-2xl font-black md:text-3xl">
-                {isCatalogBookSelected
-                  ? "Kendi kopya bilgilerini gir"
-                  : "Kitap bilgilerini tamamla"}
-              </h2>
+              <div className="mt-4 grid gap-3">
+                {[
+                  "Önce katalogda ara.",
+                  "Varsa hazır kitabı seç.",
+                  "Yoksa internetten bilgi çek veya manuel gir.",
+                  "Durum, paylaşım türü ve konum bilgilerini tamamla.",
+                  "Rafa eklenince eşleşmeler otomatik oluşur.",
+                ].map((item, index) => (
+                  <div
+                    key={item}
+                    className="flex items-start gap-3 rounded-2xl bg-[#FAF7F0] p-3"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#2E7D5B] text-xs font-black text-white">
+                      {index + 1}
+                    </div>
+                    <p className="text-sm font-semibold leading-6 text-slate-600">
+                      {item}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </aside>
 
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                {isCatalogBookSelected
-                  ? "Kitap bilgileri hazır kütüphaneden geldi. Şimdi kitabının durumu, paylaşım türü ve konum bilgilerini gir."
-                  : "Kitap hazır kütüphanede yoksa buradan yeni katalog kaydı oluşturabilirsin."}
-              </p>
+          <section className="rounded-[1.8rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-8">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F59E0B]">
+                  2. Adım
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black md:text-3xl">
+                  {isCatalogBookSelected
+                    ? "Kendi kopya bilgilerini gir"
+                    : "Kitap bilgilerini tamamla"}
+                </h2>
+
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                  {isCatalogBookSelected
+                    ? "Kitap bilgileri hazır kütüphaneden geldi. Şimdi kendi kitabının durumunu ve paylaşım bilgilerini gir."
+                    : "Kitap katalogda yoksa yeni kayıt oluşturabilir, ardından kendi rafına ekleyebilirsin."}
+                </p>
+              </div>
+
+              <span
+                className={`w-fit rounded-full px-4 py-2 text-xs font-black ${
+                  isCatalogBookSelected
+                    ? "bg-[#2E7D5B]/10 text-[#2E7D5B]"
+                    : "bg-[#F59E0B]/10 text-[#B45309]"
+                }`}
+              >
+                {isCatalogBookSelected ? "Hazır Kayıt" : "Yeni / Manuel Kayıt"}
+              </span>
             </div>
 
             <form
@@ -838,6 +928,64 @@ function selectExternalBook(book: ExternalBook) {
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-[#FAF7F0] px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B] focus:bg-white disabled:cursor-not-allowed disabled:opacity-70"
                 />
               </div>
+
+              {!isCatalogBookSelected && (
+                <div className="rounded-[1.5rem] border border-[#2E7D5B]/10 bg-[#FAF7F0] p-4 md:p-5">
+                  <p className="text-sm font-black uppercase tracking-[0.16em] text-[#2E7D5B]">
+                    Katalog Detayları
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    İnternetten çekilen bilgiler burada düzenlenebilir. Bu
+                    alanlar katalog kaydını daha güçlü hale getirir.
+                  </p>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-bold text-slate-700">
+                        Yayınevi
+                      </label>
+
+                      <input
+                        value={publisher}
+                        onChange={(event) => setPublisher(event.target.value)}
+                        placeholder="İsteğe bağlı"
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-bold text-slate-700">
+                        Yayın Yılı
+                      </label>
+
+                      <input
+                        value={publishedYear}
+                        onChange={(event) =>
+                          setPublishedYear(event.target.value)
+                        }
+                        placeholder="Örn: 2020"
+                        inputMode="numeric"
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <label className="text-sm font-bold text-slate-700">
+                      Katalog Açıklaması
+                    </label>
+
+                    <textarea
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      rows={3}
+                      placeholder="İsteğe bağlı kitap açıklaması"
+                      className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B]"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="grid gap-3 md:grid-cols-2 md:gap-4">
                 <div>
@@ -926,7 +1074,7 @@ function selectExternalBook(book: ExternalBook) {
                   className={`break-words rounded-2xl px-4 py-3 text-sm font-semibold ${
                     error
                       ? "bg-red-50 text-red-600"
-                      : "bg-[#FAF7F0] text-[#2E7D5B]"
+                      : "bg-[#2E7D5B]/10 text-[#2E7D5B]"
                   }`}
                 >
                   {error || message}

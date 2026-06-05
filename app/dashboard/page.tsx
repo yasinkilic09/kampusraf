@@ -3,6 +3,14 @@ import { redirect } from "next/navigation";
 import { redirectIfBanned } from "@/lib/account-status";
 import { createClient } from "@/lib/supabase/server";
 
+function getDailyRollLimit(planType?: string | null) {
+  if (planType === "plus") return 3;
+  if (planType === "premium") return 10;
+  if (planType === "pro") return 25;
+
+  return 2;
+}
+
 type Profile = {
   id: string;
   full_name: string | null;
@@ -267,6 +275,12 @@ export default async function DashboardPage() {
       badge: matchesCount || 0,
     },
     {
+      title: "Rastgele Raf",
+      href: "/rastgele-raf",
+      icon: "🎲",
+      description: "Günlük zar hakkınla kısa kitap alıntıları keşfet ve dinle.",
+    },
+    {
       title: "Takaslarım",
       href: "/takaslar",
       icon: "🤝",
@@ -279,6 +293,19 @@ export default async function DashboardPage() {
       description: "Öğrenci doğrulama durumunu kontrol et.",
     },
   ];
+
+  const quotePlanType = profile?.plan_type || "free";
+  const quoteRollsLimit = getDailyRollLimit(quotePlanType);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { count: quoteRollsCount } = await supabase
+    .from("quote_rolls")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("roll_date", today);
+
+  const quoteRollsUsed = quoteRollsCount || 0;
+  const remainingQuoteRolls = Math.max(quoteRollsLimit - quoteRollsUsed, 0);
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">
@@ -315,6 +342,9 @@ export default async function DashboardPage() {
             <Link href="/eslesmeler" className="hover:text-[#2E7D5B]">
               Eşleşmeler
             </Link>
+            <Link href="/rastgele-raf" className="hover:text-[#2E7D5B]">
+  Rastgele Raf
+</Link>
             <Link href="/profilim" className="hover:text-[#2E7D5B]">
               Profilim
             </Link>
@@ -396,6 +426,13 @@ export default async function DashboardPage() {
                   >
                     Kitap Ara
                   </Link>
+
+                  <Link
+  href="/rastgele-raf"
+  className="rounded-full border border-[#F59E0B]/40 bg-[#F59E0B] px-7 py-4 text-center text-sm font-black text-white transition hover:-translate-y-1 hover:bg-[#d88906]"
+>
+  🎲 Rastgele Raf
+</Link>
                 </div>
               </div>
             </div>
@@ -504,7 +541,7 @@ export default async function DashboardPage() {
           ))}
         </section>
 
-        <section className="mt-6 grid gap-3 md:mt-8 md:grid-cols-2 lg:grid-cols-5">
+        <section className="mt-6 grid gap-3 md:mt-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="rounded-[1.6rem] bg-white p-5 shadow-sm md:rounded-[1.8rem]">
             <p className="text-sm font-bold text-slate-500">Kitaplarım</p>
             <p className="mt-3 text-4xl font-black text-[#2E7D5B]">
@@ -552,6 +589,16 @@ export default async function DashboardPage() {
             </p>
             <p className="mt-2 text-xs font-semibold text-slate-400">
               Oluşturduğun gönderiler.
+            </p>
+          </div>
+
+          <div className="rounded-[1.6rem] bg-white p-5 shadow-sm md:rounded-[1.8rem]">
+             <p className="text-sm font-bold text-slate-500">Rastgele Raf</p>
+             <p className="mt-3 text-4xl font-black text-[#F59E0B]">
+              {remainingQuoteRolls}
+            </p>
+             <p className="mt-2 text-xs font-semibold text-slate-400">
+              Bugünkü kalan zar hakkın.
             </p>
           </div>
         </section>

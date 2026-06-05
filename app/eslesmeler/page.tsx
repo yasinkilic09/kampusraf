@@ -169,10 +169,12 @@ function getMatchLevelMeta(level?: string | null) {
     return {
       emoji: "🔥",
       label: "Süper Eşleşme",
+      shortLabel: "Süper",
       description: "Kitap, konum, güven ve tercih sinyalleri çok güçlü.",
       badgeClass: "border-red-100 bg-red-50 text-red-700",
-      softClass: "border-red-100 bg-red-50/60",
+      cardClass: "border-red-100 bg-red-50/50",
       barClass: "bg-red-500",
+      glowClass: "shadow-red-100/80",
     };
   }
 
@@ -180,10 +182,12 @@ function getMatchLevelMeta(level?: string | null) {
     return {
       emoji: "⭐",
       label: "Güçlü Eşleşme",
+      shortLabel: "Güçlü",
       description: "Bu eşleşme yüksek uyum sinyalleri taşıyor.",
       badgeClass: "border-[#F59E0B]/20 bg-[#F59E0B]/10 text-[#B45309]",
-      softClass: "border-[#F59E0B]/20 bg-[#F59E0B]/5",
+      cardClass: "border-[#F59E0B]/20 bg-[#F59E0B]/5",
       barClass: "bg-[#F59E0B]",
+      glowClass: "shadow-[#F59E0B]/10",
     };
   }
 
@@ -191,20 +195,24 @@ function getMatchLevelMeta(level?: string | null) {
     return {
       emoji: "✅",
       label: "İyi Eşleşme",
+      shortLabel: "İyi",
       description: "Kitap bilgileri ve kullanıcı sinyalleri uyumlu.",
       badgeClass: "border-[#2E7D5B]/15 bg-[#2E7D5B]/10 text-[#2E7D5B]",
-      softClass: "border-[#2E7D5B]/15 bg-[#2E7D5B]/5",
+      cardClass: "border-[#2E7D5B]/15 bg-[#2E7D5B]/5",
       barClass: "bg-[#2E7D5B]",
+      glowClass: "shadow-[#2E7D5B]/10",
     };
   }
 
   return {
     emoji: "📌",
     label: "Normal Eşleşme",
+    shortLabel: "Normal",
     description: "Temel kitap benzerliği üzerinden oluşturuldu.",
     badgeClass: "border-slate-200 bg-slate-50 text-slate-600",
-    softClass: "border-slate-200 bg-slate-50",
+    cardClass: "border-slate-200 bg-slate-50",
     barClass: "bg-slate-400",
+    glowClass: "shadow-slate-900/5",
   };
 }
 
@@ -345,8 +353,16 @@ function buildMatchesHref({
 
 function getFilterLinkClass(active: boolean) {
   return active
-    ? "rounded-full bg-[#2E7D5B] px-4 py-2 text-xs font-black text-white shadow-sm"
-    : "rounded-full border border-[#2E7D5B]/15 bg-white px-4 py-2 text-xs font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5";
+    ? "rounded-full bg-[#2E7D5B] px-4 py-2.5 text-xs font-black text-white shadow-sm"
+    : "rounded-full border border-[#2E7D5B]/15 bg-white px-4 py-2.5 text-xs font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5";
+}
+
+function getStatusPillClass(status: string) {
+  if (status === "pending") return "bg-[#F59E0B]/10 text-[#B45309]";
+  if (status === "contacted") return "bg-[#2E7D5B]/10 text-[#2E7D5B]";
+  if (status === "completed") return "bg-blue-50 text-blue-700";
+  if (status === "rejected") return "bg-red-50 text-red-700";
+  return "bg-slate-100 text-slate-600";
 }
 
 export default async function MatchesPage({
@@ -364,15 +380,14 @@ export default async function MatchesPage({
     redirect("/auth/login");
   }
 
-    const params = (await searchParams) || {};
+  const params = (await searchParams) || {};
 
   const levelFilter = getSafeLevelFilter(params.level?.trim() || "");
   const viewFilter = getSafeViewFilter(params.view?.trim() || "");
   const statusFilter = getSafeStatusFilter(params.status?.trim() || "");
-
   const hasActiveFilter = Boolean(levelFilter || viewFilter || statusFilter);
 
-    const currentPageHref = buildMatchesHref({
+  const currentPageHref = buildMatchesHref({
     level: levelFilter,
     view: viewFilter,
     status: statusFilter,
@@ -449,13 +464,12 @@ export default async function MatchesPage({
     .order("match_score", { ascending: false })
     .order("created_at", { ascending: false });
 
-      const { data: friendshipData } = await supabase
+  const { data: friendshipData } = await supabase
     .from("friendships")
     .select("id, requester_id, addressee_id, status")
     .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
 
   const friendships = (friendshipData || []) as FriendshipSummary[];
-
   const friendshipMap = new Map(
     friendships.map((friendship) => [
       getFriendshipPairKey(friendship.requester_id, friendship.addressee_id),
@@ -463,7 +477,7 @@ export default async function MatchesPage({
     ])
   );
 
-    const allMatches = (data || []) as MatchItem[];
+  const allMatches = (data || []) as MatchItem[];
 
   const matches = allMatches.filter((match) => {
     const levelMatches = !levelFilter || match.match_level === levelFilter;
@@ -485,27 +499,39 @@ export default async function MatchesPage({
     (match) => match.match_level === "strong"
   );
   const goodMatches = allMatches.filter((match) => match.match_level === "good");
+  const pendingMatches = allMatches.filter((match) => match.status === "pending");
+  const contactedMatches = allMatches.filter(
+    (match) => match.status === "contacted"
+  );
+  const requesterMatches = allMatches.filter(
+    (match) => match.requester_id === user.id
+  );
+  const ownerMatches = allMatches.filter((match) => match.owner_id === user.id);
+
+  const bestMatchScore = allMatches.reduce((highest, match) => {
+    return Math.max(highest, getScorePercent(match.match_score));
+  }, 0);
 
   return (
-    <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
-      <header className="border-b border-[#2E7D5B]/10 bg-white/80 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              📚
+    <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">
+      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+          <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
+              ✨
             </div>
 
-            <div>
-              <p className="text-xl font-black">
+            <div className="min-w-0">
+              <p className="truncate text-xl font-black">
                 Kampüs<span className="text-[#F59E0B]">Raf</span>
               </p>
               <p className="text-xs font-semibold text-slate-500">
-                Eşleşmeler
+                Akıllı eşleşme merkezi
               </p>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-6 text-sm font-bold text-slate-600 md:flex">
+          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
             <Link href="/dashboard" className="hover:text-[#2E7D5B]">
               Panel
             </Link>
@@ -522,93 +548,133 @@ export default async function MatchesPage({
               Takaslar
             </Link>
           </nav>
+
+          <Link
+            href="/aradigim-kitaplar"
+            className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
+          >
+            Kitap Takip Et
+          </Link>
         </div>
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
-        <div className="rounded-[1.7rem] bg-[#2E7D5B] p-6 text-white shadow-2xl shadow-[#2E7D5B]/20 md:rounded-[2rem] md:p-12">
-          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F5EBDD]">
-                Akıllı Eşleşme v2
-              </p>
+        <section className="overflow-hidden rounded-[1.8rem] bg-[#2E7D5B] text-white shadow-xl shadow-[#2E7D5B]/15 md:rounded-[2.2rem]">
+          <div className="relative p-6 md:p-8">
+            <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute bottom-0 left-1/2 h-44 w-44 rounded-full bg-[#F59E0B]/20 blur-3xl" />
 
-              <h1 className="mt-3 break-words text-3xl font-black tracking-tight md:text-6xl">
-                En güçlü kitap eşleşmelerin.
-              </h1>
-
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75 md:text-base">
-                Kitap benzerliği, kampüs yakınlığı, güven puanı, doğrulama,
-                aktiflik ve eşleşme tercihi birlikte analiz edilir.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-3xl bg-white/10 p-3">
-                <p className="text-2xl font-black">{superMatches.length}</p>
-                <p className="mt-1 text-[11px] font-black text-white/65">
-                  Süper
+            <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-end">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.22em] text-[#F5EBDD]">
+                  Akıllı Eşleşme v2
                 </p>
+
+                <h1 className="mt-3 max-w-4xl break-words text-3xl font-black tracking-tight md:text-5xl">
+                  Kitap, kampüs ve güven sinyallerinden oluşan fırsat panelin.
+                </h1>
+
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75 md:text-base">
+                  Aradığın kitaplar ile raftaki kitaplar; kitap uyumu, konum,
+                  doğrulama, güven puanı, takas geçmişi, güncellik ve tercih
+                  sinyalleriyle analiz edilir.
+                </p>
+
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <Link
+                    href="/aradigim-kitaplar"
+                    className="rounded-full bg-white px-7 py-4 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5"
+                  >
+                    Aradığım Kitabı Ekle
+                  </Link>
+
+                  <Link
+                    href="/kitap-ekle"
+                    className="rounded-full border border-white/25 px-7 py-4 text-center text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10"
+                  >
+                    Rafıma Kitap Ekle
+                  </Link>
+                </div>
               </div>
 
-              <div className="rounded-3xl bg-white/10 p-3">
-                <p className="text-2xl font-black">{strongMatches.length}</p>
-                <p className="mt-1 text-[11px] font-black text-white/65">
-                  Güçlü
+              <div className="rounded-[1.6rem] bg-white/10 p-4 backdrop-blur">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-white/55">
+                  Eşleşme Özeti
                 </p>
-              </div>
 
-              <div className="rounded-3xl bg-white/10 p-3">
-                <p className="text-2xl font-black">{goodMatches.length}</p>
-                <p className="mt-1 text-[11px] font-black text-white/65">
-                  İyi
-                </p>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl bg-white/10 p-4">
+                    <p className="text-3xl font-black">{allMatches.length}</p>
+                    <p className="mt-1 text-[11px] font-bold text-white/65">
+                      Toplam
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white/10 p-4">
+                    <p className="text-3xl font-black">%{bestMatchScore}</p>
+                    <p className="mt-1 text-[11px] font-bold text-white/65">
+                      En iyi uyum
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white/10 p-4">
+                    <p className="text-3xl font-black">
+                      {superMatches.length + strongMatches.length}
+                    </p>
+                    <p className="mt-1 text-[11px] font-bold text-white/65">
+                      Yüksek uyum
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white/10 p-4">
+                    <p className="text-3xl font-black">{pendingMatches.length}</p>
+                    <p className="mt-1 text-[11px] font-bold text-white/65">
+                      Bekleyen
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="mt-6 grid gap-3 md:mt-8 md:grid-cols-4 md:gap-5">
-          <div className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
-            <p className="text-sm font-bold text-slate-500">Toplam Eşleşme</p>
-            <p className="mt-3 text-4xl font-black text-[#2E7D5B]">
-              {allMatches.length}
-            </p>
-          </div>
-
-          <div className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
-            <p className="text-sm font-bold text-slate-500">
-              Benim Aramalarıma Gelen
-            </p>
+        <section className="mt-6 grid gap-3 md:mt-8 md:grid-cols-4 md:gap-5">
+          <div className="rounded-[1.7rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-7">
+            <p className="text-sm font-bold text-slate-500">Aramalarıma Gelen</p>
             <p className="mt-3 text-4xl font-black text-[#F59E0B]">
-              {allMatches.filter((match) => match.requester_id === user.id).length}
+              {requesterMatches.length}
             </p>
           </div>
 
-          <div className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
+          <div className="rounded-[1.7rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-7">
             <p className="text-sm font-bold text-slate-500">
-              Benim Kitaplarımla Eşleşen
+              Kitaplarımla Eşleşen
             </p>
             <p className="mt-3 text-4xl font-black text-[#2E7D5B]">
-              {allMatches.filter((match) => match.owner_id === user.id).length}
+              {ownerMatches.length}
             </p>
           </div>
 
-          <div className="rounded-[1.7rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
-            <p className="text-sm font-bold text-slate-500">
-              Yüksek Uyumlu
+          <div className="rounded-[1.7rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-7">
+            <p className="text-sm font-bold text-slate-500">İletişime Geçilen</p>
+            <p className="mt-3 text-4xl font-black text-[#2E7D5B]">
+              {contactedMatches.length}
             </p>
+          </div>
+
+          <div className="rounded-[1.7rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-7">
+            <p className="text-sm font-bold text-slate-500">Süper / Güçlü</p>
             <p className="mt-3 text-4xl font-black text-red-600">
               {superMatches.length + strongMatches.length}
             </p>
           </div>
-        </div>
+        </section>
 
-                <div className="mt-5 rounded-[1.7rem] bg-white p-4 shadow-sm md:rounded-[2rem] md:p-6">
+        <section className="mt-5 rounded-[1.8rem] bg-white p-4 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-6">
           <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
             <div>
-              <p className="text-sm font-black text-[#2E7D5B]">
-                Eşleşmeleri Filtrele
+              <p className="text-sm font-black uppercase tracking-[0.16em] text-[#2E7D5B]">
+                Filtreleme Paneli
               </p>
               <p className="mt-1 text-xs font-semibold text-slate-500">
                 {matches.length} eşleşme gösteriliyor.
@@ -618,7 +684,7 @@ export default async function MatchesPage({
             {hasActiveFilter && (
               <Link
                 href="/eslesmeler"
-                className="rounded-full border border-red-100 bg-red-50 px-4 py-2 text-center text-xs font-black text-red-600 transition hover:-translate-y-0.5"
+                className="rounded-full border border-red-100 bg-red-50 px-4 py-2.5 text-center text-xs font-black text-red-600 transition hover:-translate-y-0.5"
               >
                 Filtreleri Temizle
               </Link>
@@ -633,15 +699,11 @@ export default async function MatchesPage({
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
-                  href={buildMatchesHref({
-                    view: viewFilter,
-                    status: statusFilter,
-                  })}
+                  href={buildMatchesHref({ view: viewFilter, status: statusFilter })}
                   className={getFilterLinkClass(!levelFilter)}
                 >
                   Tümü
                 </Link>
-
                 <Link
                   href={buildMatchesHref({
                     level: "super",
@@ -652,7 +714,6 @@ export default async function MatchesPage({
                 >
                   🔥 Süper
                 </Link>
-
                 <Link
                   href={buildMatchesHref({
                     level: "strong",
@@ -663,7 +724,6 @@ export default async function MatchesPage({
                 >
                   ⭐ Güçlü
                 </Link>
-
                 <Link
                   href={buildMatchesHref({
                     level: "good",
@@ -674,7 +734,6 @@ export default async function MatchesPage({
                 >
                   ✅ İyi
                 </Link>
-
                 <Link
                   href={buildMatchesHref({
                     level: "normal",
@@ -695,15 +754,11 @@ export default async function MatchesPage({
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
-                  href={buildMatchesHref({
-                    level: levelFilter,
-                    status: statusFilter,
-                  })}
+                  href={buildMatchesHref({ level: levelFilter, status: statusFilter })}
                   className={getFilterLinkClass(!viewFilter)}
                 >
                   Tümü
                 </Link>
-
                 <Link
                   href={buildMatchesHref({
                     level: levelFilter,
@@ -714,7 +769,6 @@ export default async function MatchesPage({
                 >
                   Aramalarıma Gelen
                 </Link>
-
                 <Link
                   href={buildMatchesHref({
                     level: levelFilter,
@@ -735,15 +789,11 @@ export default async function MatchesPage({
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link
-                  href={buildMatchesHref({
-                    level: levelFilter,
-                    view: viewFilter,
-                  })}
+                  href={buildMatchesHref({ level: levelFilter, view: viewFilter })}
                   className={getFilterLinkClass(!statusFilter)}
                 >
                   Tümü
                 </Link>
-
                 <Link
                   href={buildMatchesHref({
                     level: levelFilter,
@@ -754,7 +804,6 @@ export default async function MatchesPage({
                 >
                   Bekleyen
                 </Link>
-
                 <Link
                   href={buildMatchesHref({
                     level: levelFilter,
@@ -765,7 +814,6 @@ export default async function MatchesPage({
                 >
                   İletişime Geçilen
                 </Link>
-
                 <Link
                   href={buildMatchesHref({
                     level: levelFilter,
@@ -779,7 +827,7 @@ export default async function MatchesPage({
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
         {error && (
           <div className="mt-8 rounded-2xl bg-red-50 p-5 text-sm font-semibold text-red-700">
@@ -788,46 +836,45 @@ export default async function MatchesPage({
         )}
 
         {!error && matches.length === 0 ? (
-          <div className="mt-6 rounded-[1.7rem] border border-dashed border-[#2E7D5B]/30 bg-white p-6 text-center shadow-sm md:mt-8 md:rounded-[2rem] md:p-10">
+          <section className="mt-6 rounded-[1.8rem] border border-dashed border-[#2E7D5B]/30 bg-white p-6 text-center shadow-sm ring-1 ring-[#2E7D5B]/5 md:mt-8 md:rounded-[2rem] md:p-10">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#FAF7F0] text-3xl">
               ✨
             </div>
 
             <h2 className="mt-5 text-2xl font-black">
-  {hasActiveFilter ? "Bu filtrelerde eşleşme yok" : "Henüz eşleşme yok"}
-</h2>
+              {hasActiveFilter ? "Bu filtrelerde eşleşme yok" : "Henüz eşleşme yok"}
+            </h2>
 
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-500">
-  {hasActiveFilter
-    ? "Seçtiğin filtrelerde eşleşme bulunamadı. Filtreleri temizleyerek tüm eşleşmeleri tekrar görüntüleyebilirsin."
-    : "Bir kullanıcı aradığı kitabı kaydeder ve başka bir kullanıcı o kitaba benzer bir kitabı eklerse burada otomatik eşleşme oluşur."}
-</p>
+              {hasActiveFilter
+                ? "Seçtiğin filtrelerde eşleşme bulunamadı. Filtreleri temizleyerek tüm eşleşmeleri tekrar görüntüleyebilirsin."
+                : "Bir kullanıcı aradığı kitabı kaydeder ve başka bir kullanıcı o kitaba benzer bir kitabı eklerse burada otomatik eşleşme oluşur."}
+            </p>
 
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
                 href="/aradigim-kitaplar"
-                className="rounded-full bg-[#2E7D5B] px-7 py-4 text-sm font-black text-white shadow-lg shadow-[#2E7D5B]/20 transition hover:-translate-y-1"
+                className="rounded-full bg-[#2E7D5B] px-7 py-4 text-sm font-black text-white shadow-lg shadow-[#2E7D5B]/20 transition hover:-translate-y-0.5"
               >
                 Aradığım Kitap Ekle
               </Link>
 
               <Link
                 href="/kitap-ekle"
-                className="rounded-full border border-[#2E7D5B]/20 px-7 py-4 text-sm font-black text-[#2E7D5B] transition hover:-translate-y-1"
+                className="rounded-full border border-[#2E7D5B]/20 px-7 py-4 text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5"
               >
                 Kitap Ekle
               </Link>
             </div>
-          </div>
+          </section>
         ) : (
-          <div className="mt-6 space-y-4 md:mt-8 md:space-y-5">
+          <section className="mt-6 space-y-5 md:mt-8">
             {matches.map((match) => {
               const request = first(match.book_requests);
               const userBook = first(match.user_books);
               const relatedBook = first(userBook?.books ?? null);
               const owner = first(match.owner);
               const requester = first(match.requester);
-
               const isRequester = match.requester_id === user.id;
 
               const bookTitle =
@@ -839,8 +886,7 @@ export default async function MatchesPage({
                 relatedBook?.author ||
                 "Yazar bilgisi yok";
               const image = userBook?.image_url || relatedBook?.cover_url || null;
-
-                            const otherPerson = isRequester ? owner : requester;
+              const otherPerson = isRequester ? owner : requester;
               const otherPersonId = isRequester
                 ? match.owner_id
                 : match.requester_id;
@@ -848,7 +894,6 @@ export default async function MatchesPage({
               const friendship =
                 friendshipMap.get(getFriendshipPairKey(user.id, otherPersonId)) ||
                 null;
-
               const friendshipState = getFriendshipViewState(
                 friendship,
                 user.id
@@ -861,120 +906,158 @@ export default async function MatchesPage({
               return (
                 <article
                   key={match.id}
-                  className={`overflow-hidden rounded-[1.7rem] border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/5 md:rounded-[2rem] ${levelMeta.softClass}`}
+                  className={`overflow-hidden rounded-[1.8rem] border bg-white shadow-sm ${levelMeta.glowClass} transition hover:-translate-y-1 hover:shadow-xl md:rounded-[2rem] ${levelMeta.cardClass}`}
                 >
-                  <div className="grid gap-4 p-4 md:gap-6 md:p-6 lg:grid-cols-[0.72fr_1.28fr]">
-                    <div className="flex gap-3 md:gap-4">
-                      <div className="flex h-28 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#FAF7F0] text-3xl md:h-36 md:w-28">
-                        {image ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={image}
-                            alt={bookTitle}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          "📖"
-                        )}
+                  <div className="grid gap-5 p-4 md:gap-6 md:p-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+                    <div className="rounded-[1.5rem] bg-white/70 p-4 ring-1 ring-black/5">
+                      <div className="flex gap-4">
+                        <Link
+                          href={`/kitaplar/${match.user_book_id}`}
+                          className="flex h-36 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#FAF7F0] text-3xl shadow-sm md:h-44 md:w-32"
+                        >
+                          {image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={image}
+                              alt={bookTitle}
+                              className="h-full w-full object-cover transition hover:scale-[1.03]"
+                            />
+                          ) : (
+                            "📖"
+                          )}
+                        </Link>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap gap-2">
+                            <span
+                              className={`rounded-full border px-3 py-1 text-xs font-black ${levelMeta.badgeClass}`}
+                            >
+                              {levelMeta.emoji} {levelMeta.shortLabel}
+                            </span>
+
+                            <span className="rounded-full bg-[#2E7D5B]/10 px-3 py-1 text-xs font-black text-[#2E7D5B]">
+                              %{score} uyum
+                            </span>
+                          </div>
+
+                          <Link href={`/kitaplar/${match.user_book_id}`}>
+                            <h2 className="mt-3 line-clamp-3 text-xl font-black leading-tight text-[#1F2933] transition hover:text-[#2E7D5B]">
+                              {bookTitle}
+                            </h2>
+                          </Link>
+
+                          <p className="mt-1 line-clamp-1 text-sm font-bold text-slate-500">
+                            {bookAuthor}
+                          </p>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {userBook?.exchange_type && (
+                              <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-xs font-black text-[#B45309]">
+                                {exchangeTypeLabels[userBook.exchange_type] ||
+                                  userBook.exchange_type}
+                              </span>
+                            )}
+
+                            {userBook?.condition && (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                                {conditionLabels[userBook.condition] ||
+                                  userBook.condition}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap gap-2">
-                          <span
-                            className={`rounded-full border px-3 py-1 text-xs font-black ${levelMeta.badgeClass}`}
-                          >
-                            {levelMeta.emoji} {levelMeta.label}
-                          </span>
-
-                          <span className="rounded-full bg-[#2E7D5B]/10 px-3 py-1 text-xs font-black text-[#2E7D5B]">
-                            %{score} uyum
-                          </span>
-                        </div>
-
-                        <h2 className="mt-3 line-clamp-2 text-lg font-black leading-tight text-[#1F2933] md:mt-4 md:text-2xl">
-                          {bookTitle}
-                        </h2>
-
-                        <p className="mt-1 line-clamp-1 text-sm font-bold text-slate-500">
-                          {bookAuthor}
-                        </p>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {userBook?.exchange_type && (
-                            <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-xs font-black text-[#B45309]">
-                              {exchangeTypeLabels[userBook.exchange_type] ||
-                                userBook.exchange_type}
-                            </span>
-                          )}
-
-                          {userBook?.condition && (
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-                              {conditionLabels[userBook.condition] ||
-                                userBook.condition}
-                            </span>
-                          )}
-
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-                            {statusLabels[match.status] || match.status}
-                          </span>
-                        </div>
-
-                        <div className="mt-4">
-                          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                            <div
-                              className={`h-full rounded-full ${levelMeta.barClass}`}
-                              style={{ width: `${score}%` }}
-                            />
-                          </div>
-                          <p className="mt-2 text-xs font-semibold text-slate-400">
-                            Son skor: {formatDate(match.last_scored_at)}
+                      <div className="mt-5 rounded-2xl bg-[#FAF7F0] p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                            Uyum Skoru
+                          </p>
+                          <p className="text-xs font-black text-[#1F2933]">
+                            %{score}
                           </p>
                         </div>
+
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                          <div
+                            className={`h-full rounded-full ${levelMeta.barClass}`}
+                            style={{ width: `${score}%` }}
+                          />
+                        </div>
+
+                        <p className="mt-2 text-xs font-semibold text-slate-400">
+                          Son skor: {formatDate(match.last_scored_at)}
+                        </p>
                       </div>
                     </div>
 
-                    <div>
-                      <div className="rounded-2xl bg-[#FAF7F0] p-4 md:p-5">
-                        <p className="text-xs font-black uppercase tracking-[0.15em] text-slate-400">
-                          {isRequester
-                            ? "Aradığın kitapla eşleşti"
-                            : "Senin kitabın bir aramayla eşleşti"}
-                        </p>
+                    <div className="min-w-0">
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+                        <div className="rounded-[1.5rem] bg-[#FAF7F0] p-4 md:p-5">
+                          <div className="flex flex-wrap gap-2">
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600">
+                              {isRequester
+                                ? "Aradığın kitapla eşleşti"
+                                : "Senin kitabın bir aramayla eşleşti"}
+                            </span>
 
-                        <h3 className="mt-2 line-clamp-2 text-lg font-black leading-tight md:text-xl">
-                          {request?.title || "Arama kaydı"}
-                        </h3>
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-black ${getStatusPillClass(
+                                match.status
+                              )}`}
+                            >
+                              {statusLabels[match.status] || match.status}
+                            </span>
+                          </div>
 
-                        {request?.author && (
-                          <p className="mt-1 text-sm font-semibold text-slate-500">
-                            {request.author}
-                          </p>
-                        )}
+                          <h3 className="mt-3 line-clamp-2 text-xl font-black leading-tight text-[#1F2933]">
+                            {request?.title || "Arama kaydı"}
+                          </h3>
 
-                        <div className="mt-4 rounded-2xl bg-white p-4">
-                          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
-                            Eşleşme Sebebi
-                          </p>
+                          {request?.author && (
+                            <p className="mt-1 text-sm font-semibold text-slate-500">
+                              {request.author}
+                            </p>
+                          )}
 
-                          <p className="mt-2 text-sm font-black leading-6 text-[#1F2933]">
-                            {match.match_reason || levelMeta.description}
-                          </p>
+                          <div className="mt-4 rounded-2xl bg-white p-4">
+                            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                              Eşleşme Sebebi
+                            </p>
+
+                            <p className="mt-2 text-sm font-bold leading-6 text-[#1F2933]">
+                              {match.match_reason || levelMeta.description}
+                            </p>
+                          </div>
+
+                          {signalItems.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {signalItems.map((item) => (
+                                <span
+                                  key={item.label}
+                                  className="rounded-full border border-[#2E7D5B]/10 bg-white px-3 py-1 text-xs font-black text-slate-600"
+                                >
+                                  {item.label} +{Math.round(item.value)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
-                        <div className="mt-4 rounded-2xl bg-white p-4">
+                        <div className="rounded-[1.5rem] bg-white p-4 ring-1 ring-[#2E7D5B]/5">
                           <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
                             Karşı taraf
                           </p>
 
-                          <p className="mt-2 text-sm font-black text-[#2E7D5B]">
+                          <p className="mt-2 line-clamp-2 text-lg font-black text-[#2E7D5B]">
                             {getDisplayName(otherPerson)}
                           </p>
 
-                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                          <p className="mt-2 line-clamp-2 text-xs font-semibold text-slate-500">
                             {otherPerson?.university || "Üniversite bilgisi yok"}
                           </p>
 
-                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                          <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">
                             {otherPerson?.city || "Şehir bilgisi yok"}
                           </p>
 
@@ -1003,7 +1086,7 @@ export default async function MatchesPage({
                               </span>
                             )}
 
-                                                        {friendshipState.type === "accepted" && (
+                            {friendshipState.type === "accepted" && (
                               <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-xs font-black text-[#B45309]">
                                 Arkadaşın
                               </span>
@@ -1017,30 +1100,17 @@ export default async function MatchesPage({
 
                             {friendshipState.type === "incoming" && (
                               <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-xs font-black text-[#B45309]">
-                                Gelen arkadaşlık isteği
+                                Gelen istek
                               </span>
                             )}
                           </div>
                         </div>
-
-                        {signalItems.length > 0 && (
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {signalItems.map((item) => (
-                              <span
-                                key={item.label}
-                                className="rounded-full border border-[#2E7D5B]/10 bg-white px-3 py-1 text-xs font-black text-slate-600"
-                              >
-                                {item.label} +{Math.round(item.value)}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
 
-                                            <div className="mt-4 grid gap-2 sm:flex sm:flex-row sm:flex-wrap md:mt-5 md:gap-3">
+                      <div className="mt-4 grid gap-2 sm:flex sm:flex-row sm:flex-wrap md:gap-3">
                         <Link
                           href={`/kitaplar/${match.user_book_id}`}
-                          className="w-full rounded-full bg-[#2E7D5B] px-5 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5 sm:w-auto"
+                          className="w-full rounded-full bg-[#2E7D5B] px-5 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c] sm:w-auto"
                         >
                           Kitabı Gör
                         </Link>
@@ -1052,7 +1122,7 @@ export default async function MatchesPage({
                           <input type="hidden" name="matchId" value={match.id} />
                           <button
                             type="submit"
-                            className="w-full rounded-full border border-[#2E7D5B]/20 px-5 py-3 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
+                            className="w-full rounded-full border border-[#2E7D5B]/20 bg-white px-5 py-3 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
                           >
                             Mesaj Gönder
                           </button>
@@ -1091,7 +1161,7 @@ export default async function MatchesPage({
                             <button
                               type="submit"
                               disabled={friendshipState.type === "outgoing"}
-                              className="w-full rounded-full border border-[#2E7D5B]/20 px-5 py-3 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                              className="w-full rounded-full border border-[#2E7D5B]/20 bg-white px-5 py-3 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                             >
                               {friendshipState.label}
                             </button>
@@ -1107,7 +1177,7 @@ export default async function MatchesPage({
                 </article>
               );
             })}
-          </div>
+          </section>
         )}
       </section>
     </main>

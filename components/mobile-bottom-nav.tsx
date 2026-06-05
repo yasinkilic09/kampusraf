@@ -93,6 +93,24 @@ const bookMenuItems: MenuItem[] = [
     description: "Takip ettiğin kitap talepleri",
   },
   {
+  title: "Rastgele Raf",
+  href: "/rastgele-raf",
+  icon: "🎲",
+  description: "Günlük alıntı keşfi ve sesli dinleme",
+  },
+  {
+  title: "Favori Alıntılarım",
+  href: "/favori-alintilarim",
+  icon: "⭐",
+  description: "Kaydettiğin alıntıları tekrar oku ve paylaş",
+  },
+  {
+    title: "Sesli Raf",
+    href: "/sesli-raf",
+    icon: "🎧",
+    description: "Öğrencilerin seslendirdiği kitap ve metinleri dinle",
+  },
+  {
     title: "Eşleşmeler",
     href: "/eslesmeler",
     icon: "✨",
@@ -124,6 +142,18 @@ const adminMenuItems: MenuItem[] = [
     href: "/admin",
     icon: "🛡️",
     description: "Genel platform yönetimi",
+  },
+  {
+  title: "Alıntılar",
+  href: "/admin/alintilar",
+  icon: "🎲",
+  description: "Rastgele Raf içerik havuzu",
+  },
+  {
+    title: "Sesli Raf",
+    href: "/admin/sesli-raf",
+    icon: "🎧",
+    description: "Sesli içerik ve bölüm onayları",
   },
   {
     title: "Kullanıcılar",
@@ -234,6 +264,36 @@ export function MobileBottomNav({ isAdmin: initialIsAdmin = false }: MobileBotto
                 ×
               </button>
             </div>
+
+            <Link
+  href="/rastgele-raf"
+  className={`mt-4 flex items-center justify-between gap-3 rounded-[1.5rem] p-4 transition ${
+    isActivePath(pathname, "/rastgele-raf")
+      ? "bg-[#F59E0B] text-white"
+      : "bg-[#F59E0B]/10 text-[#1F2933] hover:bg-[#F59E0B]/15"
+  }`}
+>
+  <div className="flex min-w-0 items-center gap-3">
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+      🎲
+    </span>
+
+    <div className="min-w-0">
+      <p className="text-sm font-black">Rastgele Raf</p>
+      <p
+        className={`line-clamp-1 text-xs font-semibold ${
+          isActivePath(pathname, "/rastgele-raf")
+            ? "text-white/75"
+            : "text-slate-600"
+        }`}
+      >
+        Zar at, kısa bir alıntı keşfet ve dinle
+      </p>
+    </div>
+  </div>
+
+  <span className="text-lg font-black">›</span>
+</Link>
 
             <div className="mt-4">
               <p className="px-2 text-xs font-black uppercase tracking-[0.16em] text-[#2E7D5B]">

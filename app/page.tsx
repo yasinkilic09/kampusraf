@@ -25,6 +25,12 @@ const features = [
       "Seninle aynı kitabı okuyan veya okumak isteyen öğrencilerle tanış, kampüs içinde sosyal okuma ağı kur.",
     icon: "🤝",
   },
+  {
+  title: "Rastgele Raf ile Keşfet",
+  description:
+    "Zar at, rastgele bir kitaptan kısa alıntı keşfet; istersen 10-15 saniyelik sesli okuma ile dinle.",
+  icon: "🎲",
+  },
 ];
 
 const steps = [
@@ -77,6 +83,9 @@ export default function Home() {
             <a href="#guvenlik" className="transition hover:text-[#2E7D5B]">
               Güvenlik
             </a>
+            <a href="#rastgele-raf" className="transition hover:text-[#2E7D5B]">
+  Rastgele Raf
+</a>
           </div>
 
           <div className="flex items-center gap-3">
@@ -141,11 +150,11 @@ export default function Home() {
                 </p>
               </div>
               <div className="rounded-3xl bg-white/80 p-4 shadow-sm">
-                <p className="text-2xl font-black text-[#2E7D5B]">Sosyal</p>
-                <p className="mt-1 text-xs font-semibold text-slate-500">
-                  Okuma
-                </p>
-              </div>
+  <p className="text-2xl font-black text-[#2E7D5B]">🎲 Raf</p>
+  <p className="mt-1 text-xs font-semibold text-slate-500">
+    Rastgele keşif
+  </p>
+</div>
             </div>
           </div>
 
@@ -267,7 +276,7 @@ export default function Home() {
             </h2>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-5">
             {features.map((feature) => (
               <div
                 key={feature.title}
@@ -287,6 +296,141 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <section id="rastgele-raf" className="mx-auto max-w-7xl px-6 py-20">
+  <div className="grid gap-8 rounded-[2rem] bg-white p-6 shadow-xl shadow-slate-900/5 ring-1 ring-[#2E7D5B]/5 md:grid-cols-[0.95fr_1.05fr] md:p-10">
+    <div className="flex flex-col justify-between">
+      <div>
+        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
+          Rastgele Raf
+        </p>
+
+        <h2 className="mt-3 text-4xl font-black tracking-tight md:text-5xl">
+          Zar at, bir kitaptan kısa bir alıntı keşfet.
+        </h2>
+
+        <p className="mt-5 max-w-xl text-base leading-8 text-slate-600">
+          KampüsRaf yalnızca kitap bulma platformu değil; aynı zamanda günlük
+          okuma keşfi sunan sosyal bir kitap deneyimidir. Rastgele Raf ile
+          kullanıcılar günlük hakları kadar zar atarak kısa alıntılar
+          keşfedebilir ve isterse sesli dinleyebilir.
+        </p>
+      </div>
+
+      <div className="mt-8 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-3xl bg-[#FAF7F0] p-5">
+          <p className="text-2xl font-black text-[#2E7D5B]">🎲</p>
+          <p className="mt-2 text-sm font-black">Günlük zar hakkı</p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            Paketlere göre limitli keşif.
+          </p>
+        </div>
+
+        <div className="rounded-3xl bg-[#FAF7F0] p-5">
+          <p className="text-2xl font-black text-[#2E7D5B]">📖</p>
+          <p className="mt-2 text-sm font-black">Kısa alıntı</p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            Kitaplardan seçilmiş kısa metinler.
+          </p>
+        </div>
+
+        <div className="rounded-3xl bg-[#FAF7F0] p-5">
+          <p className="text-2xl font-black text-[#2E7D5B]">🔊</p>
+          <p className="mt-2 text-sm font-black">Sesli dinleme</p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            10-15 saniyelik anlık okuma.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <Link
+          href="/auth/sign-up"
+          className="rounded-full bg-[#2E7D5B] px-8 py-4 text-center text-sm font-black text-white shadow-lg shadow-[#2E7D5B]/20 transition hover:-translate-y-1 hover:bg-[#25684c]"
+        >
+          Rastgele Raf’ı Keşfet
+        </Link>
+
+        <Link
+          href="/auth/login"
+          className="rounded-full border border-[#2E7D5B]/20 px-8 py-4 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-1 hover:bg-[#2E7D5B]/5"
+        >
+          Hesabımla Giriş Yap
+        </Link>
+      </div>
+    </div>
+
+    <div className="relative">
+      <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-[#F59E0B]/20 blur-3xl" />
+      <div className="absolute -bottom-6 -left-6 h-32 w-32 rounded-full bg-[#2E7D5B]/20 blur-3xl" />
+
+      <div className="relative overflow-hidden rounded-[2rem] bg-[#2E7D5B] p-6 text-white shadow-2xl shadow-[#2E7D5B]/20 md:p-8">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold text-white/65">Bugünün keşfi</p>
+            <h3 className="mt-1 text-3xl font-black">Rastgele Raf</h3>
+          </div>
+
+          <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-white/15 text-4xl">
+            🎲
+          </div>
+        </div>
+
+        <div className="mt-8 rounded-[1.6rem] bg-white/10 p-6 backdrop-blur">
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-white/15 px-4 py-2 text-xs font-black">
+              keşif
+            </span>
+            <span className="rounded-full bg-[#F59E0B] px-4 py-2 text-xs font-black">
+              ~12 sn
+            </span>
+          </div>
+
+          <p className="mt-7 text-2xl font-black leading-relaxed">
+            “Bazı cümleler kısa sürer ama zihinde uzun bir yolculuk başlatır.”
+          </p>
+
+          <div className="mt-6 rounded-3xl bg-white/10 p-4">
+            <p className="text-sm font-black">KampüsRaf Başlangıç Seçkisi</p>
+            <p className="mt-1 text-sm font-semibold text-white/60">
+              Günlük alıntı keşfi
+            </p>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="rounded-full bg-white px-6 py-3 text-center text-sm font-black text-[#2E7D5B]">
+              🔊 Dinle
+            </div>
+            <div className="rounded-full border border-white/20 px-6 py-3 text-center text-sm font-black text-white">
+              🎲 Yeni Zar
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-3">
+          <div className="rounded-3xl bg-white/10 p-4 text-center">
+            <p className="text-xl font-black">2</p>
+            <p className="mt-1 text-[11px] font-bold text-white/55">
+              Free hak
+            </p>
+          </div>
+          <div className="rounded-3xl bg-white/10 p-4 text-center">
+            <p className="text-xl font-black">10</p>
+            <p className="mt-1 text-[11px] font-bold text-white/55">
+              Premium
+            </p>
+          </div>
+          <div className="rounded-3xl bg-white/10 p-4 text-center">
+            <p className="text-xl font-black">25</p>
+            <p className="mt-1 text-[11px] font-bold text-white/55">
+              Pro
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
       <section id="guvenlik" className="mx-auto max-w-7xl px-6 py-20">
         <div className="grid gap-8 rounded-[2rem] bg-[#1F2933] p-8 text-white md:grid-cols-[0.9fr_1.1fr] md:p-12">

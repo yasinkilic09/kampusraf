@@ -137,3 +137,56 @@ export async function markNotificationAndMessageAsReadFormAction(
     targetUrl,
   });
 }
+
+type CreateNotificationInput = {
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  linkUrl?: string | null;
+  targetUrl?: string | null;
+};
+
+export async function createNotificationAction({
+  userId,
+  type,
+  title,
+  message,
+  linkUrl = null,
+  targetUrl = null,
+}: CreateNotificationInput) {
+  if (!userId || !title || !message) {
+    return {
+      success: false,
+      error: "Bildirim bilgileri eksik.",
+    };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("create_notification_for_user", {
+  p_user_id: userId,
+  p_type: type,
+  p_title: title,
+  p_message: message,
+  p_link_url: linkUrl,
+  p_target_url: targetUrl || linkUrl,
+});
+
+  if (error) {
+    console.error("CREATE_NOTIFICATION_ERROR", error.message);
+
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+
+  revalidatePath("/bildirimler");
+  revalidatePath("/dashboard");
+
+  return {
+    success: true,
+    error: null,
+  };
+}
