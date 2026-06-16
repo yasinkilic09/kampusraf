@@ -1,177 +1,261 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type MobileBottomNavProps = {
-  isAdmin?: boolean;
-};
-
-type MenuItem = {
+type ShortcutItem = {
   title: string;
   href: string;
   icon: string;
   description?: string;
+  tone?: "green" | "amber" | "light";
 };
 
-const hiddenPathPrefixes = [
-  "/auth",
-  "/tanitim",
-  "/hesap-kisitlandi",
-];
+type ShortcutGroup = {
+  title: string;
+  description: string;
+  items: ShortcutItem[];
+};
 
-const mainItems = [
+const hiddenPathPrefixes = ["/auth", "/tanitim", "/hesap-kisitlandi"];
+
+const primaryTabs: ShortcutItem[] = [
   {
     title: "Panel",
     href: "/dashboard",
-    icon: "🏠",
+    icon: "P",
   },
   {
     title: "Akış",
     href: "/akis",
-    icon: "🌿",
+    icon: "A",
   },
   {
     title: "Paylaş",
     href: "/paylas",
-    icon: "📸",
-    featured: true,
+    icon: "+",
+    tone: "amber",
   },
-  {
-    title: "Ara",
-    href: "/kitap-ara",
-    icon: "🔎",
-  },
-];
-
-const socialMenuItems: MenuItem[] = [
-  {
-    title: "Mesajlar",
-    href: "/mesajlar",
-    icon: "💬",
-    description: "Sohbetlerini görüntüle",
-  },
-  {
-    title: "Arkadaşlar",
-    href: "/arkadaslar",
-    icon: "👥",
-    description: "Arkadaşlık istekleri ve çevren",
-  },
-  {
-    title: "Bildirimler",
-    href: "/bildirimler",
-    icon: "🔔",
-    description: "Yeni gelişmeleri takip et",
-  },
-  {
-    title: "Profilim",
-    href: "/profilim",
-    icon: "👤",
-    description: "Profil ve sosyal ayarlar",
-  },
-];
-
-const bookMenuItems: MenuItem[] = [
   {
     title: "Rafım",
     href: "/kitaplarim",
-    icon: "📚",
-    description: "Eklediğin kitaplar",
-  },
-  {
-    title: "Kitap Ekle",
-    href: "/kitap-ekle",
-    icon: "➕",
-    description: "Rafına yeni kitap ekle",
-  },
-  {
-    title: "Aradığım Kitaplar",
-    href: "/aradigim-kitaplar",
-    icon: "📌",
-    description: "Takip ettiğin kitap talepleri",
-  },
-  {
-  title: "Rastgele Raf",
-  href: "/rastgele-raf",
-  icon: "🎲",
-  description: "Günlük alıntı keşfi ve sesli dinleme",
-  },
-  {
-  title: "Favori Alıntılarım",
-  href: "/favori-alintilarim",
-  icon: "⭐",
-  description: "Kaydettiğin alıntıları tekrar oku ve paylaş",
-  },
-  {
-    title: "Sesli Raf",
-    href: "/sesli-raf",
-    icon: "🎧",
-    description: "Öğrencilerin seslendirdiği kitap ve metinleri dinle",
-  },
-  {
-    title: "Eşleşmeler",
-    href: "/eslesmeler",
-    icon: "✨",
-    description: "Akıllı kitap eşleşmeleri",
-  },
-  {
-    title: "Takaslarım",
-    href: "/takaslar",
-    icon: "🤝",
-    description: "Takas süreçlerini yönet",
-  },
-  {
-    title: "Öğrenci Doğrulama",
-    href: "/ogrenci-dogrulama",
-    icon: "🎓",
-    description: "Doğrulanmış öğrenci rozeti",
-  },
-  {
-    title: "Paketler",
-    href: "/paketler",
-    icon: "💎",
-    description: "KampüsRaf planlarını incele",
+    icon: "R",
   },
 ];
 
-const adminMenuItems: MenuItem[] = [
+const quickActions: ShortcutItem[] = [
+  {
+    title: "Kitap Ekle",
+    href: "/kitap-ekle",
+    icon: "+",
+    description: "Rafa yeni kitap",
+    tone: "green",
+  },
+  {
+    title: "Kitap Ara",
+    href: "/kitap-ara",
+    icon: "B",
+    description: "Kampüste bul",
+    tone: "light",
+  },
+  {
+    title: "Harita",
+    href: "/harita",
+    icon: "H",
+    description: "Yakındaki raflar",
+    tone: "green",
+  },
+  {
+    title: "Rastgele Raf",
+    href: "/rastgele-raf",
+    icon: "Z",
+    description: "Alıntı keşfi",
+    tone: "amber",
+  },
+  {
+    title: "Topluluklar",
+    href: "/topluluklar",
+    icon: "T",
+    description: "Okuma grupları",
+    tone: "green",
+  },
+  {
+    title: "Mesajlar",
+    href: "/mesajlar",
+    icon: "M",
+    description: "Sohbetler",
+    tone: "light",
+  },
+];
+
+const shortcutGroups: ShortcutGroup[] = [
+  {
+    title: "Sosyal",
+    description: "Akış, çevre ve bildirimler",
+    items: [
+      {
+        title: "Akış",
+        href: "/akis",
+        icon: "A",
+        description: "Topluluk ve arkadaş paylaşımları",
+      },
+      {
+        title: "Paylaş",
+        href: "/paylas",
+        icon: "+",
+        description: "Fotoğraf ve kitap etiketi",
+      },
+      {
+        title: "Topluluklar",
+        href: "/topluluklar",
+        icon: "T",
+        description: "Okuma grupları ve kampüs rafları",
+      },
+      {
+        title: "Arkadaşlar",
+        href: "/arkadaslar",
+        icon: "K",
+        description: "İstekler ve sosyal çevre",
+      },
+      {
+        title: "Bildirimler",
+        href: "/bildirimler",
+        icon: "B",
+        description: "Yeni gelişmeler",
+      },
+    ],
+  },
+  {
+    title: "Kitaplık",
+    description: "Rafını kur ve kitapları bul",
+    items: [
+      {
+        title: "Rafım",
+        href: "/kitaplarim",
+        icon: "R",
+        description: "Sanal kütüphanen",
+      },
+      {
+        title: "Kitap Ekle",
+        href: "/kitap-ekle",
+        icon: "+",
+        description: "Katalogdan veya manuel ekle",
+      },
+      {
+        title: "Kitap Ara",
+        href: "/kitap-ara",
+        icon: "B",
+        description: "Kampüs raflarında ara",
+      },
+      {
+        title: "Harita",
+        href: "/harita",
+        icon: "H",
+        description: "Yakındaki açık kitaplar",
+      },
+      {
+        title: "Aradığım",
+        href: "/aradigim-kitaplar",
+        icon: "T",
+        description: "Takip ettiğin talepler",
+      },
+    ],
+  },
+  {
+    title: "Keşif ve Takas",
+    description: "Alıntı, ses ve eşleşmeler",
+    items: [
+      {
+        title: "Rastgele Raf",
+        href: "/rastgele-raf",
+        icon: "Z",
+        description: "Zar at, alıntı keşfet",
+      },
+      {
+        title: "Favoriler",
+        href: "/favori-alintilarim",
+        icon: "F",
+        description: "Kaydedilen alıntılar",
+      },
+      {
+        title: "Sesli Raf",
+        href: "/sesli-raf",
+        icon: "S",
+        description: "Sesli kitap ve metinler",
+      },
+      {
+        title: "Eşleşmeler",
+        href: "/eslesmeler",
+        icon: "E",
+        description: "Akıllı kitap fırsatları",
+      },
+      {
+        title: "Takaslarım",
+        href: "/takaslar",
+        icon: "T",
+        description: "Takas süreçleri",
+      },
+    ],
+  },
+  {
+    title: "Hesap",
+    description: "Profil, doğrulama ve paket",
+    items: [
+      {
+        title: "Profilim",
+        href: "/profilim",
+        icon: "P",
+        description: "Profil ve sosyal görünürlük",
+      },
+      {
+        title: "Doğrulama",
+        href: "/ogrenci-dogrulama",
+        icon: "D",
+        description: "Öğrenci rozeti",
+      },
+      {
+        title: "Paketler",
+        href: "/paketler",
+        icon: "U",
+        description: "Üyelik planları",
+      },
+    ],
+  },
+];
+
+const adminMenuItems: ShortcutItem[] = [
   {
     title: "Admin Paneli",
     href: "/admin",
-    icon: "🛡️",
-    description: "Genel platform yönetimi",
-  },
-  {
-  title: "Alıntılar",
-  href: "/admin/alintilar",
-  icon: "🎲",
-  description: "Rastgele Raf içerik havuzu",
-  },
-  {
-    title: "Sesli Raf",
-    href: "/admin/sesli-raf",
-    icon: "🎧",
-    description: "Sesli içerik ve bölüm onayları",
+    icon: "Y",
+    description: "Genel yönetim",
   },
   {
     title: "Kullanıcılar",
     href: "/admin/kullanicilar",
-    icon: "👤",
-    description: "Kullanıcı ve hesap yönetimi",
-  },
-  {
-    title: "Şikayetler",
-    href: "/admin/sikayetler",
-    icon: "🚨",
-    description: "Rapor ve şikayet inceleme",
+    icon: "K",
+    description: "Hesap ve rol yönetimi",
   },
   {
     title: "Doğrulamalar",
     href: "/admin/dogrulamalar",
-    icon: "✅",
-    description: "Öğrenci doğrulama talepleri",
+    icon: "D",
+    description: "Öğrenci onayları",
+  },
+  {
+    title: "Şikayetler",
+    href: "/admin/sikayetler",
+    icon: "G",
+    description: "Güvenlik incelemeleri",
+  },
+  {
+    title: "Alıntılar",
+    href: "/admin/alintilar",
+    icon: "A",
+    description: "Rastgele Raf havuzu",
   },
 ];
 
@@ -187,14 +271,18 @@ function shouldHideMobileNav(pathname: string) {
   return hiddenPathPrefixes.some((prefix) => pathname.startsWith(prefix));
 }
 
-export function MobileBottomNav({ isAdmin: initialIsAdmin = false }: MobileBottomNavProps) {
-  const pathname = usePathname();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(initialIsAdmin);
+function getToneClass(tone?: ShortcutItem["tone"], isActive = false) {
+  if (isActive) return "bg-[#2E7D5B] text-white ring-[#2E7D5B]";
+  if (tone === "amber") return "bg-[#FFF7E6] text-[#B45309] ring-[#F59E0B]/20";
+  if (tone === "green") return "bg-[#EAF5EF] text-[#2E7D5B] ring-[#2E7D5B]/15";
+  return "bg-[#FAF7F0] text-[#1F2933] ring-[#2E7D5B]/8";
+}
 
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [pathname]);
+export function MobileBottomNav() {
+  const pathname = usePathname();
+  const [openMenuPath, setOpenMenuPath] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const isMenuOpen = openMenuPath === pathname;
 
   useEffect(() => {
     let isMounted = true;
@@ -215,11 +303,13 @@ export function MobileBottomNav({ isAdmin: initialIsAdmin = false }: MobileBotto
           .eq("id", user.id)
           .maybeSingle();
 
-        if (isMounted && data?.role === "admin") {
-          setIsAdmin(true);
+        if (isMounted) {
+          setIsAdmin(data?.role === "admin");
         }
       } catch {
-        // Mobil menü rol kontrolü başarısız olursa normal kullanıcı menüsü kalır.
+        if (isMounted) {
+          setIsAdmin(false);
+        }
       }
     }
 
@@ -230,6 +320,11 @@ export function MobileBottomNav({ isAdmin: initialIsAdmin = false }: MobileBotto
     };
   }, []);
 
+  const activeTab = useMemo(
+    () => primaryTabs.find((item) => isActivePath(pathname, item.href)),
+    [pathname]
+  );
+
   if (shouldHideMobileNav(pathname)) {
     return null;
   }
@@ -237,240 +332,245 @@ export function MobileBottomNav({ isAdmin: initialIsAdmin = false }: MobileBotto
   return (
     <>
       {isMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-black/35 backdrop-blur-sm md:hidden">
+        <div className="fixed inset-0 z-40 bg-[#1F2933]/35 backdrop-blur-sm md:hidden">
           <button
             type="button"
             aria-label="Menüyü kapat"
             className="absolute inset-0 h-full w-full cursor-default"
-            onClick={() => setIsMenuOpen(false)}
+            onClick={() => setOpenMenuPath(null)}
           />
 
-          <div className="absolute inset-x-3 bottom-24 max-h-[76vh] overflow-y-auto rounded-[2rem] bg-white p-4 shadow-2xl">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F59E0B]">
-                  KampüsRaf
-                </p>
-                <h2 className="mt-1 text-xl font-black text-[#1F2933]">
-                  Hızlı Menü
-                </h2>
+          <section className="absolute inset-x-3 bottom-[6.4rem] max-h-[74vh] overflow-hidden rounded-[1.6rem] bg-white shadow-2xl shadow-slate-900/20 ring-1 ring-[#2E7D5B]/10">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#FAF7F0] ring-1 ring-[#2E7D5B]/10">
+                  <Image
+                    src="/logo-symbol.png"
+                    alt="KampüsRaf logo"
+                    width={44}
+                    height={44}
+                    className="h-10 w-10 object-contain"
+                  />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#F59E0B]">
+                    Kısayollar
+                  </p>
+                  <h2 className="truncate text-lg font-black text-[#1F2933]">
+                    Ne yapmak istiyorsun?
+                  </h2>
+                </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setIsMenuOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FAF7F0] text-lg font-black text-slate-500"
+                onClick={() => setOpenMenuPath(null)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FAF7F0] text-lg font-black text-slate-500 transition hover:bg-[#2E7D5B]/10 hover:text-[#2E7D5B]"
               >
                 ×
               </button>
             </div>
 
-            <Link
-  href="/rastgele-raf"
-  className={`mt-4 flex items-center justify-between gap-3 rounded-[1.5rem] p-4 transition ${
-    isActivePath(pathname, "/rastgele-raf")
-      ? "bg-[#F59E0B] text-white"
-      : "bg-[#F59E0B]/10 text-[#1F2933] hover:bg-[#F59E0B]/15"
-  }`}
->
-  <div className="flex min-w-0 items-center gap-3">
-    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
-      🎲
-    </span>
-
-    <div className="min-w-0">
-      <p className="text-sm font-black">Rastgele Raf</p>
-      <p
-        className={`line-clamp-1 text-xs font-semibold ${
-          isActivePath(pathname, "/rastgele-raf")
-            ? "text-white/75"
-            : "text-slate-600"
-        }`}
-      >
-        Zar at, kısa bir alıntı keşfet ve dinle
-      </p>
-    </div>
-  </div>
-
-  <span className="text-lg font-black">›</span>
-</Link>
-
-            <div className="mt-4">
-              <p className="px-2 text-xs font-black uppercase tracking-[0.16em] text-[#2E7D5B]">
-                Sosyal
-              </p>
-
-              <div className="mt-2 grid gap-2">
-                {socialMenuItems.map((item) => {
+            <div className="max-h-[calc(74vh-5rem)] overflow-y-auto px-4 pb-5 pt-4">
+              <div className="grid grid-cols-2 gap-2">
+                {quickActions.map((item) => {
                   const active = isActivePath(pathname, item.href);
 
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center gap-3 rounded-[1.4rem] p-3 transition ${
+                      className={`rounded-[1.25rem] p-3 ring-1 transition hover:-translate-y-0.5 ${getToneClass(
+                        item.tone,
                         active
-                          ? "bg-[#2E7D5B] text-white"
-                          : "bg-[#FAF7F0] text-[#1F2933] hover:bg-[#2E7D5B]/5"
-                      }`}
+                      )}`}
                     >
-                      <span className="text-2xl">{item.icon}</span>
-
-                      <div className="min-w-0">
-                        <p className="text-sm font-black">{item.title}</p>
-                        {item.description && (
-                          <p
-                            className={`line-clamp-1 text-xs font-semibold ${
-                              active ? "text-white/70" : "text-slate-500"
-                            }`}
-                          >
-                            {item.description}
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/75 text-sm font-black shadow-sm">
+                          {item.icon}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black">
+                            {item.title}
                           </p>
-                        )}
+                          {item.description && (
+                            <p className="truncate text-[11px] font-bold opacity-70">
+                              {item.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </Link>
                   );
                 })}
               </div>
-            </div>
 
-            <div className="mt-5">
-              <p className="px-2 text-xs font-black uppercase tracking-[0.16em] text-[#F59E0B]">
-                Kitap & Takas
-              </p>
+              <div className="mt-4 grid gap-3">
+                {shortcutGroups.map((group) => (
+                  <section
+                    key={group.title}
+                    className="rounded-[1.35rem] bg-[#FAF7F0] p-3"
+                  >
+                    <div className="flex items-end justify-between gap-3 px-1">
+                      <div>
+                        <h3 className="text-sm font-black text-[#1F2933]">
+                          {group.title}
+                        </h3>
+                        <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+                          {group.description}
+                        </p>
+                      </div>
+                    </div>
 
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {bookMenuItems.map((item) => {
-                  const active = isActivePath(pathname, item.href);
+                    <div className="mt-3 grid gap-2">
+                      {group.items.map((item) => {
+                        const active = isActivePath(pathname, item.href);
 
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`rounded-[1.4rem] p-3 transition ${
-                        active
-                          ? "bg-[#2E7D5B] text-white"
-                          : "bg-[#FAF7F0] text-[#1F2933] hover:bg-[#2E7D5B]/5"
-                      }`}
-                    >
-                      <span className="text-2xl">{item.icon}</span>
-                      <p className="mt-2 text-sm font-black">{item.title}</p>
-                    </Link>
-                  );
-                })}
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`flex items-center gap-3 rounded-[1.1rem] p-3 ring-1 transition hover:-translate-y-0.5 ${
+                              active
+                                ? "bg-[#2E7D5B] text-white ring-[#2E7D5B]"
+                                : "bg-white text-[#1F2933] ring-slate-100 hover:ring-[#2E7D5B]/20"
+                            }`}
+                          >
+                            <span
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black ${
+                                active
+                                  ? "bg-white/15 text-white"
+                                  : "bg-[#FAF7F0] text-[#2E7D5B]"
+                              }`}
+                            >
+                              {item.icon}
+                            </span>
+
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-black">
+                                {item.title}
+                              </p>
+                              {item.description && (
+                                <p
+                                  className={`truncate text-[11px] font-bold ${
+                                    active ? "text-white/70" : "text-slate-500"
+                                  }`}
+                                >
+                                  {item.description}
+                                </p>
+                              )}
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
               </div>
-            </div>
 
-            {isAdmin && (
-              <div className="mt-5 rounded-[1.5rem] bg-[#F59E0B]/10 p-3">
-                <p className="px-1 text-xs font-black uppercase tracking-[0.16em] text-[#B45309]">
-                  Admin
-                </p>
+              {isAdmin && (
+                <section className="mt-4 rounded-[1.35rem] bg-[#FFF7E6] p-3">
+                  <div className="px-1">
+                    <h3 className="text-sm font-black text-[#B45309]">
+                      Admin
+                    </h3>
+                    <p className="mt-0.5 text-[11px] font-bold text-[#92400E]">
+                      Yönetim kısayolları
+                    </p>
+                  </div>
 
-                <div className="mt-2 grid gap-2">
-                  {adminMenuItems.map((item) => {
-                    const active = isActivePath(pathname, item.href);
+                  <div className="mt-3 grid gap-2">
+                    {adminMenuItems.map((item) => {
+                      const active = isActivePath(pathname, item.href);
 
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`flex items-center gap-3 rounded-[1.3rem] p-3 transition ${
-                          active
-                            ? "bg-[#F59E0B] text-white"
-                            : "bg-white text-[#1F2933] hover:bg-[#F59E0B]/10"
-                        }`}
-                      >
-                        <span className="text-xl">{item.icon}</span>
-
-                        <div className="min-w-0">
-                          <p className="text-sm font-black">{item.title}</p>
-                          {item.description && (
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`flex items-center gap-3 rounded-[1.1rem] p-3 ring-1 transition hover:-translate-y-0.5 ${
+                            active
+                              ? "bg-[#F59E0B] text-white ring-[#F59E0B]"
+                              : "bg-white text-[#1F2933] ring-[#F59E0B]/10"
+                          }`}
+                        >
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FFF7E6] text-sm font-black text-[#B45309]">
+                            {item.icon}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-black">
+                              {item.title}
+                            </p>
                             <p
-                              className={`line-clamp-1 text-xs font-semibold ${
-                                active ? "text-white/70" : "text-slate-500"
+                              className={`truncate text-[11px] font-bold ${
+                                active ? "text-white/75" : "text-slate-500"
                               }`}
                             >
                               {item.description}
                             </p>
-                          )}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+            </div>
+          </section>
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#2E7D5B]/10 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 shadow-[0_-14px_40px_rgba(31,41,51,0.08)] backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
-          {mainItems.map((item) => {
+      <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.55rem)] pt-2 md:hidden">
+        <div className="mx-auto flex max-w-md items-center gap-1 rounded-[1.55rem] border border-[#2E7D5B]/10 bg-white/94 p-1.5 shadow-[0_-10px_36px_rgba(31,41,51,0.12)] backdrop-blur-xl">
+          {primaryTabs.map((item) => {
             const active = isActivePath(pathname, item.href);
-
-            if (item.featured) {
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="group flex flex-col items-center justify-end gap-1 pb-1"
-                >
-                  <span
-                    className={`flex h-14 w-14 -translate-y-3 items-center justify-center rounded-[1.4rem] text-2xl shadow-xl transition ${
-                      active
-                        ? "bg-[#F59E0B] text-white shadow-[#F59E0B]/25"
-                        : "bg-[#2E7D5B] text-white shadow-[#2E7D5B]/25 group-hover:-translate-y-4"
-                    }`}
-                  >
-                    {item.icon}
-                  </span>
-
-                  <span
-                    className={`-mt-2 text-[11px] font-black ${
-                      active ? "text-[#F59E0B]" : "text-slate-500"
-                    }`}
-                  >
-                    {item.title}
-                  </span>
-                </Link>
-              );
-            }
+            const isShare = item.href === "/paylas";
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center gap-1 rounded-2xl px-1 py-2 transition ${
+                aria-current={active ? "page" : undefined}
+                className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[1.15rem] px-1 py-2 transition ${
                   active
-                    ? "text-[#2E7D5B]"
-                    : "text-slate-400 hover:text-[#2E7D5B]"
+                    ? "bg-[#EAF5EF] text-[#2E7D5B]"
+                    : "text-slate-500 hover:bg-[#FAF7F0] hover:text-[#2E7D5B]"
+                } ${
+                  isShare
+                    ? active
+                      ? "bg-[#F59E0B] text-white"
+                      : "bg-[#2E7D5B] text-white shadow-lg shadow-[#2E7D5B]/15 hover:bg-[#25684c] hover:text-white"
+                    : ""
                 }`}
               >
                 <span
-                  className={`text-xl ${
-                    active ? "scale-110" : "scale-100"
-                  } transition`}
+                  className={`flex h-7 min-w-7 items-center justify-center rounded-full text-sm font-black ${
+                    active && !isShare ? "bg-white" : "bg-white/15"
+                  }`}
                 >
                   {item.icon}
                 </span>
-                <span className="text-[11px] font-black">{item.title}</span>
+                <span className="truncate text-[10.5px] font-black">
+                  {item.title}
+                </span>
               </Link>
             );
           })}
 
           <button
             type="button"
-            onClick={() => setIsMenuOpen((value) => !value)}
-            className={`flex flex-col items-center gap-1 rounded-2xl px-1 py-2 transition ${
-              isMenuOpen
-                ? "text-[#2E7D5B]"
-                : "text-slate-400 hover:text-[#2E7D5B]"
+            onClick={() => setOpenMenuPath(isMenuOpen ? null : pathname)}
+            aria-expanded={isMenuOpen}
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[1.15rem] px-1 py-2 transition ${
+              isMenuOpen || !activeTab
+                ? "bg-[#EAF5EF] text-[#2E7D5B]"
+                : "text-slate-500 hover:bg-[#FAF7F0] hover:text-[#2E7D5B]"
             }`}
           >
-            <span className="text-xl">{isMenuOpen ? "×" : "☰"}</span>
-            <span className="text-[11px] font-black">Menü</span>
+            <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-white text-sm font-black">
+              {isMenuOpen ? "×" : "M"}
+            </span>
+            <span className="truncate text-[10.5px] font-black">Menü</span>
           </button>
         </div>
       </nav>

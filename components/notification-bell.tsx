@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { markNotificationAndMessageAsReadAction } from "@/app/actions/notifications";
@@ -56,43 +56,49 @@ export function NotificationBell() {
     pathname.startsWith("/auth/login") ||
     pathname.startsWith("/auth/sign-up");
 
-  async function fetchNotifications() {
+  const fetchNotifications = useCallback(async () => {
     if (shouldHide) return;
 
     setIsLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) {
+      if (!user) {
+        setIsLoggedIn(false);
+        setUnreadCount(0);
+        setItems([]);
+        return;
+      }
+
+      const { count } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+
+      const { data } = await supabase
+        .from("notifications")
+        .select(
+          "id, type, title, message, link_url, target_url, is_read, created_at"
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      setIsLoggedIn(true);
+      setUnreadCount(count || 0);
+      setItems((data || []) as NotificationItem[]);
+    } catch {
       setIsLoggedIn(false);
       setUnreadCount(0);
       setItems([]);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    const { count } = await supabase
-      .from("notifications")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("is_read", false);
-
-    const { data } = await supabase
-      .from("notifications")
-      .select(
-        "id, type, title, message, link_url, target_url, is_read, created_at"
-      )
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    setIsLoggedIn(true);
-    setUnreadCount(count || 0);
-    setItems((data || []) as NotificationItem[]);
-    setIsLoading(false);
-  }
+  }, [shouldHide, supabase]);
 
   async function markOneAsRead(
     notificationId: string,
@@ -106,50 +112,58 @@ export function NotificationBell() {
 
     setUnreadCount((currentCount) => Math.max(currentCount - 1, 0));
 
-    await markNotificationAndMessageAsReadAction({
-      notificationId,
-      targetUrl: targetUrl || "",
-    });
+    try {
+      await markNotificationAndMessageAsReadAction({
+        notificationId,
+        targetUrl: targetUrl || "",
+      });
 
-    await fetchNotifications();
+      await fetchNotifications();
+    } catch {
+      // Optimistic read state is enough if the network is temporarily unavailable.
+    }
   }
 
   async function markAllAsRead() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) return;
+      if (!user) return;
 
-    const unreadItems = items.filter((item) => !item.is_read);
+      const unreadItems = items.filter((item) => !item.is_read);
 
-    setItems((currentItems) =>
-      currentItems.map((item) => ({
-        ...item,
-        is_read: true,
-      }))
-    );
+      setItems((currentItems) =>
+        currentItems.map((item) => ({
+          ...item,
+          is_read: true,
+        }))
+      );
 
-    setUnreadCount(0);
+      setUnreadCount(0);
 
-    await Promise.all(
-      unreadItems
-        .filter((item) => item.target_url)
-        .map((item) =>
-          markNotificationAndMessageAsReadAction({
-            notificationId: item.id,
-            targetUrl: item.target_url,
-          })
-        )
-    );
+      await Promise.all(
+        unreadItems
+          .filter((item) => item.target_url)
+          .map((item) =>
+            markNotificationAndMessageAsReadAction({
+              notificationId: item.id,
+              targetUrl: item.target_url,
+            })
+          )
+      );
 
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("user_id", user.id)
-      .eq("is_read", false);
+      await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
 
-    await fetchNotifications();
+      await fetchNotifications();
+    } catch {
+      setUnreadCount(0);
+    }
   }
 
   useEffect(() => {
@@ -159,32 +173,36 @@ export function NotificationBell() {
     let isActive = true;
 
     async function setupRealtimeNotifications() {
-      await fetchNotifications();
+      try {
+        await fetchNotifications();
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-      if (!user || !isActive) return;
+        if (!user || !isActive) return;
 
-      realtimeChannel = supabase
-        .channel(`notifications:${user.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${user.id}`,
-          },
-          async () => {
-            await fetchNotifications();
-          }
-        )
-        .subscribe();
+        realtimeChannel = supabase
+          .channel(`notifications:${user.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${user.id}`,
+            },
+            async () => {
+              await fetchNotifications();
+            }
+          )
+          .subscribe();
+      } catch {
+        setIsLoggedIn(false);
+      }
     }
 
-    setupRealtimeNotifications();
+    void setupRealtimeNotifications();
 
     const backupInterval = window.setInterval(fetchNotifications, 60000);
     window.addEventListener("focus", fetchNotifications);
@@ -198,7 +216,7 @@ export function NotificationBell() {
         supabase.removeChannel(realtimeChannel);
       }
     };
-  }, [pathname, shouldHide, supabase]);
+  }, [fetchNotifications, pathname, shouldHide, supabase]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

@@ -3,6 +3,11 @@
 import crypto from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  canCustomizeDistanceMatching,
+  getMatchDistanceConfig,
+  normalizeDistanceRadiusForPlan,
+} from "@/lib/match-plans";
 import { createClient } from "@/lib/supabase/server";
 
 function cleanUsername(value: string) {
@@ -36,6 +41,27 @@ function normalizeMatchGenderPreference(value: string) {
   return "everyone";
 }
 
+function isDistancePreferenceColumnError(error?: { code?: string; message?: string } | null) {
+  if (!error) return false;
+
+  const message = error.message?.toLocaleLowerCase("tr-TR") || "";
+
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("match_distance_")
+  );
+}
+
+function withoutDistancePreferenceColumns(payload: Record<string, unknown>) {
+  const cleanPayload = { ...payload };
+
+  delete cleanPayload.match_distance_preference_enabled;
+  delete cleanPayload.match_distance_radius_km;
+
+  return cleanPayload;
+}
+
 export async function updateProfileAction(formData: FormData) {
   const fullName = String(formData.get("fullName") || "").trim();
   const usernameInput = String(formData.get("username") || "").trim();
@@ -48,7 +74,12 @@ export async function updateProfileAction(formData: FormData) {
   const requestedMatchPreference = normalizeMatchGenderPreference(
     String(formData.get("matchGenderPreference") || "")
   );
+  const requestedDistanceRadius = Number(
+    formData.get("matchDistanceRadiusKm") || 0
+  );
   const showGenderOnProfile = formData.get("showGenderOnProfile") === "on";
+  const matchDistancePreferenceEnabled =
+    formData.get("matchDistancePreferenceEnabled") === "on";
 
   const username = usernameInput ? cleanUsername(usernameInput) : null;
 
@@ -70,14 +101,19 @@ export async function updateProfileAction(formData: FormData) {
 
   const currentPlanType = currentProfile?.plan_type || "free";
   const canUseMatchPreference = canUseGenderMatchPreference(currentPlanType);
+  const canCustomizeDistancePreference =
+    canCustomizeDistanceMatching(currentPlanType);
+  const distanceConfig = getMatchDistanceConfig(currentPlanType);
 
   const finalMatchGenderPreference =
     canUseMatchPreference && gender !== "prefer_not_to_say"
       ? requestedMatchPreference
       : "everyone";
+  const finalDistanceRadius = canCustomizeDistancePreference
+    ? normalizeDistanceRadiusForPlan(requestedDistanceRadius, currentPlanType)
+    : distanceConfig.radiusKm;
 
-  const { error } = await supabase.from("profiles").upsert(
-    {
+  const profilePayload: Record<string, unknown> = {
       id: user.id,
       email: user.email,
       full_name: fullName || null,
@@ -88,14 +124,26 @@ export async function updateProfileAction(formData: FormData) {
       bio: bio || null,
       gender,
       match_gender_preference: finalMatchGenderPreference,
+      match_distance_preference_enabled: matchDistancePreferenceEnabled,
+      match_distance_radius_km: finalDistanceRadius,
       show_gender_on_profile: showGenderOnProfile,
       match_preferences_updated_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    },
-    {
-      onConflict: "id",
-    }
-  );
+    };
+
+  let { error } = await supabase.from("profiles").upsert(profilePayload, {
+    onConflict: "id",
+  });
+
+  if (isDistancePreferenceColumnError(error)) {
+    const fallbackResult = await supabase
+      .from("profiles")
+      .upsert(withoutDistancePreferenceColumns(profilePayload), {
+        onConflict: "id",
+      });
+
+    error = fallbackResult.error;
+  }
 
   if (error) {
     const message =
@@ -104,6 +152,14 @@ export async function updateProfileAction(formData: FormData) {
         : error.message;
 
     redirect(`/profilim?error=${encodeURIComponent(message)}`);
+  }
+
+  const { error: refreshError } = await supabase.rpc("refresh_matches_for_user", {
+    p_user_id: user.id,
+  });
+
+  if (refreshError && refreshError.code !== "42883") {
+    console.warn("Eşleşme yenileme uyarısı:", refreshError.message);
   }
 
   revalidatePath("/profilim");
@@ -128,24 +184,28 @@ const planLimits = {
     monthly_request_limit: 10,
     monthly_message_limit: 30,
     monthly_match_limit: 10,
+    match_distance_radius_km: 10,
   },
   plus: {
     monthly_book_limit: 30,
     monthly_request_limit: 30,
     monthly_message_limit: 100,
     monthly_match_limit: 40,
+    match_distance_radius_km: 15,
   },
   premium: {
     monthly_book_limit: 75,
     monthly_request_limit: 75,
     monthly_message_limit: 300,
     monthly_match_limit: 150,
+    match_distance_radius_km: 25,
   },
   pro: {
     monthly_book_limit: 200,
     monthly_request_limit: 200,
     monthly_message_limit: 1000,
     monthly_match_limit: 500,
+    match_distance_radius_km: 35,
   },
 } as const;
 
@@ -168,15 +228,16 @@ export async function updatePlanAction(formData: FormData) {
 
   const selectedPlan = planType as keyof typeof planLimits;
   const canKeepMatchPreference = canUseGenderMatchPreference(selectedPlan);
+  const distanceConfig = getMatchDistanceConfig(selectedPlan);
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({
+  const planPayload: Record<string, unknown> = {
       plan_type: selectedPlan,
       plan_status: "active",
       plan_started_at: new Date().toISOString(),
       plan_expires_at: null,
       ...planLimits[selectedPlan],
+      match_distance_preference_enabled: true,
+      match_distance_radius_km: distanceConfig.radiusKm,
       ...(canKeepMatchPreference
         ? {}
         : {
@@ -184,11 +245,32 @@ export async function updatePlanAction(formData: FormData) {
             match_preferences_updated_at: new Date().toISOString(),
           }),
       updated_at: new Date().toISOString(),
-    })
+    };
+
+  let { error } = await supabase
+    .from("profiles")
+    .update(planPayload)
     .eq("id", user.id);
+
+  if (isDistancePreferenceColumnError(error)) {
+    const fallbackResult = await supabase
+      .from("profiles")
+      .update(withoutDistancePreferenceColumns(planPayload))
+      .eq("id", user.id);
+
+    error = fallbackResult.error;
+  }
 
   if (error) {
     redirect(`/paketler?error=${encodeURIComponent(error.message)}`);
+  }
+
+  const { error: refreshError } = await supabase.rpc("refresh_matches_for_user", {
+    p_user_id: user.id,
+  });
+
+  if (refreshError && refreshError.code !== "42883") {
+    console.warn("Paket sonrası eşleşme yenileme uyarısı:", refreshError.message);
   }
 
   revalidatePath("/paketler");

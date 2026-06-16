@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { UserChatRoom } from "@/components/user-chat-room";
 import { createClient } from "@/lib/supabase/server";
 import { submitUserReportAction } from "@/app/actions/user-reports";
@@ -267,49 +268,18 @@ export default async function UserMessagesPage({ params }: UserChatPageProps) {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-10">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/90 px-3 py-3 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-          <Link href="/mesajlar" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-lg text-white md:h-11 md:w-11">
-              ←
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-lg font-black md:text-xl">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="truncate text-xs font-semibold text-slate-500">
-                Kişi sohbet odası
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/mesajlar" className="hover:text-[#2E7D5B]">
-              Mesajlar
-            </Link>
-            <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
-              Kitap Ara
-            </Link>
-            <Link href="/eslesmeler" className="hover:text-[#2E7D5B]">
-              Eşleşmeler
-            </Link>
-            <Link href="/takaslar" className="hover:text-[#2E7D5B]">
-              Takaslar
-            </Link>
-          </nav>
-
+      <AppHeader
+        subtitle="Kişi sohbet odası"
+        active="mesajlar"
+        actions={
           <Link
             href="/mesajlar"
             className="shrink-0 rounded-full bg-[#2E7D5B] px-4 py-2 text-xs font-black text-white transition hover:bg-[#25684c] md:px-5 md:py-2.5 md:text-sm"
           >
             Mesajlar
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <section className="mx-auto max-w-7xl px-3 py-4 md:px-6 md:py-10">
         <section className="md:hidden">

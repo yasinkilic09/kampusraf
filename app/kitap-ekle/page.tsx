@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AppHeader } from "@/components/app-header";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -121,15 +122,22 @@ export default function AddBookPage() {
 
   useEffect(() => {
     const query = catalogQuery.trim();
+    let isActive = true;
 
     if (query.length < 2) {
-      setCatalogResults([]);
-      setHasSearchedCatalog(false);
-      setIsSearchingCatalog(false);
-      return;
-    }
+      const resetTimer = window.setTimeout(() => {
+        if (!isActive) return;
 
-    let isActive = true;
+        setCatalogResults([]);
+        setHasSearchedCatalog(false);
+        setIsSearchingCatalog(false);
+      }, 0);
+
+      return () => {
+        isActive = false;
+        window.clearTimeout(resetTimer);
+      };
+    }
 
     const timer = window.setTimeout(async () => {
       setIsSearchingCatalog(true);
@@ -458,49 +466,11 @@ export default function AddBookPage() {
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              📚
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                Kitap ekle
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/akis" className="hover:text-[#2E7D5B]">
-              Akış
-            </Link>
-            <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
-              Kitap Ara
-            </Link>
-            <Link href="/kitaplarim" className="hover:text-[#2E7D5B]">
-              Kitaplarım
-            </Link>
-            <Link href="/eslesmeler" className="hover:text-[#2E7D5B]">
-              Eşleşmeler
-            </Link>
-          </nav>
-
-          <Link
-            href="/kitaplarim"
-            className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
-          >
-            Rafım
-          </Link>
-        </div>
-      </header>
+      <AppHeader
+        subtitle="Kitap ekle"
+        active="kitap-ekle"
+        actions={<Link href="/kitaplarim" className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]">Rafım</Link>}
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         <section className="overflow-hidden rounded-[1.8rem] bg-[#2E7D5B] text-white shadow-xl shadow-[#2E7D5B]/15 md:rounded-[2.2rem]">
@@ -1022,6 +992,28 @@ export default function AddBookPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              <div className="rounded-[1.4rem] border border-[#2E7D5B]/10 bg-[#EAF5EF] p-4">
+                <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+                  <div>
+                    <p className="text-sm font-black text-[#1F2933]">
+                      Haritada görünürlük
+                    </p>
+                    <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                      Profilinden konum izni verdiysen takas, ödünç, satış veya
+                      bağışa açık kitapların yaklaşık konumla Harita bölümünde
+                      listelenir. Kesin adres paylaşılmaz.
+                    </p>
+                  </div>
+
+                  <Link
+                    href="/harita"
+                    className="shrink-0 rounded-full bg-white px-4 py-2 text-xs font-black text-[#2E7D5B] ring-1 ring-[#2E7D5B]/10 transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
+                  >
+                    Haritayı Aç
+                  </Link>
                 </div>
               </div>
 

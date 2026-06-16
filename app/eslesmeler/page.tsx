@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppHeader } from "@/components/app-header";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { startMatchConversationAction } from "@/app/actions/conversations";
@@ -235,6 +236,17 @@ function getNumberFromBreakdown(breakdown: ScoreBreakdown, key: string) {
   return numberValue;
 }
 
+function getDistanceDetailFromBreakdown(breakdown: ScoreBreakdown) {
+  const distanceKm = getNumberFromBreakdown(breakdown, "distance_km");
+  const radiusKm = getNumberFromBreakdown(breakdown, "distance_radius_km");
+
+  if (distanceKm > 0 && radiusKm > 0) {
+    return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} km / ${radiusKm} km`;
+  }
+
+  return "";
+}
+
 function getSignalItems(breakdown: ScoreBreakdown) {
   const items = [
     {
@@ -249,6 +261,11 @@ function getSignalItems(breakdown: ScoreBreakdown) {
       value:
         getNumberFromBreakdown(breakdown, "city_points") +
         getNumberFromBreakdown(breakdown, "university_points"),
+    },
+    {
+      label: "Harita yakınlığı",
+      value: getNumberFromBreakdown(breakdown, "distance_points"),
+      detail: getDistanceDetailFromBreakdown(breakdown),
     },
     {
       label: "Güven",
@@ -514,49 +531,11 @@ export default async function MatchesPage({
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              ✨
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                Akıllı eşleşme merkezi
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
-              Kitap Ara
-            </Link>
-            <Link href="/aradigim-kitaplar" className="hover:text-[#2E7D5B]">
-              Aradığım Kitaplar
-            </Link>
-            <Link href="/mesajlar" className="hover:text-[#2E7D5B]">
-              Mesajlar
-            </Link>
-            <Link href="/takaslar" className="hover:text-[#2E7D5B]">
-              Takaslar
-            </Link>
-          </nav>
-
-          <Link
-            href="/aradigim-kitaplar"
-            className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
-          >
-            Kitap Takip Et
-          </Link>
-        </div>
-      </header>
+      <AppHeader
+        subtitle="Akıllı eşleşme merkezi"
+        active="eslesmeler"
+        actions={<Link href="/aradigim-kitaplar" className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]">Kitap Takip Et</Link>}
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         <section className="overflow-hidden rounded-[1.8rem] bg-[#2E7D5B] text-white shadow-xl shadow-[#2E7D5B]/15 md:rounded-[2.2rem]">
@@ -619,7 +598,7 @@ export default async function MatchesPage({
 
                   <div className="rounded-2xl bg-white/10 p-4">
                     <p className="text-3xl font-black">
-                      {superMatches.length + strongMatches.length}
+                      {superMatches.length + strongMatches.length + goodMatches.length}
                     </p>
                     <p className="mt-1 text-[11px] font-bold text-white/65">
                       Yüksek uyum
@@ -665,7 +644,7 @@ export default async function MatchesPage({
           <div className="rounded-[1.7rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-7">
             <p className="text-sm font-bold text-slate-500">Süper / Güçlü</p>
             <p className="mt-3 text-4xl font-black text-red-600">
-              {superMatches.length + strongMatches.length}
+              {superMatches.length + strongMatches.length + goodMatches.length}
             </p>
           </div>
         </section>
@@ -1035,9 +1014,14 @@ export default async function MatchesPage({
                               {signalItems.map((item) => (
                                 <span
                                   key={item.label}
-                                  className="rounded-full border border-[#2E7D5B]/10 bg-white px-3 py-1 text-xs font-black text-slate-600"
+                                  className="inline-flex items-center gap-1 rounded-full border border-[#2E7D5B]/10 bg-white px-3 py-1 text-xs font-black text-slate-600"
                                 >
                                   {item.label} +{Math.round(item.value)}
+                                  {"detail" in item && item.detail ? (
+                                    <span className="text-[10px] text-slate-400">
+                                      {item.detail}
+                                    </span>
+                                  ) : null}
                                 </span>
                               ))}
                             </div>

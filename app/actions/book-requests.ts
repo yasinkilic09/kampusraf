@@ -18,15 +18,7 @@ export async function createBookRequestAction(formData: FormData) {
     redirect("/aradigim-kitaplar");
   }
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
+  const { supabase, user } = await requireActiveAccount("/aradigim-kitaplar");
 
 const limitCheck = await checkUsageLimit(supabase, user.id, "requests");
 

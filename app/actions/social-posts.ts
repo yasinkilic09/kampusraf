@@ -84,15 +84,32 @@ export async function createSocialPostAction(formData: FormData) {
   );
   const relatedBookId = String(formData.get("relatedBookId") || "").trim();
 
+  if (!imageFile) {
+    redirect("/paylas?error=Görsel seçmelisin");
+  }
+
   try {
-    if (!imageFile) {
-      redirect("/paylas?error=Görsel seçmelisin");
+    if (caption.length > 600) {
+      throw new Error("Açıklama en fazla 600 karakter olabilir.");
     }
 
     const imageUrl = await uploadPostImage({
       file: imageFile,
       userId: user.id,
     });
+
+    if (relatedBookId) {
+      const { data: ownedBook, error: ownedBookError } = await supabase
+        .from("user_books")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("book_id", relatedBookId)
+        .maybeSingle();
+
+      if (ownedBookError || !ownedBook) {
+        throw new Error("Bu kitabı etiketlemek için önce kendi rafına eklemelisin.");
+      }
+    }
 
     const { error } = await supabase.from("social_posts").insert({
       user_id: user.id,
@@ -105,7 +122,7 @@ export async function createSocialPostAction(formData: FormData) {
 
     if (error) {
       console.error("createSocialPostAction insert error:", error.message);
-      redirect(`/paylas?error=${encodeURIComponent(error.message)}`);
+      throw new Error(error.message);
     }
   } catch (error) {
     const message =
@@ -116,6 +133,7 @@ export async function createSocialPostAction(formData: FormData) {
   }
 
   revalidatePath("/akis");
+  revalidatePath("/dashboard");
   revalidatePath("/paylas");
   revalidatePath("/profilim");
 

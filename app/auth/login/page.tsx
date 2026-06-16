@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -82,8 +83,15 @@ export default function LoginPage() {
           <section className="flex flex-col justify-between rounded-[2rem] bg-[#2E7D5B] p-5 text-white shadow-2xl shadow-[#2E7D5B]/20 sm:p-7 lg:min-h-[calc(100vh-72px)] lg:p-8">
             <div>
               <Link href="/" className="inline-flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-lg shadow-black/10">
-                  📚
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-black/10">
+                  <Image
+                    src="/logo-symbol.png"
+                    alt="KampüsRaf logo"
+                    width={44}
+                    height={44}
+                    className="h-10 w-10 object-contain"
+                    priority
+                  />
                 </div>
 
                 <div>

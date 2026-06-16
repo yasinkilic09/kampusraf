@@ -5,6 +5,8 @@ import {
   reportAudioContentAction,
   toggleAudioFavoriteAction,
 } from "@/app/actions/audio-raf";
+import { AppHeader } from "@/components/app-header";
+import { PageShortcuts } from "@/components/page-shortcuts";
 
 type PageParams = {
   audioBookId: string;
@@ -118,26 +120,18 @@ export default async function AudioBookDetailPage({
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-10">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/sesli-raf" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">🎧</div>
-            <div className="min-w-0">
-              <p className="truncate text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">Sesli içerik detayı</p>
-            </div>
-          </Link>
-
+      <AppHeader
+        subtitle="Sesli içerik detayı"
+        active="sesli-raf"
+        actions={
           <Link
             href="/sesli-raf"
             className="shrink-0 rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
           >
             Tüm Sesler
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         {query.success && (
@@ -235,17 +229,27 @@ export default async function AudioBookDetailPage({
           </div>
 
           <aside className="space-y-5 lg:sticky lg:top-28 lg:self-start">
-            <section className="rounded-[1.8rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-6">
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#2E7D5B]">Hızlı Erişim</p>
-              <div className="mt-5 grid gap-3">
-                <Link href="/sesli-raf" className="rounded-full bg-[#2E7D5B] px-5 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5">
-                  Diğer Sesli İçerikler
-                </Link>
-                <Link href="/sesli-raf/yukle" className="rounded-full border border-[#2E7D5B]/20 px-5 py-3 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5">
-                  Ben de Seslendireyim
-                </Link>
-              </div>
-            </section>
+            <PageShortcuts
+              eyebrow="Sesli Raf"
+              title="Hızlı Erişim"
+              description="Dinleme sonrası keşfe devam et veya kendi sesini ekle."
+              compact
+              items={[
+                {
+                  title: "Diğer Sesli İçerikler",
+                  href: "/sesli-raf",
+                  icon: "S",
+                  description: "Sesli Raf koleksiyonuna dön.",
+                },
+                {
+                  title: "Ben de Seslendireyim",
+                  href: "/sesli-raf/yukle",
+                  icon: "+",
+                  description: "Kendi sesli içeriğini yükle.",
+                  tone: "amber",
+                },
+              ]}
+            />
 
             <section className="rounded-[1.8rem] border border-red-100 bg-white p-5 shadow-sm md:rounded-[2rem] md:p-6">
               <p className="text-sm font-black uppercase tracking-[0.18em] text-red-600">İçerik Bildir</p>

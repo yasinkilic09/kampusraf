@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { AppHeader, adminNavItems } from "@/components/app-header";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { PageShortcuts } from "@/components/page-shortcuts";
 
 type ProfileRow = {
   id: string;
@@ -217,11 +219,6 @@ export default async function AdminPage() {
     .select("*", { count: "exact", head: true })
     .eq("verification_status", "verified");
 
-  const { count: rejectedVerificationCount } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .eq("verification_status", "rejected");
-
   const { count: suspendedUsersCount } = await supabase
     .from("profiles")
     .select("*", { count: "exact", head: true })
@@ -249,10 +246,6 @@ export default async function AdminPage() {
     .from("exchanges")
     .select("*", { count: "exact", head: true })
     .eq("status", "completed");
-
-  const { count: totalReportsCount } = await supabase
-    .from("user_reports")
-    .select("*", { count: "exact", head: true });
 
   const { count: pendingReportsCount } = await supabase
     .from("user_reports")
@@ -384,52 +377,20 @@ const { count: approvedQuotesCount } = await supabase
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-10">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              🛡️
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                Admin kontrol merkezi
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/admin/dogrulamalar" className="hover:text-[#2E7D5B]">
-              Doğrulamalar
-            </Link>
-            <Link href="/admin/kullanicilar" className="hover:text-[#2E7D5B]">
-              Kullanıcılar
-            </Link>
-            <Link href="/admin/sikayetler" className="hover:text-[#2E7D5B]">
-              Şikayetler
-            </Link>
-            <Link href="/admin/alintilar" className="hover:text-[#2E7D5B]">
-  Alıntılar
-</Link>
-            <Link href="/profilim" className="hover:text-[#2E7D5B]">
-              Profilim
-            </Link>
-          </nav>
-
+      <AppHeader
+        subtitle="Admin kontrol merkezi"
+        active="admin"
+        isAdmin
+        navItems={adminNavItems}
+        actions={
           <Link
             href="/admin/sikayetler"
             className="shrink-0 rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
           >
             Şikayetler
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         <section className="overflow-hidden rounded-[1.8rem] bg-[#2E7D5B] text-white shadow-xl shadow-[#2E7D5B]/15 md:rounded-[2.2rem]">
@@ -574,80 +535,50 @@ const { count: approvedQuotesCount } = await supabase
 
         <section className="mt-6 grid gap-6 md:mt-8 lg:grid-cols-[360px_minmax(0,1fr)]">
           <aside className="space-y-5 lg:sticky lg:top-28 lg:self-start">
-            <section className="rounded-[1.8rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-6">
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#2E7D5B]">
-                Hızlı İşlemler
-              </p>
-
-              <div className="mt-5 grid gap-3">
-                <Link
-                  href="/admin/dogrulamalar"
-                  className="rounded-2xl bg-[#2E7D5B] p-4 text-white transition hover:-translate-y-0.5"
-                >
-                  <p className="text-sm font-black">Doğrulama Talepleri</p>
-                  <p className="mt-1 text-xs leading-5 text-white/70">
-                    Öğrenci doğrulama taleplerini onayla veya reddet.
-                  </p>
-                </Link>
-
-                <Link
-                  href="/admin/sikayetler"
-                  className="rounded-2xl bg-red-50 p-4 transition hover:-translate-y-0.5"
-                >
-                  <p className="text-sm font-black text-red-600">
-                    Şikayet Yönetimi
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Kullanıcı bildirimlerini incele ve gerekli aksiyonu al.
-                  </p>
-                </Link>
-
-                <Link
-                  href="/admin/kullanicilar"
-                  className="rounded-2xl bg-[#FAF7F0] p-4 transition hover:-translate-y-0.5"
-                >
-                  <p className="text-sm font-black text-[#1F2933]">
-                    Kullanıcı Yönetimi
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Kullanıcıları, rolleri ve hesap durumlarını yönet.
-                  </p>
-                </Link>
-
-                <Link
-  href="/admin/alintilar"
-  className="rounded-2xl bg-[#F59E0B]/10 p-4 transition hover:-translate-y-0.5 hover:bg-[#F59E0B]/15"
->
-  <p className="text-sm font-black text-[#B45309]">
-    🎲 Alıntı Merkezi
-  </p>
-  <p className="mt-1 text-xs leading-5 text-slate-600">
-    Rastgele Raf için alıntı havuzunu, çevirileri ve onay bekleyen içerikleri yönet.
-  </p>
-
-  <div className="mt-3 flex flex-wrap gap-2">
-    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#B45309]">
-      Bekleyen: {pendingQuotesCount || 0}
-    </span>
-    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#2E7D5B]">
-      Yayında: {approvedQuotesCount || 0}
-    </span>
-  </div>
-</Link>
-
-                <Link
-                  href="/bildirimler"
-                  className="rounded-2xl bg-[#FAF7F0] p-4 transition hover:-translate-y-0.5"
-                >
-                  <p className="text-sm font-black text-[#1F2933]">
-                    Bildirimler
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Kendi bildirim merkezini aç.
-                  </p>
-                </Link>
-              </div>
-            </section>
+            <PageShortcuts
+              eyebrow="Yönetim Kısayolları"
+              title="Hızlı İşlemler"
+              description="Sık kullanılan admin ekranlarına hızlıca geç."
+              compact
+              items={[
+                {
+                  title: "Doğrulama Talepleri",
+                  href: "/admin/dogrulamalar",
+                  icon: "D",
+                  description: "Öğrenci taleplerini onayla veya reddet.",
+                  badge: pendingVerificationCount || null,
+                },
+                {
+                  title: "Şikayet Yönetimi",
+                  href: "/admin/sikayetler",
+                  icon: "G",
+                  description: "Kullanıcı bildirimlerini incele.",
+                  tone: "red",
+                  badge: pendingReportsCount || null,
+                },
+                {
+                  title: "Kullanıcı Yönetimi",
+                  href: "/admin/kullanicilar",
+                  icon: "K",
+                  description: "Roller ve hesap durumlarını yönet.",
+                },
+                {
+                  title: "Alıntı Merkezi",
+                  href: "/admin/alintilar",
+                  icon: "A",
+                  description: "Rastgele Raf havuzu ve çevirileri yönet.",
+                  tone: "amber",
+                  badge: `${pendingQuotesCount || 0}/${approvedQuotesCount || 0}`,
+                },
+                {
+                  title: "Bildirimler",
+                  href: "/bildirimler",
+                  icon: "B",
+                  description: "Kendi bildirim merkezini aç.",
+                  tone: "slate",
+                },
+              ]}
+            />
 
             <section className="rounded-[1.8rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-6">
               <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F59E0B]">

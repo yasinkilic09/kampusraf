@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import {
   addQuoteFavoriteAction,
   removeQuoteFavoriteAction,
   rollRandomQuoteAction,
 } from "@/app/actions/random-quote";
+import { createQuoteSocialPostAction } from "@/app/actions/social-posts";
+import { copyTextSafely } from "@/lib/safe-clipboard";
 
 type Quote = {
   roll_id: string;
@@ -22,6 +25,7 @@ type Quote = {
   source_url: string | null;
   rolls_used: number;
   rolls_limit: number;
+  is_favorited: boolean;
 };
 
 type RandomQuoteClientProps = {
@@ -29,6 +33,16 @@ type RandomQuoteClientProps = {
   initialRollsLimit: number;
   planType: string;
 };
+
+const DICE_PIPS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+const DIM_DICE_PIPS = new Set([1, 3, 5, 7]);
+
+function waitForDiceReveal(startedAt: number) {
+  const minimumDuration = 900;
+  const remaining = Math.max(minimumDuration - (Date.now() - startedAt), 0);
+
+  return new Promise((resolve) => setTimeout(resolve, remaining));
+}
 
 export function RandomQuoteClient({
   initialRollsUsed,
@@ -40,6 +54,8 @@ export function RandomQuoteClient({
   const [rollsLimit, setRollsLimit] = useState(initialRollsLimit);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error" | "">("");
+  const [shareVisibility, setShareVisibility] = useState<"friends" | "public">("public");
+  const [isDiceRolling, setIsDiceRolling] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [favoriteQuoteIds, setFavoriteQuoteIds] = useState<Set<string>>(
     () => new Set()
@@ -49,7 +65,8 @@ export function RandomQuoteClient({
   const [isFavoritePending, startFavoriteTransition] = useTransition();
 
   const remainingRolls = Math.max(rollsLimit - rollsUsed, 0);
-  const canRoll = remainingRolls > 0 && !isRollPending;
+  const isRolling = isRollPending || isDiceRolling;
+  const canRoll = remainingRolls > 0 && !isRolling;
 
   const isCurrentQuoteFavorited = quote
     ? favoriteQuoteIds.has(quote.quote_id)
@@ -60,26 +77,50 @@ export function RandomQuoteClient({
     return Math.min((rollsUsed / rollsLimit) * 100, 100);
   }, [rollsLimit, rollsUsed]);
 
+  const bookSearchHref = useMemo(() => {
+    if (!quote?.book_title) return "/kitap-ara";
+    return `/kitap-ara?q=${encodeURIComponent(quote.book_title)}`;
+  }, [quote?.book_title]);
+
   function handleRoll() {
     if (!canRoll) return;
 
+    handleStopSpeaking();
     setMessage("");
     setMessageType("");
+    setIsDiceRolling(true);
 
     startRollTransition(async () => {
+      const startedAt = Date.now();
       const result = await rollRandomQuoteAction();
+      await waitForDiceReveal(startedAt);
 
       if (!result.ok || !result.quote) {
         setMessage(result.message);
         setMessageType("error");
+        setIsDiceRolling(false);
         return;
       }
 
-      setQuote(result.quote);
-      setRollsUsed(result.quote.rolls_used);
-      setRollsLimit(result.quote.rolls_limit);
+      const nextQuote = result.quote;
+
+      setFavoriteQuoteIds((previous) => {
+        const next = new Set(previous);
+
+        if (nextQuote.is_favorited) {
+          next.add(nextQuote.quote_id);
+        } else {
+          next.delete(nextQuote.quote_id);
+        }
+
+        return next;
+      });
+      setQuote(nextQuote);
+      setRollsUsed(nextQuote.rolls_used);
+      setRollsLimit(nextQuote.rolls_limit);
       setMessage(result.message);
       setMessageType("success");
+      setIsDiceRolling(false);
     });
   }
 
@@ -139,14 +180,16 @@ KampüsRaf · Rastgele Raf`;
   async function handleCopyQuote() {
     if (!quote) return;
 
-    try {
-      await navigator.clipboard.writeText(getQuoteShareText(quote));
+    const copied = await copyTextSafely(getQuoteShareText(quote));
+
+    if (copied) {
       setMessage("Alıntı panoya kopyalandı.");
       setMessageType("success");
-    } catch {
-      setMessage("Kopyalama işlemi başarısız oldu.");
-      setMessageType("error");
+      return;
     }
+
+    setMessage("Tarayıcı kopyalama izni vermedi. Metni paylaş menüsünden gönderebilirsin.");
+    setMessageType("error");
   }
 
   async function handleShareQuote() {
@@ -274,7 +317,9 @@ KampüsRaf · Rastgele Raf`;
         </div>
 
         <div className="mt-8">
-          {quote ? (
+          {isRolling ? (
+            <RollingDiceCard />
+          ) : quote ? (
             <article className="relative overflow-hidden rounded-[2rem] bg-[#2E7D5B] p-6 text-white shadow-xl shadow-[#2E7D5B]/15 md:p-8">
               <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
               <div className="absolute -bottom-10 left-10 h-40 w-40 rounded-full bg-[#F59E0B]/20 blur-2xl" />
@@ -370,6 +415,45 @@ KampüsRaf · Rastgele Raf`;
                     📤 Paylaş
                   </button>
 
+                  <Link
+                    href={bookSearchHref}
+                    className="rounded-full bg-white px-6 py-3 text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5"
+                  >
+                    Kitabı Ara
+                  </Link>
+
+                  <Link
+                    href="/favori-alintilarim"
+                    className="rounded-full border border-white/20 px-6 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10"
+                  >
+                    Favorilerim
+                  </Link>
+
+                  {quote.source_url && (
+                    <a
+                      href={quote.source_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border border-white/20 px-6 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10"
+                    >
+                      Kaynağı Aç
+                    </a>
+                  )}
+
+                  <form action={createQuoteSocialPostAction} className="contents">
+                    <input type="hidden" name="quoteId" value={quote.quote_id} />
+                    <input type="hidden" name="visibility" value={shareVisibility} />
+                    <input type="hidden" name="redirectTo" value="/rastgele-raf" />
+
+                    <button
+                      type="submit"
+                      disabled={!isCurrentQuoteFavorited}
+                      className="rounded-full bg-[#F59E0B] px-6 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Akışta Paylaş
+                    </button>
+                  </form>
+
                   {isSpeaking && (
                     <button
                       type="button"
@@ -386,8 +470,46 @@ KampüsRaf · Rastgele Raf`;
                     disabled={!canRoll}
                     className="rounded-full border border-white/20 px-6 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    🎲 Yeni Zar At
+                    Yeni Zar At
                   </button>
+                </div>
+
+                <div className="mt-5 rounded-[1.5rem] bg-white/10 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#F5EBDD]">
+                        Akış paylaşımı
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-white/70">
+                        Akışta paylaşmak için alıntıyı önce favorilerine ekle.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 rounded-full bg-white/10 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setShareVisibility("friends")}
+                        className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                          shareVisibility === "friends"
+                            ? "bg-white text-[#2E7D5B]"
+                            : "text-white/80 hover:bg-white/10"
+                        }`}
+                      >
+                        Arkadaşlar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShareVisibility("public")}
+                        className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                          shareVisibility === "public"
+                            ? "bg-white text-[#2E7D5B]"
+                            : "text-white/80 hover:bg-white/10"
+                        }`}
+                      >
+                        Herkes
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </article>
@@ -413,7 +535,7 @@ KampüsRaf · Rastgele Raf`;
                 disabled={!canRoll}
                 className="mt-6 rounded-full bg-[#2E7D5B] px-8 py-4 text-sm font-black text-white shadow-lg shadow-[#2E7D5B]/20 transition hover:-translate-y-0.5 hover:bg-[#25684c] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isRollPending ? "Zar atılıyor..." : "🎲 Zar At"}
+                {isRolling ? "Zar dönüyor..." : "Zar At"}
               </button>
             </div>
           )}
@@ -503,5 +625,32 @@ KampüsRaf · Rastgele Raf`;
         </section>
       </aside>
     </section>
+  );
+}
+
+function RollingDiceCard() {
+  return (
+    <div className="rounded-[2rem] border border-dashed border-[#2E7D5B]/25 bg-[#FAF7F0] p-8 text-center">
+      <div className="mx-auto flex h-28 w-28 animate-bounce items-center justify-center rounded-[2rem] bg-white shadow-lg shadow-[#2E7D5B]/10">
+        <div className="grid h-20 w-20 animate-[spin_0.65s_linear_infinite] grid-cols-3 gap-2 rounded-[1.4rem] bg-[#2E7D5B] p-4 shadow-xl shadow-[#2E7D5B]/20">
+          {DICE_PIPS.map((pip) => (
+            <span
+              key={pip}
+              className={[
+                "h-2.5 w-2.5 rounded-full bg-white",
+                DIM_DICE_PIPS.has(pip) ? "opacity-25" : "opacity-100",
+              ].join(" ")}
+            />
+          ))}
+        </div>
+      </div>
+
+      <h3 className="mt-6 text-2xl font-black text-[#1F2933]">
+        Zar dönüyor...
+      </h3>
+      <p className="mx-auto mt-3 max-w-lg text-sm font-semibold leading-7 text-slate-500">
+        Raf karışıyor, birazdan sana yeni bir alıntı çıkacak.
+      </p>
+    </div>
   );
 }

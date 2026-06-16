@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const features = [
   {
@@ -60,8 +61,15 @@ export default function Home() {
 
         <nav className="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white shadow-lg shadow-[#2E7D5B]/20">
-              📚
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-[#2E7D5B]/15 ring-1 ring-[#2E7D5B]/10">
+              <Image
+                src="/logo-symbol.png"
+                alt="KampüsRaf logo"
+                width={44}
+                height={44}
+                className="h-10 w-10 object-contain"
+                priority
+              />
             </div>
             <div>
               <p className="text-xl font-black tracking-tight">

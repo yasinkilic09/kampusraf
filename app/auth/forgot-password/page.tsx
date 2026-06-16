@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -53,8 +54,15 @@ export default function ForgotPasswordPage() {
         <div className="relative grid w-full max-w-6xl gap-6 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
           <section className="rounded-[2rem] bg-[#2E7D5B] p-6 text-white shadow-2xl shadow-[#2E7D5B]/20 sm:p-8">
             <Link href="/" className="inline-flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-lg shadow-black/10">
-                📚
+              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-black/10">
+                <Image
+                  src="/logo-symbol.png"
+                  alt="KampüsRaf logo"
+                  width={44}
+                  height={44}
+                  className="h-10 w-10 object-contain"
+                  priority
+                />
               </div>
 
               <div>

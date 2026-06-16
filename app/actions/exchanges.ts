@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { requireActiveAccount } from "@/lib/account-status";
 
 const activeStatuses = ["requested", "meeting_planned", "handed_over"] as const;
@@ -34,31 +33,19 @@ function getOtherParticipant(
 }
 
 export async function createExchangeAction(formData: FormData) {
-  await requireActiveAccount("/mesajlar");
-
   const conversationId = String(formData.get("conversationId") || "");
-
   const returnTo = String(
-  formData.get("returnTo") || `/mesajlar/${conversationId}`
-);
-
-const safeReturnTo = returnTo.startsWith("/")
-  ? returnTo
-  : `/mesajlar/${conversationId}`;
+    formData.get("returnTo") || `/mesajlar/${conversationId}`
+  );
+  const safeReturnTo = returnTo.startsWith("/")
+    ? returnTo
+    : `/mesajlar/${conversationId}`;
 
   if (!conversationId) {
     redirect("/mesajlar");
   }
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
+  const { supabase, user } = await requireActiveAccount("/mesajlar");
 
   const { data: conversation } = await supabase
     .from("conversations")
@@ -88,7 +75,7 @@ const safeReturnTo = returnTo.startsWith("/")
     .single();
 
   if (!userBook) {
-    redirect(`/mesajlar/${conversation.id}`);
+    redirect(safeReturnTo);
   }
 
   const ownerId = userBook.user_id;
@@ -103,18 +90,18 @@ const safeReturnTo = returnTo.startsWith("/")
     .maybeSingle();
 
   if (existingExchange) {
-    redirect(`/mesajlar/${conversation.id}`);
+    redirect(safeReturnTo);
   }
 
   const { error } = await supabase.from("exchanges").insert({
-  conversation_id: conversation.id,
-  user_book_id: userBook.id,
-  requester_id: requesterId,
-  owner_id: ownerId,
-  requested_by: user.id,
-  last_action_by: user.id,
-  status: "requested",
-});
+    conversation_id: conversation.id,
+    user_book_id: userBook.id,
+    requester_id: requesterId,
+    owner_id: ownerId,
+    requested_by: user.id,
+    last_action_by: user.id,
+    status: "requested",
+  });
 
   if (error) {
     redirect(
@@ -125,25 +112,23 @@ const safeReturnTo = returnTo.startsWith("/")
   }
 
   revalidatePath(`/mesajlar/${conversation.id}`);
+  revalidatePath(safeReturnTo);
   revalidatePath("/mesajlar");
   revalidatePath("/profilim");
 
-  redirect(`/mesajlar/${conversation.id}`);
+  redirect(safeReturnTo);
 }
 
 export async function updateExchangeStatusAction(formData: FormData) {
-  await requireActiveAccount("/mesajlar");
-
   const exchangeId = String(formData.get("exchangeId") || "");
   const conversationId = String(formData.get("conversationId") || "");
 
   const returnTo = String(
-  formData.get("returnTo") || `/mesajlar/${conversationId}`
-);
-
-const safeReturnTo = returnTo.startsWith("/")
-  ? returnTo
-  : `/mesajlar/${conversationId}`;
+    formData.get("returnTo") || `/mesajlar/${conversationId}`
+  );
+  const safeReturnTo = returnTo.startsWith("/")
+    ? returnTo
+    : `/mesajlar/${conversationId}`;
 
   const nextStatus = String(formData.get("status") || "");
 
@@ -155,15 +140,7 @@ const safeReturnTo = returnTo.startsWith("/")
     redirect(`/mesajlar/${conversationId}`);
   }
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
+  const { supabase, user } = await requireActiveAccount("/mesajlar");
 
   const { data: exchange } = await supabase
     .from("exchanges")
@@ -185,16 +162,16 @@ const safeReturnTo = returnTo.startsWith("/")
   const now = new Date().toISOString();
 
   const updatePayload: {
-  status: ExchangeStatus;
-  updated_at: string;
-  last_action_by: string;
-  completed_at?: string | null;
-  canceled_at?: string | null;
-} = {
-  status: nextStatus,
-  updated_at: now,
-  last_action_by: user.id,
-};
+    status: ExchangeStatus;
+    updated_at: string;
+    last_action_by: string;
+    completed_at?: string | null;
+    canceled_at?: string | null;
+  } = {
+    status: nextStatus,
+    updated_at: now,
+    last_action_by: user.id,
+  };
 
   if (nextStatus === "completed") {
     updatePayload.completed_at = now;
@@ -218,9 +195,9 @@ const safeReturnTo = returnTo.startsWith("/")
   }
 
   revalidatePath(`/mesajlar/${conversationId}`);
-revalidatePath(safeReturnTo);
-revalidatePath("/mesajlar");
-revalidatePath("/profilim");
+  revalidatePath(safeReturnTo);
+  revalidatePath("/mesajlar");
+  revalidatePath("/profilim");
 
-redirect(safeReturnTo);
+  redirect(safeReturnTo);
 }

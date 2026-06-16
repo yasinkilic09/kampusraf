@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { sendFriendRequestAction } from "@/app/actions/friends";
+import { AppHeader } from "@/components/app-header";
 import { createClient } from "@/lib/supabase/server";
 import { StudentVerifiedBadge } from "@/components/student-verified-badge";
 
@@ -458,52 +459,18 @@ export default async function PublicProfilePage({
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              👤
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                Sosyal profil
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/akis" className="hover:text-[#2E7D5B]">
-              Akış
-            </Link>
-            <Link href="/paylas" className="hover:text-[#2E7D5B]">
-              Paylaş
-            </Link>
-            <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
-              Kitap Ara
-            </Link>
-            <Link href="/arkadaslar" className="hover:text-[#2E7D5B]">
-              Arkadaşlar
-            </Link>
-            <Link href="/rastgele-raf" className="hover:text-[#2E7D5B]">
-              Rastgele Raf
-            </Link>
-          </nav>
-
+      <AppHeader
+        subtitle="Sosyal profil"
+        active="arkadaslar"
+        actions={
           <Link
             href="/akis"
             className="rounded-full border border-[#2E7D5B]/20 px-5 py-2.5 text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
           >
             Akışa Dön
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         <section className="overflow-hidden rounded-[1.8rem] bg-white shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2.2rem]">

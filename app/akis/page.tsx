@@ -1,14 +1,17 @@
 import Link from "next/link";
+import { AppHeader } from "@/components/app-header";
 import { redirect } from "next/navigation";
 import {
   deleteSocialPostAction,
   togglePostLikeAction,
 } from "@/app/actions/social-posts";
 import { createClient } from "@/lib/supabase/server";
+import { PageShortcuts } from "@/components/page-shortcuts";
 import { StudentVerifiedBadge } from "@/components/student-verified-badge";
 
 type SearchParams = {
   success?: string;
+  scope?: string;
 };
 
 type PostProfile = {
@@ -110,6 +113,7 @@ export default async function FeedPage({
   searchParams?: Promise<SearchParams>;
 }) {
   const params = (await searchParams) || {};
+  const selectedScope = getSafeScope(params.scope);
   const supabase = await createClient();
 
   const {
@@ -144,10 +148,7 @@ export default async function FeedPage({
 
   const visibleUserIds = Array.from(new Set([user.id, ...friendIds]));
 
-  const { data: postsData, error } = await supabase
-    .from("social_posts")
-    .select(
-      `
+  const socialPostSelect = `
       id,
       user_id,
       image_url,
@@ -184,13 +185,69 @@ export default async function FeedPage({
         source_name
       )
     )
-    `
-    )
-    .in("user_id", visibleUserIds)
-    .order("created_at", { ascending: false })
-    .limit(50);
+    `;
 
-  const posts = (postsData || []) as SocialPost[];
+  let postsData: SocialPost[] = [];
+  let feedErrorMessage: string | null = null;
+
+  if (selectedScope === "mine") {
+    const { data, error } = await supabase
+      .from("social_posts")
+      .select(socialPostSelect)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    postsData = (data || []) as SocialPost[];
+    feedErrorMessage = error?.message || null;
+  } else if (selectedScope === "friends") {
+    const { data, error } = await supabase
+      .from("social_posts")
+      .select(socialPostSelect)
+      .in("user_id", visibleUserIds)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    postsData = (data || []) as SocialPost[];
+    feedErrorMessage = error?.message || null;
+  } else {
+    const [publicResult, visibleResult] = await Promise.all([
+      supabase
+        .from("social_posts")
+        .select(socialPostSelect)
+        .eq("visibility", "public")
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("social_posts")
+        .select(socialPostSelect)
+        .in("user_id", visibleUserIds)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ]);
+
+    feedErrorMessage =
+      publicResult.error?.message || visibleResult.error?.message || null;
+
+    const mergedPosts = new Map<string, SocialPost>();
+
+    [...(publicResult.data || []), ...(visibleResult.data || [])].forEach(
+      (post) => {
+        const socialPost = post as SocialPost;
+        mergedPosts.set(socialPost.id, socialPost);
+      }
+    );
+
+    postsData = Array.from(mergedPosts.values())
+      .sort(
+        (firstPost, secondPost) =>
+          new Date(secondPost.created_at).getTime() -
+          new Date(firstPost.created_at).getTime()
+      )
+      .slice(0, 50);
+  }
+
+  const posts = postsData;
   const postIds = posts.map((post) => post.id);
 
   let likes: PostLike[] = [];
@@ -220,49 +277,18 @@ export default async function FeedPage({
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              🌿
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                Sosyal akış
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/paylas" className="hover:text-[#2E7D5B]">
-              Paylaş
-            </Link>
-            <Link href="/arkadaslar" className="hover:text-[#2E7D5B]">
-              Arkadaşlar
-            </Link>
-            <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
-              Kitap Ara
-            </Link>
-            <Link href="/mesajlar" className="hover:text-[#2E7D5B]">
-              Mesajlar
-            </Link>
-          </nav>
-
+      <AppHeader
+        subtitle="Sosyal akış"
+        active="akis"
+        actions={
           <Link
             href="/paylas"
             className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5"
           >
             Paylaş
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         <div className="grid gap-6 lg:grid-cols-[0.72fr_0.28fr]">
@@ -323,18 +349,61 @@ export default async function FeedPage({
             )}
 
             {params.success === "quote-post-created" && (
-  <div className="rounded-2xl bg-[#F59E0B]/10 p-4 text-sm font-black text-[#B45309]">
-    Favori alıntın akışa paylaşıldı.
-  </div>
-)}
-
-            {error && (
-              <div className="rounded-2xl bg-red-50 p-4 text-sm font-black text-red-700">
-                Akış yüklenirken hata oluştu: {error.message}
+              <div className="rounded-2xl bg-[#F59E0B]/10 p-4 text-sm font-black text-[#B45309]">
+                Favori alıntın akışa paylaşıldı.
               </div>
             )}
 
-            {!error && posts.length === 0 && (
+            {feedErrorMessage && (
+              <div className="rounded-2xl bg-red-50 p-4 text-sm font-black text-red-700">
+                Akış yüklenirken hata oluştu: {feedErrorMessage}
+              </div>
+            )}
+
+            <section className="rounded-[1.8rem] bg-white p-4 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-5">
+              <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                <div className="flex rounded-full bg-[#FAF7F0] p-1">
+                  {[
+                    { label: "Topluluk", value: "community" },
+                    { label: "Arkadaşlarım", value: "friends" },
+                    { label: "Benim", value: "mine" },
+                  ].map((scope) => {
+                    const active = selectedScope === scope.value;
+
+                    return (
+                      <Link
+                        key={scope.value}
+                        href={buildFeedUrl(scope.value)}
+                        className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                          active
+                            ? "bg-[#2E7D5B] text-white shadow-sm"
+                            : "text-slate-600 hover:bg-white"
+                        }`}
+                      >
+                        {scope.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Link
+                    href="/paylas"
+                    className="rounded-full bg-[#2E7D5B] px-5 py-3 text-center text-xs font-black text-white transition hover:-translate-y-0.5"
+                  >
+                    Yeni Paylaşım
+                  </Link>
+                  <Link
+                    href="/rastgele-raf"
+                    className="rounded-full bg-[#F59E0B]/10 px-5 py-3 text-center text-xs font-black text-[#B45309] transition hover:-translate-y-0.5"
+                  >
+                    Alıntı Paylaş
+                  </Link>
+                </div>
+              </div>
+            </section>
+
+            {!feedErrorMessage && posts.length === 0 && (
               <section className="rounded-[1.8rem] bg-white p-8 text-center shadow-sm md:rounded-[2rem] md:p-12">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#FAF7F0] text-3xl">
                   📸
@@ -643,53 +712,46 @@ export default async function FeedPage({
               </div>
             </section>
 
-            <section className="rounded-[1.8rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem]">
-              <p className="text-sm font-black uppercase tracking-[0.16em] text-[#F59E0B]">
-                Hızlı Erişim
-              </p>
-
-              <div className="mt-4 grid gap-2">
-                <Link
-                  href="/arkadaslar"
-                  className="rounded-[1.3rem] bg-[#FAF7F0] p-4 transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
-                >
-                  <p className="text-sm font-black">👥 Arkadaşlar</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Arkadaşlık istekleri ve sosyal çevren.
-                  </p>
-                </Link>
-
-                <Link
-                  href="/kitap-ara"
-                  className="rounded-[1.3rem] bg-[#FAF7F0] p-4 transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
-                >
-                  <p className="text-sm font-black">🔎 Kitap Ara</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Aradığın kitabı kampüste bul.
-                  </p>
-                </Link>
-
-                <Link
-  href="/rastgele-raf"
-  className="rounded-[1.3rem] bg-[#FAF7F0] p-4 transition hover:-translate-y-0.5 hover:bg-[#F59E0B]/10"
->
-  <p className="text-sm font-black">🎲 Rastgele Raf</p>
-  <p className="mt-1 text-xs font-semibold text-slate-500">
-    Alıntı keşfet, favorile ve akışta paylaş.
-  </p>
-</Link>
-
-                <Link
-                  href="/mesajlar"
-                  className="rounded-[1.3rem] bg-[#FAF7F0] p-4 transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
-                >
-                  <p className="text-sm font-black">💬 Mesajlar</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Kitap ve takas sohbetlerini yönet.
-                  </p>
-                </Link>
-              </div>
-            </section>
+            <PageShortcuts
+              eyebrow="Sosyal Kısayollar"
+              title="Hızlı Erişim"
+              description="Akıştan sonra en sık kullanılan sosyal adımlara geç."
+              compact
+              items={[
+                {
+                  title: "Topluluklar",
+                  href: "/topluluklar",
+                  icon: "T",
+                  description: "Okuma grupları ve kampüs raflarını keşfet.",
+                  tone: "green",
+                },
+                {
+                  title: "Arkadaşlar",
+                  href: "/arkadaslar",
+                  icon: "K",
+                  description: "Arkadaşlık istekleri ve sosyal çevren.",
+                },
+                {
+                  title: "Kitap Ara",
+                  href: "/kitap-ara",
+                  icon: "B",
+                  description: "Aradığın kitabı kampüste bul.",
+                },
+                {
+                  title: "Rastgele Raf",
+                  href: "/rastgele-raf",
+                  icon: "Z",
+                  description: "Alıntı keşfet, favorile ve akışta paylaş.",
+                  tone: "amber",
+                },
+                {
+                  title: "Mesajlar",
+                  href: "/mesajlar",
+                  icon: "M",
+                  description: "Kitap ve takas sohbetlerini yönet.",
+                },
+              ]}
+            />
 
             <section className="rounded-[1.8rem] bg-[#2E7D5B] p-5 text-white shadow-sm md:rounded-[2rem]">
               <p className="text-sm font-black uppercase tracking-[0.16em] text-[#F5EBDD]">
@@ -708,4 +770,13 @@ export default async function FeedPage({
       </section>
     </main>
   );
+}
+
+function getSafeScope(value?: string) {
+  if (value === "friends" || value === "mine") return value;
+  return "community";
+}
+
+function buildFeedUrl(scope: string) {
+  return scope === "community" ? "/akis" : `/akis?scope=${scope}`;
 }

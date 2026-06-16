@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { AppHeader } from "@/components/app-header";
 import { redirect } from "next/navigation";
 import { signOutAction, updateProfileAction } from "@/app/actions/profile";
 import { updateSocialProfileAction } from "@/app/actions/social-profile";
 import { createClient } from "@/lib/supabase/server";
+import {
+  canCustomizeDistanceMatching,
+  distanceRadiusOptions,
+  getMatchDistanceConfig,
+  normalizeDistanceRadiusForPlan,
+} from "@/lib/match-plans";
 import { ProfileTrustCard } from "@/components/profile-trust-card";
 
 type SearchParams = {
@@ -43,6 +50,8 @@ type Profile = {
   monthly_match_limit: number | null;
   gender: string | null;
   match_gender_preference: string | null;
+  match_distance_preference_enabled: boolean | null;
+  match_distance_radius_km: number | null;
   show_gender_on_profile: boolean | null;
   match_preferences_updated_at: string | null;
 };
@@ -166,6 +175,14 @@ function getInitial(profile: Profile | null, fallback?: string | null) {
   return value.trim().charAt(0).toUpperCase() || "K";
 }
 
+function isDistancePreferenceColumnError(error?: { code?: string; message?: string } | null) {
+  if (!error) return false;
+
+  const message = error.message?.toLocaleLowerCase("tr-TR") || "";
+
+  return error.code === "42703" || error.code === "PGRST204" || message.includes("match_distance_");
+}
+
 export default async function ProfilePage({
   searchParams,
 }: {
@@ -183,7 +200,7 @@ export default async function ProfilePage({
     redirect("/auth/login");
   }
 
-  const { data: profileData } = await supabase
+  const profileResult = await supabase
     .from("profiles")
     .select(
       `
@@ -219,12 +236,63 @@ export default async function ProfilePage({
       monthly_match_limit,
       gender,
       match_gender_preference,
+      match_distance_preference_enabled,
+      match_distance_radius_km,
       show_gender_on_profile,
       match_preferences_updated_at
     `
     )
     .eq("id", user.id)
     .single();
+
+  let profileData: Partial<Profile> | null = profileResult.data;
+
+  if (isDistancePreferenceColumnError(profileResult.error)) {
+    const fallbackProfileResult = await supabase
+      .from("profiles")
+      .select(
+        `
+        id,
+        full_name,
+        username,
+        email,
+        avatar_url,
+        cover_url,
+        profile_visibility,
+        allow_friend_requests,
+        show_books_on_profile,
+        show_city_on_profile,
+        show_university_on_profile,
+        social_profile_updated_at,
+        university,
+        department,
+        city,
+        bio,
+        trust_score,
+        is_verified,
+        verification_status,
+        completed_exchange_count,
+        response_score,
+        account_status,
+        plan_type,
+        plan_status,
+        plan_started_at,
+        plan_expires_at,
+        monthly_book_limit,
+        monthly_request_limit,
+        monthly_message_limit,
+        monthly_match_limit,
+        gender,
+        match_gender_preference,
+        show_gender_on_profile,
+        match_preferences_updated_at
+      `
+      )
+      .eq("id", user.id)
+      .single();
+
+    profileData = fallbackProfileResult.data as Partial<Profile> | null;
+  }
 
   const profile = profileData as Profile | null;
 
@@ -274,6 +342,15 @@ export default async function ProfilePage({
   const canUseMatchPreference = canUseGenderMatchPreference(planType);
   const currentGender = profile?.gender || "prefer_not_to_say";
   const currentMatchPreference = profile?.match_gender_preference || "everyone";
+  const canCustomizeDistancePreference =
+    canCustomizeDistanceMatching(planType);
+  const distanceConfig = getMatchDistanceConfig(planType);
+  const currentMatchDistanceRadius = normalizeDistanceRadiusForPlan(
+    Number(profile?.match_distance_radius_km || distanceConfig.radiusKm),
+    planType
+  );
+  const matchDistancePreferenceEnabled =
+    profile?.match_distance_preference_enabled ?? true;
   const showGenderOnProfile = profile?.show_gender_on_profile || false;
   const profileVisibility = profile?.profile_visibility || "friends";
   const allowFriendRequests = profile?.allow_friend_requests ?? true;
@@ -290,59 +367,11 @@ export default async function ProfilePage({
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-10">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              👤
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                Profil merkezi
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/akis" className="hover:text-[#2E7D5B]">
-              Akış
-            </Link>
-            <Link href="/paylas" className="hover:text-[#2E7D5B]">
-              Paylaş
-            </Link>
-            <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
-              Kitap Ara
-            </Link>
-            <Link href="/mesajlar" className="hover:text-[#2E7D5B]">
-              Mesajlar
-            </Link>
-          </nav>
-
-          {profile?.username ? (
-            <Link
-              href={`/profil/${profile.username}`}
-              className="shrink-0 rounded-full bg-[#2E7D5B] px-4 py-2.5 text-xs font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c] sm:px-5 sm:text-sm"
-            >
-              <span className="hidden sm:inline">Profilimi Gör</span>
-              <span className="sm:hidden">Profil</span>
-            </Link>
-          ) : (
-            <Link
-              href="/akis"
-              className="shrink-0 rounded-full border border-[#2E7D5B]/20 px-4 py-2.5 text-xs font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5 sm:px-5 sm:text-sm"
-            >
-              Akış
-            </Link>
-          )}
-        </div>
-      </header>
+      <AppHeader
+        subtitle="Profilim"
+        active="profilim"
+        actions={<Link href="/ogrenci-dogrulama" className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]">Doğrulama</Link>}
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         <section className="overflow-hidden rounded-[1.8rem] bg-[#2E7D5B] text-white shadow-xl shadow-[#2E7D5B]/15 md:rounded-[2.2rem]">
@@ -640,7 +669,8 @@ export default async function ProfilePage({
 
                     <p className="mt-2 text-sm leading-6 text-slate-500">
                       Cinsiyet bilgisi isteğe bağlıdır. Eşleşme tercihi ise
-                      Premium ve Pro paketlerde aktif olur.
+                      Premium ve Pro paketlerde aktif olur. Yakınlık tercihi
+                      Plus ve üzeri paketlerde kişiselleştirilebilir.
                     </p>
                   </div>
 
@@ -713,6 +743,73 @@ export default async function ProfilePage({
                   </div>
                 </div>
 
+                <div className="mt-5 rounded-[1.35rem] border border-[#2E7D5B]/10 bg-white p-4">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-sm font-black text-[#1F2933]">
+                        Harita yakınlığı eşleşme puanına etki etsin
+                      </p>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                        Konum iznin açıksa aradığın kitaba yakın raflar daha
+                        yüksek eşleşme puanı alır. {distanceConfig.description}
+                      </p>
+                    </div>
+
+                    <label className="flex shrink-0 items-center gap-2 rounded-full bg-[#FAF7F0] px-4 py-2 text-xs font-black text-[#2E7D5B]">
+                      <input
+                        type="checkbox"
+                        name="matchDistancePreferenceEnabled"
+                        defaultChecked={matchDistancePreferenceEnabled}
+                        className="h-4 w-4 rounded border-slate-300 accent-[#2E7D5B]"
+                      />
+                      Aktif
+                    </label>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
+                    <div>
+                      <label className="text-sm font-bold text-slate-700">
+                        Yakınlık yarıçapı
+                      </label>
+
+                      <select
+                        name="matchDistanceRadiusKm"
+                        defaultValue={currentMatchDistanceRadius}
+                        disabled={!canCustomizeDistancePreference}
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-[#FAF7F0] px-4 py-3 text-sm outline-none transition focus:border-[#2E7D5B] focus:bg-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      >
+                        {distanceRadiusOptions
+                          .filter((radius) => radius <= distanceConfig.maxRadiusKm)
+                          .map((radius) => (
+                            <option key={radius} value={radius}>
+                              {radius} km
+                            </option>
+                          ))}
+                      </select>
+
+                      {!canCustomizeDistancePreference && (
+                        <input
+                          type="hidden"
+                          name="matchDistanceRadiusKm"
+                          value={distanceConfig.radiusKm}
+                        />
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl bg-[#FAF7F0] p-4">
+                      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                        Paket Etkisi
+                      </p>
+                      <p className="mt-2 text-sm font-black text-[#2E7D5B]">
+                        {distanceConfig.boostLabel}
+                      </p>
+                      <p className="mt-1 text-xs font-bold text-slate-500">
+                        Maksimum {distanceConfig.maxRadiusKm} km
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <label className="mt-5 flex items-start gap-3 rounded-2xl bg-white p-4">
                   <input
                     type="checkbox"
@@ -754,7 +851,7 @@ export default async function ProfilePage({
                   </div>
                 )}
 
-                <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <div className="mt-5 grid gap-3 md:grid-cols-4">
                   <div className="rounded-2xl bg-white p-4">
                     <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
                       Cinsiyet
@@ -781,6 +878,17 @@ export default async function ProfilePage({
                     </p>
                     <p className="mt-2 text-sm font-black text-[#1F2933]">
                       {showGenderOnProfile ? "Açık" : "Kapalı"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                      Yakınlık
+                    </p>
+                    <p className="mt-2 text-sm font-black text-[#1F2933]">
+                      {matchDistancePreferenceEnabled
+                        ? `${currentMatchDistanceRadius} km`
+                        : "Kapalı"}
                     </p>
                   </div>
                 </div>

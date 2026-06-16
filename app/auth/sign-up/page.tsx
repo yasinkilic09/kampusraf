@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -30,6 +31,12 @@ const benefits = [
   "Doğrulanmış öğrenci rozeti",
 ];
 
+type SignupLocation = {
+  lat: number;
+  lng: number;
+  accuracy: number | null;
+};
+
 function cleanUsernameValue(value: string) {
   return value
     .trim()
@@ -43,6 +50,10 @@ function cleanUsernameValue(value: string) {
     .replace(/[^a-z0-9_-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function roundCoordinate(value: number) {
+  return Math.round(value * 1000) / 1000;
 }
 
 export default function SignUpPage() {
@@ -62,9 +73,58 @@ export default function SignUpPage() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error" | "">("");
   const [showPassword, setShowPassword] = useState(false);
+  const [signupLocation, setSignupLocation] = useState<SignupLocation | null>(
+    null
+  );
+  const [locationMessage, setLocationMessage] = useState("");
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
 
   const cleanUsername = useMemo(() => cleanUsernameValue(username), [username]);
   const passwordIsWeak = password.length > 0 && password.length < 6;
+
+  function requestSignupLocation() {
+    if (!("geolocation" in navigator)) {
+      setLocationMessage("Bu tarayıcı konum iznini desteklemiyor.");
+      return;
+    }
+
+    setIsRequestingLocation(true);
+    setLocationMessage("");
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setSignupLocation({
+          lat: roundCoordinate(position.coords.latitude),
+          lng: roundCoordinate(position.coords.longitude),
+          accuracy: Number.isFinite(position.coords.accuracy)
+            ? Math.round(position.coords.accuracy)
+            : null,
+        });
+        setLocationMessage(
+          "Konum izni alındı. Konum yaklaşıklaştırılarak saklanacak."
+        );
+        setIsRequestingLocation(false);
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationMessage(
+            "Konum izni verilmedi. Hesap oluşturmaya yine de devam edebilirsin."
+          );
+        } else {
+          setLocationMessage(
+            "Konum alınamadı. Hesap oluşturmaya yine de devam edebilirsin."
+          );
+        }
+
+        setIsRequestingLocation(false);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 12000,
+        maximumAge: 1000 * 60 * 15,
+      }
+    );
+  }
 
   async function handleSignUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,7 +149,17 @@ export default function SignUpPage() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
+    const locationMetadata = signupLocation
+      ? {
+          location_lat: signupLocation.lat,
+          location_lng: signupLocation.lng,
+          location_accuracy_m: signupLocation.accuracy,
+          location_sharing_enabled: true,
+          location_updated_at: new Date().toISOString(),
+        }
+      : {};
+
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
       options: {
@@ -99,6 +169,7 @@ export default function SignUpPage() {
           university: university.trim(),
           department: department.trim(),
           city: city.trim(),
+          ...locationMetadata,
         },
       },
     });
@@ -109,6 +180,24 @@ export default function SignUpPage() {
       setMessageType("error");
       setIsLoading(false);
       return;
+    }
+
+    if (signupLocation && data.session) {
+      try {
+        await fetch("/api/location/me", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            lat: signupLocation.lat,
+            lng: signupLocation.lng,
+            accuracy: signupLocation.accuracy,
+          }),
+        });
+      } catch (locationError) {
+        console.warn("Kayıt sonrası konum kaydı yapılamadı:", locationError);
+      }
     }
 
     setMessage("Kayıt başarılı. Giriş sayfasına yönlendiriliyorsun.");
@@ -130,8 +219,15 @@ export default function SignUpPage() {
           <section className="order-2 flex flex-col justify-between rounded-[2rem] bg-[#2E7D5B] p-5 text-white shadow-2xl shadow-[#2E7D5B]/20 sm:p-7 lg:order-1 lg:min-h-[calc(100vh-72px)] lg:p-8">
             <div>
               <Link href="/" className="inline-flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-lg shadow-black/10">
-                  📚
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg shadow-black/10">
+                  <Image
+                    src="/logo-symbol.png"
+                    alt="KampüsRaf logo"
+                    width={44}
+                    height={44}
+                    className="h-10 w-10 object-contain"
+                    priority
+                  />
                 </div>
 
                 <div>
@@ -347,6 +443,40 @@ export default function SignUpPage() {
                       className="mt-2 min-h-[52px] w-full rounded-2xl border border-slate-200 bg-[#FAF7F0] px-4 text-sm font-semibold outline-none transition placeholder:text-slate-400 focus:border-[#2E7D5B] focus:bg-white"
                     />
                   </div>
+                </div>
+
+                <div className="rounded-[1.4rem] border border-[#2E7D5B]/10 bg-[#EAF5EF] p-4">
+                  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                    <div>
+                      <p className="text-sm font-black text-[#1F2933]">
+                        Yakındaki kitaplar için konum izni
+                      </p>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
+                        İzin verirsen takasa, ödünce, satışa veya bağışa açık
+                        kitapların haritada yaklaşık konumla görünür. İstediğin
+                        zaman kapatabilirsin.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={requestSignupLocation}
+                      disabled={isRequestingLocation}
+                      className="shrink-0 rounded-full bg-[#2E7D5B] px-5 py-3 text-xs font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isRequestingLocation
+                        ? "Konum alınıyor..."
+                        : signupLocation
+                        ? "Konum Alındı"
+                        : "Konum İzni Ver"}
+                    </button>
+                  </div>
+
+                  {locationMessage ? (
+                    <p className="mt-3 rounded-2xl bg-white px-4 py-3 text-xs font-bold leading-5 text-[#2E7D5B]">
+                      {locationMessage}
+                    </p>
+                  ) : null}
                 </div>
 
                 {message && (

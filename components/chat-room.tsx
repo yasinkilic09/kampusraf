@@ -9,10 +9,7 @@ import {
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
-import {
-  markConversationMessagesAsReadAction,
-  sendMessageRealtimeAction,
-} from "@/app/actions/conversations";
+import { sendMessageRealtimeAction } from "@/app/actions/conversations";
 
 type ChatMessage = {
   id: string;
@@ -103,27 +100,22 @@ export function ChatRoom({
   }, [messages]);
 
   function scrollToBottom(behavior: ScrollBehavior = "smooth") {
-  setTimeout(() => {
-    const container = messagesContainerRef.current;
+    setTimeout(() => {
+      const container = messagesContainerRef.current;
 
-    if (!container) return;
+      if (!container) return;
 
-    if (behavior === "auto") {
-      container.scrollTop = container.scrollHeight;
-      return;
-    }
+      if (behavior === "auto") {
+        container.scrollTop = container.scrollHeight;
+        return;
+      }
 
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior,
-    });
-  }, 50);
-}
-
-  useEffect(() => {
-    setMessages(initialMessages);
-    scrollToBottom("auto");
-  }, [initialMessages]);
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior,
+      });
+    }, 50);
+  }
 
   useEffect(() => {
     scrollToBottom("smooth");

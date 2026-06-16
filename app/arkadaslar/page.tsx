@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppHeader } from "@/components/app-header";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -242,39 +243,7 @@ export default async function FriendsPage() {
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
-      <header className="border-b border-[#2E7D5B]/10 bg-white/80 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              📚
-            </div>
-
-            <div>
-              <p className="text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                Arkadaşlar
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-6 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
-              Kitap Ara
-            </Link>
-            <Link href="/eslesmeler" className="hover:text-[#2E7D5B]">
-              Eşleşmeler
-            </Link>
-            <Link href="/mesajlar" className="hover:text-[#2E7D5B]">
-              Mesajlar
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <AppHeader subtitle="Arkadaşlar" active="arkadaslar" />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         <div className="rounded-[1.7rem] bg-[#2E7D5B] p-6 text-white shadow-2xl shadow-[#2E7D5B]/20 md:rounded-[2rem] md:p-12">

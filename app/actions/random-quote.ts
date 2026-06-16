@@ -19,6 +19,7 @@ type RollRandomQuoteRow = {
   source_url: string | null;
   rolls_used: number;
   rolls_limit: number;
+  is_favorited: boolean;
 };
 
 function getFriendlyRollError(message?: string) {
@@ -78,13 +79,23 @@ export async function rollRandomQuoteAction(): Promise<{
     };
   }
 
+  const { data: favorite } = await supabase
+    .from("quote_favorites")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("quote_id", quote.quote_id)
+    .maybeSingle();
+
   revalidatePath("/rastgele-raf");
   revalidatePath("/dashboard");
 
   return {
     ok: true,
     message: "Rastgele Raf alıntın hazır.",
-    quote,
+    quote: {
+      ...quote,
+      is_favorited: Boolean(favorite),
+    },
   };
 }
 

@@ -13,6 +13,8 @@ type NormalizedExternalBook = {
   description: string | null;
 };
 
+const EXTERNAL_SEARCH_TIMEOUT_MS = 6500;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -89,6 +91,29 @@ function normalizeKey(book: NormalizedExternalBook) {
   ].join("|");
 }
 
+async function fetchExternalJson(url: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EXTERNAL_SEARCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      signal: controller.signal,
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) return null;
+
+    return (await response.json()) as unknown;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function searchGoogleBooks(
   query: string
 ): Promise<NormalizedExternalBook[]> {
@@ -104,16 +129,9 @@ async function searchGoogleBooks(
     params.set("key", process.env.GOOGLE_BOOKS_API_KEY);
   }
 
-  const response = await fetch(
-    `https://www.googleapis.com/books/v1/volumes?${params.toString()}`,
-    {
-      cache: "no-store",
-    }
+  const payload = await fetchExternalJson(
+    `https://www.googleapis.com/books/v1/volumes?${params.toString()}`
   );
-
-  if (!response.ok) return [];
-
-  const payload: unknown = await response.json();
 
   if (!isRecord(payload) || !Array.isArray(payload.items)) {
     return [];
@@ -168,16 +186,9 @@ async function searchOpenLibrary(
     "key,title,author_name,isbn,cover_i,first_publish_year,publisher,subject"
   );
 
-  const response = await fetch(
-    `https://openlibrary.org/search.json?${params.toString()}`,
-    {
-      cache: "no-store",
-    }
+  const payload = await fetchExternalJson(
+    `https://openlibrary.org/search.json?${params.toString()}`
   );
-
-  if (!response.ok) return [];
-
-  const payload: unknown = await response.json();
 
   if (!isRecord(payload) || !Array.isArray(payload.docs)) {
     return [];

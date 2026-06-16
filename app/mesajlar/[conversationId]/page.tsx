@@ -6,6 +6,7 @@ import {
   updateExchangeStatusAction,
 } from "@/app/actions/exchanges";
 import { submitUserReportAction } from "@/app/actions/user-reports";
+import { AppHeader } from "@/components/app-header";
 import { ChatRoom } from "@/components/chat-room";
 
 type ProfileSummary = {
@@ -162,15 +163,6 @@ function first<T>(value: T | T[] | null): T | null {
   return value || null;
 }
 
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
 function getOtherUser(conversation: ConversationDetail, currentUserId: string) {
   const userOne = first(conversation.user_one);
   const userTwo = first(conversation.user_two);
@@ -298,28 +290,18 @@ const exchange = exchangeData as ExchangeItem | null;
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
-      <header className="border-b border-[#2E7D5B]/10 bg-white/80 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <Link href="/mesajlar" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              💬
-            </div>
-            <div>
-              <p className="text-xl font-black">Sohbet</p>
-              <p className="text-xs font-semibold text-slate-500">
-                KampüsRaf mesajlaşma
-              </p>
-            </div>
-          </Link>
-
+      <AppHeader
+        subtitle="KampüsRaf mesajlaşma"
+        active="mesajlar"
+        actions={
           <Link
-  href="/mesajlar"
-  className="rounded-full bg-[#FAF7F0] px-4 py-2.5 text-xs font-black text-[#2E7D5B] md:px-5 md:py-3 md:text-sm"
->
-  Tüm Mesajlar
-</Link>
-        </div>
-      </header>
+            href="/mesajlar"
+            className="rounded-full bg-[#FAF7F0] px-4 py-2.5 text-xs font-black text-[#2E7D5B] md:px-5 md:py-3 md:text-sm"
+          >
+            Tüm Mesajlar
+          </Link>
+        }
+      />
 
       <section className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
         <div className="rounded-[1.7rem] bg-[#2E7D5B] p-4 text-white shadow-2xl shadow-[#2E7D5B]/20 md:rounded-[2rem] md:p-6">

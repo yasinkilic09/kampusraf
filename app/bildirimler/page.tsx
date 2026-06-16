@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { AppHeader } from "@/components/app-header";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { PageShortcuts } from "@/components/page-shortcuts";
 import {
   markAllNotificationsReadAction,
   markNotificationAndMessageAsReadFormAction,
@@ -207,52 +209,11 @@ export default async function NotificationsPage() {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-10">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              🔔
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                Bildirim merkezi
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/akis" className="hover:text-[#2E7D5B]">
-              Akış
-            </Link>
-            <Link href="/mesajlar" className="hover:text-[#2E7D5B]">
-              Mesajlar
-            </Link>
-            <Link href="/eslesmeler" className="hover:text-[#2E7D5B]">
-              Eşleşmeler
-            </Link>
-            <Link href="/takaslar" className="hover:text-[#2E7D5B]">
-              Takaslar
-            </Link>
-            <Link href="/profilim" className="hover:text-[#2E7D5B]">
-              Profilim
-            </Link>
-          </nav>
-
-          <Link
-            href="/mesajlar"
-            className="shrink-0 rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
-          >
-            Mesajlar
-          </Link>
-        </div>
-      </header>
+      <AppHeader
+        subtitle="Bildirimler"
+        active="bildirimler"
+        actions={<Link href="/mesajlar" className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]">Mesajlar</Link>}
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         <section className="overflow-hidden rounded-[1.8rem] bg-[#2E7D5B] text-white shadow-xl shadow-[#2E7D5B]/15 md:rounded-[2.2rem]">
@@ -576,57 +537,47 @@ export default async function NotificationsPage() {
                 </div>
               </section>
 
-              <section className="rounded-[1.8rem] bg-[#2E7D5B] p-5 text-white shadow-sm md:rounded-[2rem] md:p-6">
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F5EBDD]">
-                  Hızlı Erişim
-                </p>
-
-                <h3 className="mt-2 text-xl font-black">
-                  Bildirimlerden aksiyona geç.
-                </h3>
-
-                <p className="mt-3 text-sm leading-7 text-white/70">
-                  Mesajları, sosyal gönderi etkileşimlerini, eşleşmeleri ve
-                  takas süreçlerini ilgili sayfadan hızlıca kontrol edebilirsin.
-                </p>
-
-                <div className="mt-5 grid gap-3">
-                  <Link
-                    href="/akis"
-                    className="rounded-full bg-white px-5 py-3 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5"
-                  >
-                    Akışa Git
-                  </Link>
-
-                  <Link
-                    href="/rastgele-raf"
-                    className="rounded-full border border-white/25 px-5 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10"
-                  >
-                    Rastgele Raf
-                  </Link>
-
-                  <Link
-                    href="/mesajlar"
-                    className="rounded-full bg-white px-5 py-3 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5"
-                  >
-                    Mesajlara Git
-                  </Link>
-
-                  <Link
-                    href="/eslesmeler"
-                    className="rounded-full border border-white/25 px-5 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10"
-                  >
-                    Eşleşmeleri Gör
-                  </Link>
-
-                  <Link
-                    href="/takaslar"
-                    className="rounded-full border border-white/25 px-5 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10"
-                  >
-                    Takasları Aç
-                  </Link>
-                </div>
-              </section>
+              <PageShortcuts
+                eyebrow="Bildirim Aksiyonları"
+                title="Hızlı Erişim"
+                description="Mesaj, sosyal etkileşim ve takas bildirimlerinden ilgili alana geç."
+                compact
+                items={[
+                  {
+                    title: "Akışa Git",
+                    href: "/akis",
+                    icon: "A",
+                    description: "Sosyal etkileşimleri gör.",
+                  },
+                  {
+                    title: "Rastgele Raf",
+                    href: "/rastgele-raf",
+                    icon: "Z",
+                    description: "Alıntı bildirimlerini takip et.",
+                    tone: "amber",
+                  },
+                  {
+                    title: "Mesajlara Git",
+                    href: "/mesajlar",
+                    icon: "M",
+                    description: "Okunmamış sohbetleri aç.",
+                  },
+                  {
+                    title: "Eşleşmeleri Gör",
+                    href: "/eslesmeler",
+                    icon: "E",
+                    description: "Yeni kitap fırsatlarını incele.",
+                    tone: "purple",
+                  },
+                  {
+                    title: "Takasları Aç",
+                    href: "/takaslar",
+                    icon: "T",
+                    description: "Devam eden takasları yönet.",
+                    tone: "blue",
+                  },
+                ]}
+              />
 
               <section className="rounded-[1.8rem] border border-[#F59E0B]/20 bg-white p-5 shadow-sm md:rounded-[2rem] md:p-6">
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F59E0B]">

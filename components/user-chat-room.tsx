@@ -118,18 +118,14 @@ export function UserChatRoom({
   }, [conversationIds]);
 
   useEffect(() => {
-  const idsToMark = conversationKey.split("|").filter(Boolean);
+    const idsToMark = conversationKey.split("|").filter(Boolean);
 
-  if (idsToMark.length > 0) {
-    markConversationMessagesAsReadAction(idsToMark);
-  }
+    if (idsToMark.length > 0) {
+      markConversationMessagesAsReadAction(idsToMark);
+    }
 
-  markMessageNotificationsAsReadAction(otherUserId);
-}, [conversationKey, otherUserId]);
-
-   useEffect(() => {
-  markConversationMessagesAsReadAction(conversationIds);
-}, [conversationKey]);
+    markMessageNotificationsAsReadAction(otherUserId);
+  }, [conversationKey, otherUserId]);
 
   const sortedMessages = useMemo(() => {
     return [...messages].sort(
@@ -157,11 +153,6 @@ export function UserChatRoom({
   }
 
   useEffect(() => {
-    setMessages(initialMessages);
-    scrollToBottom("auto");
-  }, [initialMessages]);
-
-  useEffect(() => {
     scrollToBottom("smooth");
   }, [sortedMessages.length]);
 
@@ -172,7 +163,7 @@ export function UserChatRoom({
       `user-chat-${currentUserId}-${otherUserId}`
     );
 
-    for (const conversationId of conversationIds) {
+    for (const conversationId of conversationKey.split("|").filter(Boolean)) {
       channel.on(
         "postgres_changes",
         {
@@ -184,12 +175,12 @@ export function UserChatRoom({
         (payload) => {
           const newMessage = payload.new as UserChatMessage;
 
-if (newMessage.receiver_id === currentUserId) {
-  markConversationMessagesAsReadAction([newMessage.conversation_id]);
-  markMessageNotificationsAsReadAction(newMessage.sender_id);
-}
+          if (newMessage.receiver_id === currentUserId) {
+            markConversationMessagesAsReadAction([newMessage.conversation_id]);
+            markMessageNotificationsAsReadAction(newMessage.sender_id);
+          }
 
-setMessages((currentMessages) => {
+          setMessages((currentMessages) => {
             const alreadyExists = currentMessages.some(
               (message) => message.id === newMessage.id
             );
@@ -207,9 +198,9 @@ setMessages((currentMessages) => {
             );
 
             if (newMessage.receiver_id === currentUserId) {
-  markConversationMessagesAsReadAction([newMessage.conversation_id]);
-  markMessageNotificationsAsReadAction(newMessage.sender_id);
-}
+              markConversationMessagesAsReadAction([newMessage.conversation_id]);
+              markMessageNotificationsAsReadAction(newMessage.sender_id);
+            }
 
             return [
               ...withoutOptimisticCopy,
@@ -228,7 +219,7 @@ setMessages((currentMessages) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationKey, currentUserId, otherUserId, conversationIds]);
+  }, [conversationKey, currentUserId, otherUserId]);
 
   function resizeTextarea() {
     const textarea = textareaRef.current;

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { redirectIfBanned } from "@/lib/account-status";
 import { createClient } from "@/lib/supabase/server";
+import { AppHeader } from "@/components/app-header";
+import { PageShortcuts } from "@/components/page-shortcuts";
 
 function getDailyRollLimit(planType?: string | null) {
   if (planType === "plus") return 3;
@@ -33,10 +35,59 @@ type PostProfile = {
 type SocialPost = {
   id: string;
   user_id: string;
-  image_url: string;
+  image_url: string | null;
   caption: string | null;
+  post_type: string | null;
   created_at: string;
   profiles: PostProfile | PostProfile[] | null;
+  books:
+    | {
+        id: string;
+        title: string | null;
+        author: string | null;
+        cover_url: string | null;
+      }
+    | {
+        id: string;
+        title: string | null;
+        author: string | null;
+        cover_url: string | null;
+      }[]
+    | null;
+  quote_items:
+    | {
+        id: string;
+        quote_text: string;
+        quote_text_tr: string | null;
+        original_language: string | null;
+        quote_books:
+          | {
+              title: string | null;
+              author: string | null;
+            }
+          | {
+              title: string | null;
+              author: string | null;
+            }[]
+          | null;
+      }
+    | {
+        id: string;
+        quote_text: string;
+        quote_text_tr: string | null;
+        original_language: string | null;
+        quote_books:
+          | {
+              title: string | null;
+              author: string | null;
+            }
+          | {
+              title: string | null;
+              author: string | null;
+            }[]
+          | null;
+      }[]
+    | null;
 };
 
 type Friendship = {
@@ -70,6 +121,23 @@ function getVerificationLabel(status?: string | null) {
 
 function getProfileName(profile: PostProfile | null) {
   return profile?.full_name || profile?.username || "KampüsRaf kullanıcısı";
+}
+
+function getPostKindLabel(post: SocialPost) {
+  if (post.post_type === "quote") return "Alıntı";
+  if (first(post.books)) return "Kitaplı";
+  return "Gönderi";
+}
+
+function getPostPreviewText(post: SocialPost) {
+  const quote = first(post.quote_items);
+  const book = first(post.books);
+
+  if (quote) return quote.quote_text_tr || quote.quote_text;
+  if (post.caption) return post.caption;
+  if (book?.title) return book.title;
+
+  return "KampüsRaf paylaşımı";
 }
 
 function formatDate(value: string) {
@@ -168,28 +236,69 @@ export default async function DashboardPage() {
 
   const visibleUserIds = Array.from(new Set([user.id, ...friendIds]));
 
-  const { data: recentPostsData } = await supabase
-    .from("social_posts")
-    .select(
-      `
+  const recentPostSelect = `
       id,
       user_id,
       image_url,
       caption,
+      post_type,
       created_at,
       profiles (
         id,
         full_name,
         username,
         avatar_url
+      ),
+      books (
+        id,
+        title,
+        author,
+        cover_url
+      ),
+      quote_items (
+        id,
+        quote_text,
+        quote_text_tr,
+        original_language,
+        quote_books (
+          title,
+          author
+        )
       )
-    `
-    )
-    .in("user_id", visibleUserIds)
-    .order("created_at", { ascending: false })
-    .limit(4);
+    `;
 
-  const recentPosts = (recentPostsData || []) as SocialPost[];
+  const [publicRecentPostsResult, visibleRecentPostsResult] = await Promise.all([
+    supabase
+      .from("social_posts")
+      .select(recentPostSelect)
+      .eq("visibility", "public")
+      .order("created_at", { ascending: false })
+      .limit(8),
+    supabase
+      .from("social_posts")
+      .select(recentPostSelect)
+      .in("user_id", visibleUserIds)
+      .order("created_at", { ascending: false })
+      .limit(8),
+  ]);
+
+  const recentPostsById = new Map<string, SocialPost>();
+
+  [
+    ...(publicRecentPostsResult.data || []),
+    ...(visibleRecentPostsResult.data || []),
+  ].forEach((post) => {
+    const socialPost = post as SocialPost;
+    recentPostsById.set(socialPost.id, socialPost);
+  });
+
+  const recentPosts = Array.from(recentPostsById.values())
+    .sort(
+      (firstPost, secondPost) =>
+        new Date(secondPost.created_at).getTime() -
+        new Date(firstPost.created_at).getTime()
+    )
+    .slice(0, 4);
 
   const displayName = getDisplayName(profile, user.email);
   const isAdmin = profile?.role === "admin";
@@ -309,53 +418,12 @@ export default async function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              📚
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                Sosyal kitap platformu
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 lg:flex">
-            <Link href="/akis" className="hover:text-[#2E7D5B]">
-              Akış
-            </Link>
-            <Link href="/paylas" className="hover:text-[#2E7D5B]">
-              Paylaş
-            </Link>
-            <Link href="/kitap-ara" className="hover:text-[#2E7D5B]">
-              Kitap Ara
-            </Link>
-            <Link href="/mesajlar" className="hover:text-[#2E7D5B]">
-              Mesajlar
-            </Link>
-            <Link href="/eslesmeler" className="hover:text-[#2E7D5B]">
-              Eşleşmeler
-            </Link>
-            <Link href="/rastgele-raf" className="hover:text-[#2E7D5B]">
-  Rastgele Raf
-</Link>
-            <Link href="/profilim" className="hover:text-[#2E7D5B]">
-              Profilim
-            </Link>
-            {isAdmin && (
-              <Link href="/admin" className="text-[#F59E0B] hover:text-[#B45309]">
-                Admin
-              </Link>
-            )}
-          </nav>
-
-          <div className="flex items-center gap-2">
+      <AppHeader
+        subtitle="Sosyal kitap platformu"
+        active="panel"
+        isAdmin={isAdmin}
+        actions={
+          <>
             <Link
               href="/paylas"
               className="hidden rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 md:inline-flex"
@@ -367,6 +435,7 @@ export default async function DashboardPage() {
               <Link
                 href={`/profil/${profile.username}`}
                 className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-[#FAF7F0] text-lg ring-1 ring-[#2E7D5B]/10"
+                aria-label="Profilim"
               >
                 {profile.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -376,13 +445,13 @@ export default async function DashboardPage() {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  "👤"
+                  "P"
                 )}
               </Link>
             )}
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
@@ -643,6 +712,10 @@ export default async function DashboardPage() {
               <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
                 {recentPosts.map((post) => {
                   const postProfile = first(post.profiles);
+                  const quoteItem = first(post.quote_items);
+                  const quoteBook = first(quoteItem?.quote_books || null);
+                  const postBook = first(post.books);
+                  const previewText = getPostPreviewText(post);
 
                   return (
                     <Link
@@ -650,20 +723,44 @@ export default async function DashboardPage() {
                       href={`/gonderi/${post.id}`}
                       className="group overflow-hidden rounded-[1.4rem] bg-[#FAF7F0] transition hover:-translate-y-1 hover:shadow-lg"
                     >
-                      <div className="aspect-square overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={post.image_url}
-                          alt={post.caption || "KampüsRaf paylaşımı"}
-                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                        />
-                      </div>
+                      {post.image_url ? (
+                        <div className="aspect-square overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={post.image_url}
+                            alt={post.caption || "KampüsRaf paylaşımı"}
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex aspect-square flex-col justify-between bg-[#2E7D5B] p-4 text-white">
+                          <span className="w-fit rounded-full bg-white/15 px-3 py-1 text-[10px] font-black">
+                            {getPostKindLabel(post)}
+                          </span>
+                          <p className="line-clamp-5 text-sm font-black leading-6">
+                            “{previewText}”
+                          </p>
+                          <p className="line-clamp-1 text-[11px] font-semibold text-white/65">
+                            {quoteBook?.title ||
+                              postBook?.title ||
+                              "KampüsRaf paylaşımı"}
+                          </p>
+                        </div>
+                      )}
 
                       <div className="p-3">
-                        <p className="line-clamp-1 text-xs font-black text-[#1F2933]">
-                          {getProfileName(postProfile)}
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="line-clamp-1 text-xs font-black text-[#1F2933]">
+                            {getProfileName(postProfile)}
+                          </p>
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-[#2E7D5B]">
+                            {getPostKindLabel(post)}
+                          </span>
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-4 text-slate-500">
+                          {previewText}
                         </p>
-                        <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                        <p className="mt-2 text-[11px] font-semibold text-slate-400">
                           {formatDate(post.created_at)}
                         </p>
                       </div>
@@ -716,41 +813,22 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-[1.8rem] bg-white p-5 shadow-sm md:rounded-[2rem] md:p-7">
-              <div>
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F59E0B]">
-                  Kitap & Takas
-                </p>
-                <h2 className="mt-2 text-2xl font-black">Hızlı Erişim</h2>
-              </div>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {bookActions.map((action) => (
-                  <Link
-                    key={action.href}
-                    href={action.href}
-                    className="rounded-[1.4rem] bg-[#FAF7F0] p-4 transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-2xl">{action.icon}</span>
-
-                      {"badge" in action && action.badge ? (
-                        <span className="rounded-full bg-[#2E7D5B] px-2.5 py-1 text-[11px] font-black text-white">
-                          {action.badge}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <h3 className="mt-3 text-sm font-black text-[#1F2933]">
-                      {action.title}
-                    </h3>
-                    <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">
-                      {action.description}
-                    </p>
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <PageShortcuts
+              eyebrow="Kitap & Takas"
+              title="Hızlı Erişim"
+              description="Raf, keşif, eşleşme ve takas adımlarına tek yerden geç."
+              columns="two"
+              compact
+              items={bookActions.map((action) => ({
+                ...action,
+                badge: "badge" in action ? action.badge : null,
+                tone:
+                  action.href === "/rastgele-raf" ||
+                  action.href === "/eslesmeler"
+                    ? "amber"
+                    : "green",
+              }))}
+            />
           </section>
         </div>
 

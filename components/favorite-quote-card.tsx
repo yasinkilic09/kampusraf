@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { removeQuoteFavoriteAction } from "@/app/actions/random-quote";
 import { createQuoteSocialPostAction } from "@/app/actions/social-posts";
+import { copyTextSafely } from "@/lib/safe-clipboard";
 
 type FavoriteQuoteCardProps = {
   quoteId: string;
@@ -61,14 +62,16 @@ KampüsRaf · Favori Alıntılarım`;
   }
 
   async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(getShareText());
+    const copied = await copyTextSafely(getShareText());
+
+    if (copied) {
       setMessage("Alıntı panoya kopyalandı.");
       setMessageType("success");
-    } catch {
-      setMessage("Kopyalama işlemi başarısız oldu.");
-      setMessageType("error");
+      return;
     }
+
+    setMessage("Tarayıcı kopyalama izni vermedi. Paylaş butonunu kullanabilirsin.");
+    setMessageType("error");
   }
 
   async function handleShare() {

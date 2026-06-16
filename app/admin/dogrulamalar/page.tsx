@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { AppHeader, adminNavItems } from "@/components/app-header";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { PageShortcuts } from "@/components/page-shortcuts";
 import {
   approveStudentVerificationAction,
   rejectStudentVerificationAction,
@@ -274,49 +276,20 @@ export default async function AdminVerificationsPage({
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-10">
-      <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/admin" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#2E7D5B] text-xl text-white">
-              🎓
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-xl font-black">
-                Kampüs<span className="text-[#F59E0B]">Raf</span>
-              </p>
-              <p className="text-xs font-semibold text-slate-500">
-                Öğrenci doğrulama merkezi
-              </p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-5 text-sm font-bold text-slate-600 md:flex">
-            <Link href="/admin" className="hover:text-[#2E7D5B]">
-              Admin
-            </Link>
-            <Link href="/admin/kullanicilar" className="hover:text-[#2E7D5B]">
-              Kullanıcılar
-            </Link>
-            <Link href="/admin/sikayetler" className="hover:text-[#2E7D5B]">
-              Şikayetler
-            </Link>
-            <Link href="/dashboard" className="hover:text-[#2E7D5B]">
-              Panel
-            </Link>
-            <Link href="/profilim" className="hover:text-[#2E7D5B]">
-              Profilim
-            </Link>
-          </nav>
-
+      <AppHeader
+        subtitle="Öğrenci doğrulama merkezi"
+        active="admin-dogrulamalar"
+        isAdmin
+        navItems={adminNavItems}
+        actions={
           <Link
             href="/admin"
             className="shrink-0 rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
           >
             Admin
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-10">
         <section className="overflow-hidden rounded-[1.8rem] bg-[#2E7D5B] text-white shadow-xl shadow-[#2E7D5B]/15 md:rounded-[2.2rem]">
@@ -658,34 +631,33 @@ export default async function AdminVerificationsPage({
                 </div>
               </section>
 
-              <section className="rounded-[1.8rem] border border-[#F59E0B]/20 bg-white p-5 shadow-sm md:rounded-[2rem] md:p-6">
-                <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F59E0B]">
-                  Hızlı Erişim
-                </p>
-
-                <div className="mt-4 grid gap-3">
-                  <Link
-                    href="/admin"
-                    className="rounded-full bg-[#2E7D5B] px-5 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5"
-                  >
-                    Admin Panel
-                  </Link>
-
-                  <Link
-                    href="/admin/kullanicilar"
-                    className="rounded-full border border-[#2E7D5B]/20 px-5 py-3 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
-                  >
-                    Kullanıcı Yönetimi
-                  </Link>
-
-                  <Link
-                    href="/admin/sikayetler"
-                    className="rounded-full border border-[#2E7D5B]/20 px-5 py-3 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5 hover:bg-[#2E7D5B]/5"
-                  >
-                    Şikayetler
-                  </Link>
-                </div>
-              </section>
+              <PageShortcuts
+                eyebrow="Admin Kısayolları"
+                title="Hızlı Erişim"
+                description="Doğrulama kararından sonra ilgili yönetim alanına geç."
+                compact
+                items={[
+                  {
+                    title: "Admin Panel",
+                    href: "/admin",
+                    icon: "Y",
+                    description: "Yönetim özetine dön.",
+                  },
+                  {
+                    title: "Kullanıcı Yönetimi",
+                    href: "/admin/kullanicilar",
+                    icon: "K",
+                    description: "Hesap ve rol durumlarını gör.",
+                  },
+                  {
+                    title: "Şikayetler",
+                    href: "/admin/sikayetler",
+                    icon: "G",
+                    description: "Güvenlik raporlarını incele.",
+                    tone: "red",
+                  },
+                ]}
+              />
             </aside>
           </section>
         )}
