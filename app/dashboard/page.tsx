@@ -4,6 +4,8 @@ import { redirectIfBanned } from "@/lib/account-status";
 import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 import { PageShortcuts } from "@/components/page-shortcuts";
+import { AdSlot } from "@/components/ad-slot";
+import { shouldShowAdsForPlan } from "@/lib/monetization";
 
 function getDailyRollLimit(planType?: string | null) {
   if (planType === "plus") return 3;
@@ -302,6 +304,7 @@ export default async function DashboardPage() {
 
   const displayName = getDisplayName(profile, user.email);
   const isAdmin = profile?.role === "admin";
+  const showAds = shouldShowAdsForPlan(profile?.plan_type);
 
   const primaryActions = [
     {
@@ -609,6 +612,10 @@ export default async function DashboardPage() {
             </Link>
           ))}
         </section>
+
+        {showAds ? (
+          <AdSlot placement="dashboard-inline" className="mt-6 md:mt-8" />
+        ) : null}
 
         <section className="mt-6 grid gap-3 md:mt-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="rounded-[1.6rem] bg-white p-5 shadow-sm md:rounded-[1.8rem]">

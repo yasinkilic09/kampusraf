@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { updatePlanAction } from "@/app/actions/profile";
 import { createClient } from "@/lib/supabase/server";
 import { getMatchDistanceConfig } from "@/lib/match-plans";
+import { getPlanMonetizationConfig } from "@/lib/monetization";
 import { PageShortcuts } from "@/components/page-shortcuts";
 
 type PackageDefinition = {
@@ -20,6 +21,7 @@ type PackageDefinition = {
     matches: number;
   };
   features: string[];
+  adPolicy: string;
   bestFor: string;
   highlight: boolean;
   accent: "green" | "amber" | "purple" | "dark";
@@ -46,7 +48,10 @@ const packages: PackageDefinition[] = [
       "Mesajlaşma",
       "10 km sabit yakınlık sinyali",
       "Profil ve güven kartı",
+      "Dengeli sponsor alanları",
     ],
+    adPolicy:
+      "Akış ve keşif sayfalarında rahatsız etmeyen reklamlar gösterilir.",
     bestFor: "Uygulamayı yeni deneyen öğrenciler",
     highlight: false,
     accent: "green",
@@ -70,8 +75,11 @@ const packages: PackageDefinition[] = [
       "Daha fazla mesaj hakkı",
       "Daha fazla eşleşme takibi",
       "25 km’ye kadar yakınlık tercihi",
+      "Web ve mobilde reklamsız kullanım",
       "Aktif dönem kullanımı için ideal",
     ],
+    adPolicy:
+      "Reklamlar kaldırılır; sayfa ve mobil akışlar daha sade açılır.",
     bestFor: "Dönem içinde düzenli kitap takası yapanlar",
     highlight: true,
     accent: "amber",
@@ -95,8 +103,11 @@ const packages: PackageDefinition[] = [
       "Daha güçlü eşleşme potansiyeli",
       "Eşleşme tercihleri kullanımı",
       "50 km’ye kadar güçlü yakınlık önceliği",
+      "Web ve mobilde reklamsız kullanım",
       "Profil görünürlüğü avantajı",
     ],
+    adPolicy:
+      "Reklamlar kaldırılır; yoğun arama ve akış deneyimi kesintisiz olur.",
     bestFor: "Sık kitap arayan ve takas yapan öğrenciler",
     highlight: false,
     accent: "purple",
@@ -120,8 +131,10 @@ const packages: PackageDefinition[] = [
       "Yüksek işlem limitleri",
       "Geniş kampüs ağı kullanımı",
       "50 km’ye kadar topluluk yakınlık önceliği",
+      "Web ve mobilde reklamsız kullanım",
       "Toplu kitap paylaşım senaryosu",
     ],
+    adPolicy: "Topluluk ve kulüp akışları reklamsız kullanılır.",
     bestFor: "Kulüp, topluluk ve temsilci kullanımı",
     highlight: false,
     accent: "dark",
@@ -228,6 +241,7 @@ export default async function PackagesPage({
   const currentPlan = profile?.plan_type || "free";
   const currentPackage =
     packages.find((item) => item.type === currentPlan) || packages[0];
+  const currentMonetization = getPlanMonetizationConfig(currentPlan);
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-10">
@@ -308,6 +322,15 @@ export default async function PackagesPage({
                     </p>
                   </div>
                 </div>
+
+                <div className="mt-3 rounded-2xl bg-white/10 p-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/55">
+                    Reklam Durumu
+                  </p>
+                  <p className="mt-1 text-sm font-black text-white">
+                    {currentMonetization.adExperience}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -330,6 +353,7 @@ export default async function PackagesPage({
             const isCurrent = currentPlan === item.type;
             const accent = getAccentClasses(item.accent);
             const distanceConfig = getMatchDistanceConfig(item.type);
+            const monetizationConfig = getPlanMonetizationConfig(item.type);
 
             return (
               <article
@@ -389,6 +413,18 @@ export default async function PackagesPage({
                       Kimler için?
                     </p>
                     <p className="mt-2 text-sm font-black">{item.bestFor}</p>
+                  </div>
+
+                  <div className="mt-3 rounded-2xl border border-[#2E7D5B]/10 bg-[#FAF7F0] p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                      Reklam Deneyimi
+                    </p>
+                    <p className="mt-2 text-sm font-black text-[#1F2933]">
+                      {monetizationConfig.adExperience}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                      {item.adPolicy}
+                    </p>
                   </div>
                 </div>
 
@@ -549,6 +585,10 @@ export default async function PackagesPage({
                 <p className="rounded-2xl bg-[#FAF7F0] p-3">
                   ✓ Premium ve Pro paketler gelişmiş eşleşme tercihleri için
                   hazırlanmıştır.
+                </p>
+                <p className="rounded-2xl bg-[#FAF7F0] p-3">
+                  ✓ Plus ve üzeri paketlerde web ve mobil reklam alanları
+                  kaldırılır.
                 </p>
                 <p className="rounded-2xl bg-[#FAF7F0] p-3">
                   ✓ Şimdilik gerçek ödeme alınmaz; MVP test altyapısıdır.

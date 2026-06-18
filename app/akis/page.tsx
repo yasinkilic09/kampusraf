@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { AppHeader } from "@/components/app-header";
 import { redirect } from "next/navigation";
 import {
@@ -6,8 +7,10 @@ import {
   togglePostLikeAction,
 } from "@/app/actions/social-posts";
 import { createClient } from "@/lib/supabase/server";
+import { AdSlot } from "@/components/ad-slot";
 import { PageShortcuts } from "@/components/page-shortcuts";
 import { StudentVerifiedBadge } from "@/components/student-verified-badge";
+import { shouldShowAdsForPlan } from "@/lib/monetization";
 
 type SearchParams = {
   success?: string;
@@ -21,6 +24,7 @@ type PostProfile = {
   avatar_url: string | null;
   verification_status: string | null;
   university: string | null;
+  plan_type?: string | null;
 };
 
 type RelatedBook = {
@@ -126,11 +130,12 @@ export default async function FeedPage({
 
   const { data: profileData } = await supabase
     .from("profiles")
-    .select("id, full_name, username, avatar_url, verification_status")
+    .select("id, full_name, username, avatar_url, verification_status, plan_type")
     .eq("id", user.id)
     .maybeSingle();
 
   const currentProfile = profileData as PostProfile | null;
+  const showAds = shouldShowAdsForPlan(currentProfile?.plan_type);
 
   const { data: friendshipsData } = await supabase
     .from("friendships")
@@ -403,6 +408,8 @@ export default async function FeedPage({
               </div>
             </section>
 
+            {showAds ? <AdSlot placement="feed-inline" /> : null}
+
             {!feedErrorMessage && posts.length === 0 && (
               <section className="rounded-[1.8rem] bg-white p-8 text-center shadow-sm md:rounded-[2rem] md:p-12">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[#FAF7F0] text-3xl">
@@ -435,7 +442,7 @@ export default async function FeedPage({
             )}
 
             <section className="grid gap-6">
-              {posts.map((post) => {
+              {posts.map((post, index) => {
                 const profile = first(post.profiles);
                 const book = first(post.books);
                 const quoteItem = first(post.quote_items);
@@ -446,8 +453,12 @@ export default async function FeedPage({
                 const displayQuote = quoteItem?.quote_text_tr || quoteItem?.quote_text || "";
 
                 return (
+                  <Fragment key={post.id}>
+                  {showAds && index > 0 && index % 6 === 0 ? (
+                    <AdSlot placement="feed-inline" />
+                  ) : null}
+
                   <article
-                    key={post.id}
                     className="overflow-hidden rounded-[1.8rem] bg-white shadow-sm ring-1 ring-[#2E7D5B]/5 transition hover:-translate-y-0.5 hover:shadow-xl md:rounded-[2rem]"
                   >
                     <div className="flex items-center justify-between gap-3 p-4 md:p-5">
@@ -660,6 +671,7 @@ export default async function FeedPage({
                       )}
                     </div>
                   </article>
+                  </Fragment>
                 );
               })}
             </section>
@@ -752,6 +764,10 @@ export default async function FeedPage({
                 },
               ]}
             />
+
+            {showAds ? (
+              <AdSlot placement="feed-sidebar" compact />
+            ) : null}
 
             <section className="rounded-[1.8rem] bg-[#2E7D5B] p-5 text-white shadow-sm md:rounded-[2rem]">
               <p className="text-sm font-black uppercase tracking-[0.16em] text-[#F5EBDD]">

@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 
+import { SponsorSlot } from "@/components/sponsor-slot";
 import { createMobileNotification, getActorDisplayName } from "@/lib/notifications";
 import { deleteStorageObjectFromPublicUrl } from "@/lib/storage-images";
 import { supabase } from "@/lib/supabase";
@@ -30,6 +31,7 @@ type PostProfile = {
   avatar_url: string | null;
   verification_status: string | null;
   university: string | null;
+  plan_type?: string | null;
 };
 
 type RelatedBook = {
@@ -160,7 +162,7 @@ export default function FeedScreen() {
     ] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, full_name, username, avatar_url, verification_status, university")
+        .select("id, full_name, username, avatar_url, verification_status, university, plan_type")
         .eq("id", user.id)
         .maybeSingle(),
       supabase.from("quote_favorites").select("id", { count: "exact", head: true }).eq("user_id", user.id),
@@ -435,6 +437,8 @@ export default function FeedScreen() {
         </View>
       ) : null}
 
+      <SponsorSlot planType={currentProfile?.plan_type} title="Akis sponsoru" />
+
       <View style={styles.list}>
         {posts.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -444,7 +448,7 @@ export default function FeedScreen() {
             </Text>
           </View>
         ) : (
-          posts.map((post) => {
+          posts.map((post, index) => {
             const profile = first(post.profiles);
             const book = first(post.books);
             const quoteItem = first(post.quote_items);
@@ -454,8 +458,12 @@ export default function FeedScreen() {
             const isOwnPost = currentUserId === post.user_id;
 
             return (
+              <Fragment key={post.id}>
+              {index > 0 && index % 6 === 0 ? (
+                <SponsorSlot planType={currentProfile?.plan_type} compact title="Sosyal sponsor" />
+              ) : null}
+
               <Pressable
-                key={post.id}
                 style={styles.card}
                 onPress={() => router.push({ pathname: "/posts/[postId]", params: { postId: post.id } } as never)}
               >
@@ -566,6 +574,7 @@ export default function FeedScreen() {
                   </Pressable>
                 </View>
               </Pressable>
+              </Fragment>
             );
           })
         )}

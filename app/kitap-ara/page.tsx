@@ -2,6 +2,8 @@ import Link from "next/link";
 import { AppHeader } from "@/components/app-header";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { AdSlot } from "@/components/ad-slot";
+import { shouldShowAdsForPlan } from "@/lib/monetization";
 
 const conditionLabels: Record<string, string> = {
   yeni: "Yeni",
@@ -271,6 +273,7 @@ export default async function SearchBooksPage({
   const canUseLocationFilters = isPlusOrHigher(planType);
   const canUseAdvancedFilters = isPremiumOrHigher(planType);
   const canUseProSorting = isPro(planType);
+  const showAds = shouldShowAdsForPlan(planType);
 
   const params = (await searchParams) || {};
 
@@ -727,6 +730,10 @@ export default async function SearchBooksPage({
             </div>
           </section>
         )}
+
+        {showAds ? (
+          <AdSlot placement="search-results" className="mt-6 md:mt-8" />
+        ) : null}
 
         <div className="mt-6 flex flex-col justify-between gap-3 md:mt-8 md:flex-row md:items-center">
           <div>

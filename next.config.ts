@@ -30,10 +30,16 @@ function getSupabaseOrigins() {
 
 function buildContentSecurityPolicy() {
   const supabase = getSupabaseOrigins();
+  const adScriptSources =
+    " https://pagead2.googlesyndication.com https://www.googletagservices.com https://ep1.adtrafficquality.google";
+  const adConnectSources =
+    " https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://securepubads.g.doubleclick.net https://ep1.adtrafficquality.google";
+  const adFrameSources =
+    " https://googleads.g.doubleclick.net https://tpc.googlesyndication.com";
   const scriptSrc =
     process.env.NODE_ENV === "development"
-      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-      : "script-src 'self' 'unsafe-inline'";
+      ? `script-src 'self' 'unsafe-inline' 'unsafe-eval'${adScriptSources}`
+      : `script-src 'self' 'unsafe-inline'${adScriptSources}`;
   const directives = [
     "default-src 'self'",
     "base-uri 'self'",
@@ -44,8 +50,8 @@ function buildContentSecurityPolicy() {
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",
     "img-src 'self' data: blob: https:",
-    `connect-src 'self' ${supabase.http} ${supabase.ws} https://www.googleapis.com https://openlibrary.org https://covers.openlibrary.org https://www.openstreetmap.org`,
-    "frame-src 'self' https://www.openstreetmap.org",
+    `connect-src 'self' ${supabase.http} ${supabase.ws} https://www.googleapis.com https://openlibrary.org https://covers.openlibrary.org https://www.openstreetmap.org${adConnectSources}`,
+    `frame-src 'self' https://www.openstreetmap.org${adFrameSources}`,
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
     "manifest-src 'self'",

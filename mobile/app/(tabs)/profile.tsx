@@ -12,6 +12,8 @@ import {
   View,
 } from "react-native";
 
+import { SponsorSlot } from "@/components/sponsor-slot";
+import { getAdExperienceLabel } from "@/lib/monetization";
 import { supabase } from "@/lib/supabase";
 
 const GREEN = "#2E7D5B";
@@ -324,7 +326,10 @@ export default function ProfileScreen() {
         <InfoRow label="Kitaplari goster" value={profile?.show_books_on_profile ? "Acik" : "Kapali"} />
         <InfoRow label="Universiteyi goster" value={profile?.show_university_on_profile ? "Acik" : "Kapali"} />
         <InfoRow label="Sehri goster" value={profile?.show_city_on_profile ? "Acik" : "Kapali"} />
+        <InfoRow label="Reklam deneyimi" value={getAdExperienceLabel(profile?.plan_type)} />
       </View>
+
+      <SponsorSlot planType={profile?.plan_type} compact title="Profil sponsoru" />
 
       <View style={styles.card}>
         <View style={styles.sectionHeader}>

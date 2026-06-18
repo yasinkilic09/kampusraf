@@ -3,6 +3,8 @@ import { AppHeader } from "@/components/app-header";
 import { redirect } from "next/navigation";
 import { RandomQuoteClient } from "@/components/random-quote-client";
 import { createClient } from "@/lib/supabase/server";
+import { AdSlot } from "@/components/ad-slot";
+import { shouldShowAdsForPlan } from "@/lib/monetization";
 
 function getDailyRollLimit(planType?: string | null) {
   if (planType === "plus") return 3;
@@ -29,6 +31,7 @@ export default async function RandomQuotePage() {
     .maybeSingle();
 
   const planType = profile?.plan_type || "free";
+  const showAds = shouldShowAdsForPlan(planType);
   const rollsLimit = getDailyRollLimit(planType);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -123,6 +126,10 @@ export default async function RandomQuotePage() {
             planType={planType}
           />
         </section>
+
+        {showAds ? (
+          <AdSlot placement="random-quote" className="mt-6 md:mt-8" />
+        ) : null}
       </section>
     </main>
   );

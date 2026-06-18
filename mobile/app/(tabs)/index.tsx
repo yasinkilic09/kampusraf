@@ -11,6 +11,7 @@ import {
 import { Image } from "expo-image";
 
 import { AnimatedAppear, PressableScale } from "@/components/animated-primitives";
+import { SponsorSlot } from "@/components/sponsor-slot";
 import { supabase } from "@/lib/supabase";
 
 const GREEN = "#2E7D5B";
@@ -291,6 +292,8 @@ export default function DashboardScreen() {
           <Text style={styles.primaryButtonText}>{primaryAction.button}</Text>
         </PressableScale>
       </AnimatedAppear>
+
+      <SponsorSlot planType={state.plan} title="Panel sponsoru" />
 
       <AnimatedAppear delay={130} style={styles.grid}>
         <StatCard icon="Raf" label="Rafim" value={state.books} />
