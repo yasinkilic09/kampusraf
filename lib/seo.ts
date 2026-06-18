@@ -58,11 +58,14 @@ type PageMetadataInput = {
 };
 
 export function getSiteUrl() {
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL;
+
   const rawUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_VERCEL_URL ||
-    process.env.VERCEL_URL ||
+    configuredUrl ||
+    (process.env.VERCEL_ENV === "preview"
+      ? process.env.NEXT_PUBLIC_VERCEL_URL || process.env.VERCEL_URL
+      : undefined) ||
     defaultSiteUrl;
 
   const url = rawUrl.trim();
