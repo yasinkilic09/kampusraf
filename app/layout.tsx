@@ -3,6 +3,13 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { NotificationBell } from "@/components/notification-bell";
+import {
+  getSiteUrl,
+  seoKeywords,
+  siteDescription,
+  siteName,
+  socialDescription,
+} from "@/lib/seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,31 +21,62 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const metadataBase =
-  process.env.NEXT_PUBLIC_SITE_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  "http://localhost:3000";
+const googleSiteVerification =
+  process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 
 export const metadata: Metadata = {
-  metadataBase: new URL(metadataBase),
+  metadataBase: getSiteUrl(),
+  applicationName: siteName,
   title: {
-    default: "KampüsRaf",
-    template: "%s | KampüsRaf",
+    default: siteName,
+    template: `%s | ${siteName}`,
   },
-  description:
-    "Öğrenciler için kitap paylaşımı, takas, sosyal akış ve Rastgele Raf platformu.",
+  description: siteDescription,
+  keywords: seoKeywords,
+  alternates: {
+    canonical: "/",
+  },
+  category: "education",
+  creator: siteName,
+  publisher: siteName,
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: "/logo-symbol.png",
     apple: "/logo-symbol.png",
   },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
-    title: "KampüsRaf",
-    description:
-      "Kitaplar paylaşılır, fikirler büyür. Kampüs içi kitap paylaşımı, takas ve sosyal okuma ağı.",
+    title: siteName,
+    description: socialDescription,
+    url: "/",
+    siteName,
     images: ["/logo-symbol.png"],
     locale: "tr_TR",
     type: "website",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: siteName,
+    description: socialDescription,
+    images: ["/logo-symbol.png"],
+  },
+  ...(googleSiteVerification
+    ? {
+        verification: {
+          google: googleSiteVerification,
+        },
+      }
+    : {}),
 };
 
 export default function RootLayout({
@@ -47,15 +85,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-  <html
-    lang="tr"
-    className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-  >
-    <body className="min-h-full flex flex-col">
-      <NotificationBell />
-      <div className="flex-1 pb-24 md:pb-0">{children}</div>
-      <MobileBottomNav />
-    </body>
-  </html>
-);
+    <html
+      lang="tr"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col">
+        <NotificationBell />
+        <div className="flex-1 pb-24 md:pb-0">{children}</div>
+        <MobileBottomNav />
+      </body>
+    </html>
+  );
 }

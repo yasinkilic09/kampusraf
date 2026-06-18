@@ -1,5 +1,93 @@
 import Link from "next/link";
 import Image from "next/image";
+import {
+  absoluteUrl,
+  createJsonLd,
+  createPageMetadata,
+  siteDescription,
+  siteName,
+} from "@/lib/seo";
+
+export const metadata = createPageMetadata({
+  title: "KampüsRaf - Öğrenciler için kitap takas ve paylaşım platformu",
+  description:
+    "KampüsRaf ile öğrenciler kitaplarını takas, ödünç, satış veya bağış seçenekleriyle paylaşır; yakınındaki kitapları bulur ve sosyal okuma ağına katılır.",
+  path: "/",
+  keywords: [
+    "kitap takas uygulaması",
+    "kampüs kitap paylaşımı",
+    "öğrenciler arası kitap takası",
+    "yakındaki kitapları bul",
+  ],
+  image: "/logo.png",
+});
+
+const homeJsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: siteName,
+    url: absoluteUrl("/"),
+    logo: absoluteUrl("/logo.png"),
+    slogan: "Kitaplar paylaşılır, fikirler büyür.",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: siteName,
+    url: absoluteUrl("/"),
+    description: siteDescription,
+    applicationCategory: "EducationalApplication",
+    operatingSystem: "Web, iOS, Android",
+    inLanguage: "tr-TR",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "TRY",
+    },
+    audience: {
+      "@type": "EducationalAudience",
+      educationalRole: "student",
+    },
+    featureList: [
+      "Öğrenciler arası kitap takası",
+      "Yakın konumda kitap keşfi",
+      "Kitap ödünç alma ve bağış",
+      "Sosyal okuma akışı",
+      "Kampüs toplulukları",
+    ],
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "KampüsRaf ne işe yarar?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "KampüsRaf, öğrencilerin kitaplarını takas, ödünç, satış veya bağış seçenekleriyle paylaşabildiği; yakınındaki kitapları bulabildiği sosyal kitap platformudur.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "KampüsRaf ücretli mi?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "KampüsRaf temel kullanımda ücretsizdir. Kullanıcılar kitap ekleyebilir, arama yapabilir ve kampüs içi kitap paylaşım ağına katılabilir.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Yakınımdaki kitapları nasıl bulurum?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Konum izni verildiğinde KampüsRaf, takas, ödünç, satış veya bağışa açık kitapları yaklaşık mesafeye göre keşfetmeyi sağlar.",
+        },
+      },
+    ],
+  },
+];
 
 const features = [
   {
@@ -55,6 +143,10 @@ const steps = [
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: createJsonLd(homeJsonLd) }}
+      />
       <section className="relative overflow-hidden">
         <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-[#2E7D5B]/10 blur-3xl" />
         <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-[#F59E0B]/10 blur-3xl" />
@@ -464,6 +556,59 @@ export default function Home() {
               >
                 {item}
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <div className="rounded-[2rem] border border-[#2E7D5B]/10 bg-white p-6 shadow-sm md:p-10">
+          <div className="max-w-2xl">
+            <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
+              Popüler aramalar
+            </p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">
+              Öğrencilerin en çok aradığı kitap paylaşım yolları.
+            </h2>
+            <p className="mt-4 text-sm font-semibold leading-7 text-slate-600">
+              KampüsRaf; kitap takası, kampüs içi kitap paylaşımı ve öğrenci
+              odaklı kitap keşfi için tek bir sosyal raf deneyimi sunar.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {[
+              {
+                href: "/kitap-takas",
+                title: "Kitap takas",
+                text: "Öğrenciler arası kitap takası, ödünç alma ve güvenli iletişim.",
+              },
+              {
+                href: "/kampus-kitap-paylasimi",
+                title: "Kampüs kitap paylaşımı",
+                text: "Aynı şehirde ve üniversitede kitapları dolaşıma çıkarma.",
+              },
+              {
+                href: "/ogrenci-kitap-platformu",
+                title: "Öğrenci kitap platformu",
+                text: "Raf, harita, eşleşme, topluluk ve sosyal akış bir arada.",
+              },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group rounded-[1.5rem] bg-[#FAF7F0] p-5 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/5"
+              >
+                <h3 className="text-lg font-black text-[#2E7D5B]">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                  {item.text}
+                </p>
+                <p className="mt-4 text-sm font-black text-[#F59E0B] transition group-hover:translate-x-1">
+                  İncele →
+                </p>
+              </Link>
             ))}
           </div>
         </div>
