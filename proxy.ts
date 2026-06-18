@@ -13,6 +13,7 @@ const MAX_UPLOAD_BODY_BYTES = 12 * 1024 * 1024;
 const MAX_LOCATION_BODY_BYTES = 16 * 1024;
 
 const uploadPaths = new Set(["/paylas", "/profilim"]);
+const trustedProductionHosts = new Set(["kampusraf.com", "www.kampusraf.com"]);
 const allowedMethods = new Set([
   "GET",
   "HEAD",
@@ -23,8 +24,111 @@ const allowedMethods = new Set([
   "DELETE",
 ]);
 
+const blockedPathPrefixes = [
+  "/.aws",
+  "/.env",
+  "/.git",
+  "/.svn",
+  "/.well-known/acme-challenge/..",
+  "/adminer",
+  "/cgi-bin",
+  "/phpmyadmin",
+  "/server-status",
+  "/vendor/phpunit",
+  "/wp-admin",
+  "/wp-content",
+  "/wp-includes",
+  "/wordpress",
+];
+
+const blockedExactPaths = new Set([
+  "/.ds_store",
+  "/config.php",
+  "/debug/default/view",
+  "/ecp/Current/exporttool/microsoft.exchange.ediscovery.exporttool.application",
+  "/info.php",
+  "/phpinfo.php",
+  "/xmlrpc.php",
+]);
+
 function isMutationRequest(request: NextRequest) {
   return ["POST", "PUT", "PATCH", "DELETE"].includes(request.method);
+}
+
+function getConfiguredSiteHost() {
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL;
+
+  if (!configuredUrl) return null;
+
+  try {
+    const url = new URL(
+      configuredUrl.startsWith("http") ? configuredUrl : `https://${configuredUrl}`
+    );
+
+    return url.hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function getAllowedHosts(request: NextRequest) {
+  const allowedHosts = new Set<string>([
+    request.nextUrl.hostname.toLowerCase(),
+    ...trustedProductionHosts,
+  ]);
+  const configuredHost = getConfiguredSiteHost();
+  const vercelHost = process.env.VERCEL_URL?.toLowerCase();
+
+  if (configuredHost) allowedHosts.add(configuredHost);
+  if (vercelHost) allowedHosts.add(vercelHost);
+
+  if (process.env.NODE_ENV !== "production") {
+    allowedHosts.add("localhost");
+    allowedHosts.add("127.0.0.1");
+  }
+
+  return allowedHosts;
+}
+
+function isAllowedSourceUrl(value: string | null, request: NextRequest) {
+  if (!value) return true;
+
+  try {
+    const url = new URL(value);
+    const allowedHosts = getAllowedHosts(request);
+
+    if (!["http:", "https:"].includes(url.protocol)) return false;
+
+    return allowedHosts.has(url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+function hasTrustedMutationSource(request: NextRequest) {
+  const secFetchSite = request.headers.get("sec-fetch-site");
+
+  if (secFetchSite === "cross-site") return false;
+
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+
+  if (origin && !isAllowedSourceUrl(origin, request)) return false;
+  if (!origin && referer && !isAllowedSourceUrl(referer, request)) return false;
+
+  return true;
+}
+
+function isScannerPath(pathname: string) {
+  const normalizedPath = pathname.toLowerCase();
+
+  if (blockedExactPaths.has(normalizedPath)) return true;
+  if (normalizedPath.endsWith(".php")) return true;
+
+  return blockedPathPrefixes.some((prefix) =>
+    normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)
+  );
 }
 
 function getContentLength(request: NextRequest) {
@@ -109,7 +213,15 @@ export function proxy(request: NextRequest) {
     return blockedResponse(404, "Not Found");
   }
 
+  if (isScannerPath(pathname)) {
+    return blockedResponse(404, "Not Found");
+  }
+
   if (isMutationRequest(request)) {
+    if (!hasTrustedMutationSource(request)) {
+      return blockedResponse(403, "Forbidden");
+    }
+
     const contentLength = getContentLength(request);
     const bodyLimit = getBodyLimit(pathname);
 

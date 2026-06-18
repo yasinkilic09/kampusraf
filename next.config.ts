@@ -58,6 +58,7 @@ function buildContentSecurityPolicy() {
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
+      allowedOrigins: ["kampusraf.com", "www.kampusraf.com"],
       bodySizeLimit: "12mb",
     },
   },
@@ -98,6 +99,27 @@ const nextConfig: NextConfig = {
           {
             key: "Cross-Origin-Opener-Policy",
             value: "same-origin",
+          },
+          {
+            key: "Origin-Agent-Cluster",
+            value: "?1",
+          },
+          {
+            key: "X-Permitted-Cross-Domain-Policies",
+            value: "none",
+          },
+        ],
+      },
+      {
+        source: "/api/:path*",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex, nofollow, nosnippet",
+          },
+          {
+            key: "Cache-Control",
+            value: "no-store",
           },
         ],
       },

@@ -1,0 +1,5 @@
+Contact: https://www.kampusraf.com/security-policy
+Policy: https://www.kampusraf.com/security-policy
+Preferred-Languages: tr, en
+Canonical: https://www.kampusraf.com/.well-known/security.txt
+Expires: 2027-06-01T00:00:00Z
