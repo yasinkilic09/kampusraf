@@ -41,8 +41,25 @@ export const metadata: Metadata = {
   publisher: siteName,
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/logo-symbol.png",
-    apple: "/logo-symbol.png",
+    icon: [
+      {
+        url: "/icon.png",
+        type: "image/png",
+        sizes: "512x512",
+      },
+      {
+        url: "/favicon.ico",
+        sizes: "any",
+      },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [
+      {
+        url: "/apple-icon.png",
+        type: "image/png",
+        sizes: "512x512",
+      },
+    ],
   },
   robots: {
     index: true,
