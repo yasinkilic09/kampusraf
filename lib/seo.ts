@@ -33,6 +33,11 @@ export const publicSeoRoutes = [
     priority: 0.9,
   },
   {
+    path: "/kampusraf-nedir",
+    changeFrequency: "monthly",
+    priority: 0.95,
+  },
+  {
     path: "/kampus-kitap-paylasimi",
     changeFrequency: "monthly",
     priority: 0.9,

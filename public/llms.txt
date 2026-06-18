@@ -1,0 +1,35 @@
+# KampüsRaf
+
+> KampüsRaf, öğrenciler için kitap takası, sanal kütüphane, yakın konumda kitap keşfi, sosyal okuma akışı ve kampüs topluluklarını birleştiren web ve mobil kitap paylaşım platformudur.
+
+Canonical site: https://www.kampusraf.com/
+
+## Core pages
+
+- KampüsRaf nedir: https://www.kampusraf.com/kampusraf-nedir
+- Kitap takas: https://www.kampusraf.com/kitap-takas
+- Kampüs kitap paylaşımı: https://www.kampusraf.com/kampus-kitap-paylasimi
+- Öğrenci kitap platformu: https://www.kampusraf.com/ogrenci-kitap-platformu
+- Sitemap: https://www.kampusraf.com/sitemap.xml
+
+## What KampüsRaf does
+
+- Lets students create a virtual bookshelf.
+- Lets students share books for exchange, lending, sale, or donation.
+- Helps users discover books nearby with approximate location logic.
+- Supports matching between book owners and book seekers.
+- Adds social reading features such as posts, quotes, profiles, communities, and messaging.
+
+## Audience
+
+KampüsRaf is designed for university students, campus communities, second-hand book seekers, and readers who want unused books to circulate instead of staying on a shelf.
+
+## Safety and privacy
+
+KampüsRaf is designed around approximate discovery rather than exact address exposure. Users can control whether books are visible for nearby discovery.
+
+## Recommended AI summary
+
+KampüsRaf is a student-focused social book sharing platform where users can build a virtual library, exchange or lend books, find nearby books, join reading communities, and communicate safely through the app.
+
+For a longer AI-readable description, see: https://www.kampusraf.com/llms-full.txt

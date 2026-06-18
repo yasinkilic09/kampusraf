@@ -30,6 +30,14 @@ const homeJsonLd = [
     url: absoluteUrl("/"),
     logo: absoluteUrl("/logo.png"),
     slogan: "Kitaplar paylaşılır, fikirler büyür.",
+    areaServed: "TR",
+    knowsAbout: [
+      "kitap takası",
+      "kampüs kitap paylaşımı",
+      "öğrenci kitap platformu",
+      "yakın konumda kitap keşfi",
+      "sosyal okuma",
+    ],
   },
   {
     "@context": "https://schema.org",
@@ -40,6 +48,8 @@ const homeJsonLd = [
     applicationCategory: "EducationalApplication",
     operatingSystem: "Web, iOS, Android",
     inLanguage: "tr-TR",
+    isAccessibleForFree: true,
+    areaServed: "TR",
     offers: {
       "@type": "Offer",
       price: "0",
@@ -578,6 +588,11 @@ export default function Home() {
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {[
+              {
+                href: "/kampusraf-nedir",
+                title: "KampüsRaf nedir?",
+                text: "Kitap takası, sanal raf, harita, eşleşme ve sosyal okuma deneyiminin kısa özeti.",
+              },
               {
                 href: "/kitap-takas",
                 title: "Kitap takas",
