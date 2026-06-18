@@ -1,4 +1,5 @@
 import type { Metadata, MetadataRoute } from "next";
+import { bookSeoPages } from "@/lib/book-seo-content";
 
 export const defaultSiteUrl = "https://www.kampusraf.com";
 export const siteName = "KampüsRaf";
@@ -21,7 +22,13 @@ export const seoKeywords = [
   "KampüsRaf",
 ];
 
-export const publicSeoRoutes = [
+type PublicSeoRoute = {
+  path: string;
+  changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
+  priority: number;
+};
+
+export const publicSeoRoutes: PublicSeoRoute[] = [
   {
     path: "/",
     changeFrequency: "weekly",
@@ -47,11 +54,17 @@ export const publicSeoRoutes = [
     changeFrequency: "monthly",
     priority: 0.85,
   },
-] as const satisfies ReadonlyArray<{
-  path: string;
-  changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
-  priority: number;
-}>;
+  {
+    path: "/kitap-rehberi",
+    changeFrequency: "weekly",
+    priority: 0.92,
+  },
+  ...bookSeoPages.map((page) => ({
+    path: `/kitap-rehberi/${page.slug}`,
+    changeFrequency: "monthly" as const,
+    priority: 0.82,
+  })),
+];
 
 type PageMetadataInput = {
   title: string;

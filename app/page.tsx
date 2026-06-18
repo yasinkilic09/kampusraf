@@ -586,8 +586,13 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[
+              {
+                href: "/kitap-rehberi",
+                title: "Kitap rehberi",
+                text: "İkinci el kitap, takas, ödünç alma, bağış, ders kitabı ve sanal kütüphane rehberleri.",
+              },
               {
                 href: "/kampusraf-nedir",
                 title: "KampüsRaf nedir?",

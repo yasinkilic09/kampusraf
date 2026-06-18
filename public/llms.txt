@@ -7,10 +7,20 @@ Canonical site: https://www.kampusraf.com/
 ## Core pages
 
 - KampüsRaf nedir: https://www.kampusraf.com/kampusraf-nedir
+- Kitap rehberi: https://www.kampusraf.com/kitap-rehberi
 - Kitap takas: https://www.kampusraf.com/kitap-takas
 - Kampüs kitap paylaşımı: https://www.kampusraf.com/kampus-kitap-paylasimi
 - Öğrenci kitap platformu: https://www.kampusraf.com/ogrenci-kitap-platformu
 - Sitemap: https://www.kampusraf.com/sitemap.xml
+
+## Book guide topics
+
+- İkinci el kitap: https://www.kampusraf.com/kitap-rehberi/ikinci-el-kitap
+- Kitap takası nasıl yapılır: https://www.kampusraf.com/kitap-rehberi/kitap-takasi-nasil-yapilir
+- Kitap ödünç alma: https://www.kampusraf.com/kitap-rehberi/kitap-odunc-alma
+- Üniversite ders kitabı: https://www.kampusraf.com/kitap-rehberi/universite-ders-kitabi
+- Yakındaki kitaplar: https://www.kampusraf.com/kitap-rehberi/yakindaki-kitaplar
+- Sanal kütüphane: https://www.kampusraf.com/kitap-rehberi/sanal-kutuphane
 
 ## What KampüsRaf does
 
