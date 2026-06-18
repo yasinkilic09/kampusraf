@@ -5,20 +5,37 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { checkUsageLimit } from "@/lib/usage-limits";
 import { requireActiveAccount } from "@/lib/account-status";
+import { enforceActionRateLimit } from "@/lib/server-action-security";
+import { normalizeTextInput, normalizeUuid } from "@/lib/validation";
 
 export async function createBookRequestAction(formData: FormData) {
-  const title = String(formData.get("title") || "").trim();
-  const author = String(formData.get("author") || "").trim();
-  const category = String(formData.get("category") || "").trim();
-  const city = String(formData.get("city") || "").trim();
-  const university = String(formData.get("university") || "").trim();
-  const note = String(formData.get("note") || "").trim();
+  const title = normalizeTextInput(formData.get("title"), { maxLength: 160 });
+  const author = normalizeTextInput(formData.get("author"), { maxLength: 120 });
+  const category = normalizeTextInput(formData.get("category"), {
+    maxLength: 80,
+  });
+  const city = normalizeTextInput(formData.get("city"), { maxLength: 80 });
+  const university = normalizeTextInput(formData.get("university"), {
+    maxLength: 120,
+  });
+  const note = normalizeTextInput(formData.get("note"), {
+    maxLength: 500,
+    preserveLineBreaks: true,
+  });
 
   if (!title) {
     redirect("/aradigim-kitaplar");
   }
 
   const { supabase, user } = await requireActiveAccount("/aradigim-kitaplar");
+
+enforceActionRateLimit({
+  userId: user.id,
+  action: "create-book-request",
+  limit: 12,
+  windowMs: 60_000,
+  redirectTo: "/aradigim-kitaplar",
+});
 
 const limitCheck = await checkUsageLimit(supabase, user.id, "requests");
 
@@ -69,7 +86,7 @@ if (request?.id) {
 }
 
 export async function closeBookRequestAction(formData: FormData) {
-  const requestId = String(formData.get("requestId") || "");
+  const requestId = normalizeUuid(formData.get("requestId"));
 
   if (!requestId) {
     redirect("/aradigim-kitaplar");
@@ -102,7 +119,7 @@ export async function closeBookRequestAction(formData: FormData) {
 }
 
 export async function reopenBookRequestAction(formData: FormData) {
-  const requestId = String(formData.get("requestId") || "");
+  const requestId = normalizeUuid(formData.get("requestId"));
 
   if (!requestId) {
     redirect("/aradigim-kitaplar");
@@ -135,7 +152,7 @@ export async function reopenBookRequestAction(formData: FormData) {
 }
 
 export async function deleteBookRequestAction(formData: FormData) {
-  const requestId = String(formData.get("requestId") || "");
+  const requestId = normalizeUuid(formData.get("requestId"));
 
   if (!requestId) {
     redirect("/aradigim-kitaplar");

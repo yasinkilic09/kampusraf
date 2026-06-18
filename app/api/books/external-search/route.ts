@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeTextInput } from "@/lib/validation";
 
 type NormalizedExternalBook = {
   source: "google_books" | "open_library";
@@ -229,13 +230,26 @@ async function searchOpenLibrary(
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const query = String(searchParams.get("q") || "").trim();
+  const rawQuery = String(searchParams.get("q") || "");
+  const query = normalizeTextInput(rawQuery, { maxLength: 160 });
 
   if (query.length < 2) {
     return NextResponse.json(
       {
         books: [],
         error: "Arama için en az 2 karakter gir.",
+      },
+      {
+        status: 400,
+      }
+    );
+  }
+
+  if (query.length > 120 || rawQuery.length > 160) {
+    return NextResponse.json(
+      {
+        books: [],
+        error: "Arama metni en fazla 120 karakter olabilir.",
       },
       {
         status: 400,

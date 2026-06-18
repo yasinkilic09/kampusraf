@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireActiveAccount } from "@/lib/account-status";
+import { enforceActionRateLimit } from "@/lib/server-action-security";
 import { createClient } from "@/lib/supabase/server";
+import {
+  normalizeEnum,
+  normalizeTextInput,
+  normalizeUuid,
+} from "@/lib/validation";
 
 const allowedReasons = [
   "spam",
@@ -41,9 +47,12 @@ async function requireAdmin() {
 }
 
 export async function submitUserReportAction(formData: FormData) {
-  const conversationId = String(formData.get("conversationId") || "");
+  const conversationId = normalizeUuid(formData.get("conversationId"));
   const reason = String(formData.get("reason") || "");
-  const description = String(formData.get("description") || "").trim();
+  const description = normalizeTextInput(formData.get("description"), {
+    maxLength: 1000,
+    preserveLineBreaks: true,
+  });
 
   if (!conversationId) {
     redirect("/mesajlar");
@@ -57,17 +66,17 @@ export async function submitUserReportAction(formData: FormData) {
     );
   }
 
-  if (description.length > 1000) {
-    redirect(
-      `/mesajlar/${conversationId}?error=${encodeURIComponent(
-        "Açıklama en fazla 1000 karakter olabilir."
-      )}`
-    );
-  }
-
   const { supabase, user } = await requireActiveAccount(
     `/mesajlar/${conversationId}`
   );
+
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "submit-user-report",
+    limit: 5,
+    windowMs: 10 * 60_000,
+    redirectTo: `/mesajlar/${conversationId}`,
+  });
 
   const { data: conversation, error: conversationError } = await supabase
     .from("conversations")
@@ -124,10 +133,21 @@ export async function submitUserReportAction(formData: FormData) {
 }
 
 export async function updateUserReportAction(formData: FormData) {
-  const reportId = String(formData.get("reportId") || "");
-  const status = String(formData.get("status") || "reviewed");
-  const adminNote = String(formData.get("adminNote") || "").trim();
-  const accountAction = String(formData.get("accountAction") || "none");
+  const reportId = normalizeUuid(formData.get("reportId"));
+  const status = normalizeEnum(
+    formData.get("status"),
+    ["pending", "reviewed", "action_taken", "rejected"] as const,
+    "reviewed"
+  );
+  const adminNote = normalizeTextInput(formData.get("adminNote"), {
+    maxLength: 1000,
+    preserveLineBreaks: true,
+  });
+  const accountAction = normalizeEnum(
+    formData.get("accountAction"),
+    ["none", "active", "suspended", "banned"] as const,
+    "none"
+  );
 
   if (!reportId || !allowedStatuses.includes(status)) {
     redirect("/admin/sikayetler");

@@ -1,10 +1,107 @@
 import type { NextConfig } from "next";
 
+function getSupabaseOrigins() {
+  const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  if (!configuredUrl) {
+    return {
+      http: "https://*.supabase.co",
+      ws: "wss://*.supabase.co",
+    };
+  }
+
+  try {
+    const url = new URL(configuredUrl);
+    const wsUrl = new URL(configuredUrl);
+
+    wsUrl.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+
+    return {
+      http: url.origin,
+      ws: wsUrl.origin,
+    };
+  } catch {
+    return {
+      http: "https://*.supabase.co",
+      ws: "wss://*.supabase.co",
+    };
+  }
+}
+
+function buildContentSecurityPolicy() {
+  const supabase = getSupabaseOrigins();
+  const scriptSrc =
+    process.env.NODE_ENV === "development"
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+      : "script-src 'self' 'unsafe-inline'";
+  const directives = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    scriptSrc,
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
+    "img-src 'self' data: blob: https:",
+    `connect-src 'self' ${supabase.http} ${supabase.ws} https://www.googleapis.com https://openlibrary.org https://covers.openlibrary.org https://www.openstreetmap.org`,
+    "frame-src 'self' https://www.openstreetmap.org",
+    "media-src 'self' blob: https:",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    "upgrade-insecure-requests",
+  ];
+
+  return directives.join("; ");
+}
+
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: "12mb",
     },
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: buildContentSecurityPolicy(),
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "X-DNS-Prefetch-Control",
+            value: "on",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
+            key: "Permissions-Policy",
+            value:
+              "camera=(self), geolocation=(self), microphone=(), payment=(), usb=(), interest-cohort=()",
+          },
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin",
+          },
+        ],
+      },
+    ];
   },
 };
 

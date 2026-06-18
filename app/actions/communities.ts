@@ -2,13 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { enforceActionRateLimit } from "@/lib/server-action-security";
 import { createClient } from "@/lib/supabase/server";
+import {
+  normalizeEnum,
+  normalizeTextInput,
+  normalizeUuid,
+} from "@/lib/validation";
 
 function cleanText(value: FormDataEntryValue | null, maxLength = 240) {
-  return String(value || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, maxLength);
+  return normalizeTextInput(value, { maxLength });
 }
 
 function getCommunityErrorMessage(error?: { code?: string; message?: string } | null) {
@@ -37,16 +40,32 @@ async function requireUser() {
 export async function createCommunityAction(formData: FormData) {
   const name = cleanText(formData.get("name"), 80);
   const description = cleanText(formData.get("description"), 360);
-  const category = cleanText(formData.get("category"), 40) || "okuma_grubu";
+  const category = normalizeEnum(
+    cleanText(formData.get("category"), 40),
+    ["okuma_grubu", "universite", "kulup", "ders", "kampus", "takas"] as const,
+    "okuma_grubu"
+  );
   const university = cleanText(formData.get("university"), 120);
   const city = cleanText(formData.get("city"), 80);
-  const visibility = cleanText(formData.get("visibility"), 20) || "public";
+  const visibility = normalizeEnum(
+    cleanText(formData.get("visibility"), 20),
+    ["public", "private"] as const,
+    "public"
+  );
 
   if (name.length < 3) {
     redirect(`/topluluklar?error=${encodeURIComponent("Topluluk adı en az 3 karakter olmalı.")}`);
   }
 
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
+
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "create-community",
+    limit: 6,
+    windowMs: 60_000,
+    redirectTo: "/topluluklar",
+  });
 
   const { error } = await supabase.rpc("create_community", {
     p_name: name,
@@ -67,7 +86,7 @@ export async function createCommunityAction(formData: FormData) {
 }
 
 export async function joinCommunityAction(formData: FormData) {
-  const communityId = cleanText(formData.get("communityId"), 80);
+  const communityId = normalizeUuid(formData.get("communityId"));
 
   if (!communityId) {
     redirect("/topluluklar?error=Topluluk%20bulunamad%C4%B1.");
@@ -87,7 +106,7 @@ export async function joinCommunityAction(formData: FormData) {
 }
 
 export async function leaveCommunityAction(formData: FormData) {
-  const communityId = cleanText(formData.get("communityId"), 80);
+  const communityId = normalizeUuid(formData.get("communityId"));
 
   if (!communityId) {
     redirect("/topluluklar?error=Topluluk%20bulunamad%C4%B1.");

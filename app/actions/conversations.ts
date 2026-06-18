@@ -3,13 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { checkUsageLimit } from "@/lib/usage-limits";
 import { requireActiveAccount } from "@/lib/account-status";
+import { enforceActionRateLimit } from "@/lib/server-action-security";
+import {
+  normalizeInternalPath,
+  normalizeTextInput,
+  normalizeUuid,
+} from "@/lib/validation";
 
 export async function startConversationAction(formData: FormData) {
   await requireActiveAccount("/mesajlar");
 
-  const userBookId = String(formData.get("userBookId") || "");
+  const userBookId = normalizeUuid(formData.get("userBookId"));
 
   if (!userBookId) {
     redirect("/kitap-ara");
@@ -82,8 +89,11 @@ export async function startConversationAction(formData: FormData) {
 export async function sendMessageAction(formData: FormData) {
   await requireActiveAccount("/mesajlar");
 
-  const conversationId = String(formData.get("conversationId") || "");
-  const message = String(formData.get("message") || "").trim();
+  const conversationId = normalizeUuid(formData.get("conversationId"));
+  const message = normalizeTextInput(formData.get("message"), {
+    maxLength: 2000,
+    preserveLineBreaks: true,
+  });
 
   if (!conversationId) {
     redirect("/mesajlar");
@@ -127,6 +137,14 @@ export async function sendMessageAction(formData: FormData) {
 
 const limitCheck = await checkUsageLimit(supabase, user.id, "messages");
 
+enforceActionRateLimit({
+  userId: user.id,
+  action: "send-message",
+  limit: 30,
+  windowMs: 60_000,
+  redirectTo: `/mesajlar/${conversation.id}`,
+});
+
 if (!limitCheck.allowed) {
   redirect(
     `/mesajlar/${conversation.id}?error=${encodeURIComponent(
@@ -169,7 +187,7 @@ if (messageError) {
 export async function startMatchConversationAction(formData: FormData) {
   await requireActiveAccount("/mesajlar");
 
-  const matchId = String(formData.get("matchId") || "");
+  const matchId = normalizeUuid(formData.get("matchId"));
 
   if (!matchId) {
     redirect("/eslesmeler");
@@ -256,8 +274,11 @@ export async function startMatchConversationAction(formData: FormData) {
 }
 
 export async function sendMessageRealtimeAction(formData: FormData) {
-  const conversationId = String(formData.get("conversationId") || "");
-  const message = String(formData.get("message") || "").trim();
+  const conversationId = normalizeUuid(formData.get("conversationId"));
+  const message = normalizeTextInput(formData.get("message"), {
+    maxLength: 2000,
+    preserveLineBreaks: true,
+  });
 
   if (!conversationId) {
     return {
@@ -286,6 +307,19 @@ export async function sendMessageRealtimeAction(formData: FormData) {
   const { supabase, user } = await requireActiveAccount(
     `/mesajlar/${conversationId}`
   );
+
+  const rateLimit = checkRateLimit(`action:send-message-realtime:${user.id}`, {
+    limit: 45,
+    windowMs: 60_000,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      success: false,
+      error: `Çok hızlı mesaj gönderiyorsun. Lütfen ${rateLimit.retryAfterSeconds} saniye sonra tekrar dene.`,
+      message: null,
+    };
+  }
 
   const { data: conversation, error: conversationError } = await supabase
     .from("conversations")
@@ -372,7 +406,10 @@ export async function markConversationMessagesAsReadAction(
 
   const { supabase, user } = await requireActiveAccount("/mesajlar");
 
-  const safeConversationIds = conversationIds.filter(Boolean);
+  const safeConversationIds = conversationIds
+    .map((conversationId) => normalizeUuid(conversationId))
+    .filter((conversationId): conversationId is string => Boolean(conversationId))
+    .slice(0, 50);
 
   if (!safeConversationIds.length) {
     return {
@@ -406,7 +443,9 @@ export async function markConversationMessagesAsReadAction(
 }
 
 export async function markMessageNotificationsAsReadAction(otherUserId: string) {
-  if (!otherUserId) {
+  const safeOtherUserId = normalizeUuid(otherUserId);
+
+  if (!safeOtherUserId) {
     return {
       success: true,
       error: null,
@@ -415,7 +454,10 @@ export async function markMessageNotificationsAsReadAction(otherUserId: string) 
 
   const { supabase, user } = await requireActiveAccount("/mesajlar");
 
-  const targetUrl = `/mesajlar/kullanici/${otherUserId}`;
+  const targetUrl = normalizeInternalPath(
+    `/mesajlar/kullanici/${safeOtherUserId}`,
+    "/mesajlar"
+  );
 
   const { error } = await supabase
     .from("notifications")

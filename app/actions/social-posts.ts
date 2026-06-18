@@ -3,7 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createNotificationAction } from "@/app/actions/notifications";
+import { enforceActionRateLimit } from "@/lib/server-action-security";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getSafeImageExtension,
+  isAllowedImageFile,
+  normalizeInternalPath,
+  normalizeTextInput,
+  normalizeUuid,
+} from "@/lib/validation";
 
 function getSafePostVisibility(value: string) {
   if (value === "public") return "public";
@@ -11,17 +19,11 @@ function getSafePostVisibility(value: string) {
 }
 
 function getFileExtension(file: File) {
-  const extension = file.name.split(".").pop()?.toLowerCase();
-
-  if (extension && ["jpg", "jpeg", "png", "webp"].includes(extension)) {
-    return extension;
-  }
-
-  return "jpg";
+  return getSafeImageExtension(file);
 }
 
 function isValidImage(file: File) {
-  return ["image/jpeg", "image/png", "image/webp"].includes(file.type);
+  return isAllowedImageFile(file);
 }
 
 async function uploadPostImage({
@@ -78,20 +80,27 @@ export async function createSocialPostAction(formData: FormData) {
   }
 
   const imageFile = formData.get("image") as File | null;
-  const caption = String(formData.get("caption") || "").trim();
+  const caption = normalizeTextInput(formData.get("caption"), {
+    maxLength: 600,
+    preserveLineBreaks: true,
+  });
   const visibility = getSafePostVisibility(
     String(formData.get("visibility") || "friends")
   );
-  const relatedBookId = String(formData.get("relatedBookId") || "").trim();
+  const relatedBookId = normalizeUuid(formData.get("relatedBookId"));
 
   if (!imageFile) {
     redirect("/paylas?error=Görsel seçmelisin");
   }
 
   try {
-    if (caption.length > 600) {
-      throw new Error("Açıklama en fazla 600 karakter olabilir.");
-    }
+    enforceActionRateLimit({
+      userId: user.id,
+      action: "create-social-post",
+      limit: 10,
+      windowMs: 60_000,
+      redirectTo: "/paylas",
+    });
 
     const imageUrl = await uploadPostImage({
       file: imageFile,
@@ -151,12 +160,20 @@ export async function togglePostLikeAction(formData: FormData) {
     redirect("/auth/login");
   }
 
-  const postId = String(formData.get("postId") || "").trim();
-  const redirectTo = String(formData.get("redirectTo") || "/akis");
+  const postId = normalizeUuid(formData.get("postId"));
+  const redirectTo = normalizeInternalPath(formData.get("redirectTo"), "/akis");
 
   if (!postId) {
     return;
   }
+
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "toggle-post-like",
+    limit: 80,
+    windowMs: 60_000,
+    redirectTo,
+  });
 
   const { data: existingLike } = await supabase
     .from("post_likes")
@@ -253,13 +270,24 @@ export async function createPostCommentAction(formData: FormData) {
     redirect("/auth/login");
   }
 
-  const postId = String(formData.get("postId") || "").trim();
-  const content = String(formData.get("content") || "").trim();
-  const redirectTo = String(formData.get("redirectTo") || "/akis");
+  const postId = normalizeUuid(formData.get("postId"));
+  const content = normalizeTextInput(formData.get("content"), {
+    maxLength: 600,
+    preserveLineBreaks: true,
+  });
+  const redirectTo = normalizeInternalPath(formData.get("redirectTo"), "/akis");
 
   if (!postId || !content) {
     return;
   }
+
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "create-post-comment",
+    limit: 20,
+    windowMs: 60_000,
+    redirectTo,
+  });
 
   const { data: postForNotification, error: postFetchError } = await supabase
     .from("social_posts")
@@ -339,8 +367,8 @@ export async function deleteSocialPostAction(formData: FormData) {
     redirect("/auth/login");
   }
 
-  const postId = String(formData.get("postId") || "");
-  const redirectTo = String(formData.get("redirectTo") || "/akis");
+  const postId = normalizeUuid(formData.get("postId"));
+  const redirectTo = normalizeInternalPath(formData.get("redirectTo"), "/akis");
 
   if (!postId) {
     return;
@@ -413,15 +441,26 @@ export async function createQuoteSocialPostAction(formData: FormData) {
     redirect("/auth/login");
   }
 
-  const quoteId = String(formData.get("quoteId") || "").trim();
+  const quoteId = normalizeUuid(formData.get("quoteId"));
   const visibility = getSafePostVisibility(
     String(formData.get("visibility") || "public")
   );
-  const redirectTo = String(formData.get("redirectTo") || "/favori-alintilarim");
+  const redirectTo = normalizeInternalPath(
+    formData.get("redirectTo"),
+    "/favori-alintilarim"
+  );
 
   if (!quoteId) {
     redirect(`${redirectTo}?error=quote-not-found`);
   }
+
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "create-quote-post",
+    limit: 20,
+    windowMs: 60_000,
+    redirectTo,
+  });
 
   const { data: favorite } = await supabase
     .from("quote_favorites")

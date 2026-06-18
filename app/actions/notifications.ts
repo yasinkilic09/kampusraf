@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireActiveAccount } from "@/lib/account-status";
+import {
+  normalizeInternalPath,
+  normalizeTextInput,
+  normalizeUuid,
+} from "@/lib/validation";
 
 type MarkNotificationAndMessageInput =
   | FormData
@@ -15,19 +20,19 @@ type MarkNotificationAndMessageInput =
 function parseMarkNotificationInput(input: MarkNotificationAndMessageInput) {
   if (input instanceof FormData) {
     return {
-      notificationId: String(input.get("notificationId") || ""),
-      targetUrl: String(input.get("targetUrl") || ""),
+      notificationId: normalizeUuid(input.get("notificationId")) || "",
+      targetUrl: normalizeInternalPath(input.get("targetUrl"), ""),
     };
   }
 
   return {
-    notificationId: input.notificationId || "",
-    targetUrl: input.targetUrl || "",
+    notificationId: normalizeUuid(input.notificationId) || "",
+    targetUrl: normalizeInternalPath(input.targetUrl, ""),
   };
 }
 
 export async function markNotificationReadAction(formData: FormData) {
-  const notificationId = String(formData.get("notificationId") || "");
+  const notificationId = normalizeUuid(formData.get("notificationId"));
 
   if (!notificationId) {
     redirect("/bildirimler");
@@ -99,7 +104,7 @@ export async function markNotificationAndMessageAsReadAction(
 
   const safeTargetUrl = targetUrl || "";
   const match = safeTargetUrl.match(/^\/mesajlar\/kullanici\/([^/]+)$/);
-  const otherUserId = match?.[1];
+  const otherUserId = normalizeUuid(match?.[1]);
 
   if (otherUserId) {
     await supabase
@@ -129,8 +134,8 @@ export async function markNotificationAndMessageAsReadAction(
 export async function markNotificationAndMessageAsReadFormAction(
   formData: FormData
 ): Promise<void> {
-  const notificationId = String(formData.get("notificationId") || "");
-  const targetUrl = String(formData.get("targetUrl") || "");
+  const notificationId = normalizeUuid(formData.get("notificationId")) || "";
+  const targetUrl = normalizeInternalPath(formData.get("targetUrl"), "");
 
   await markNotificationAndMessageAsReadAction({
     notificationId,
@@ -155,7 +160,16 @@ export async function createNotificationAction({
   linkUrl = null,
   targetUrl = null,
 }: CreateNotificationInput) {
-  if (!userId || !title || !message) {
+  const safeUserId = normalizeUuid(userId);
+  const safeTitle = normalizeTextInput(title, { maxLength: 120 });
+  const safeMessage = normalizeTextInput(message, {
+    maxLength: 500,
+    preserveLineBreaks: true,
+  });
+  const safeLinkUrl = normalizeInternalPath(linkUrl, "");
+  const safeTargetUrl = normalizeInternalPath(targetUrl || linkUrl, "");
+
+  if (!safeUserId || !safeTitle || !safeMessage) {
     return {
       success: false,
       error: "Bildirim bilgileri eksik.",
@@ -165,12 +179,12 @@ export async function createNotificationAction({
   const supabase = await createClient();
 
   const { error } = await supabase.rpc("create_notification_for_user", {
-  p_user_id: userId,
+  p_user_id: safeUserId,
   p_type: type,
-  p_title: title,
-  p_message: message,
-  p_link_url: linkUrl,
-  p_target_url: targetUrl || linkUrl,
+  p_title: safeTitle,
+  p_message: safeMessage,
+  p_link_url: safeLinkUrl || null,
+  p_target_url: safeTargetUrl || safeLinkUrl || null,
 });
 
   if (error) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { readJsonBody } from "@/lib/request-security";
 import {
   isValidCoordinatePair,
   roundCoordinate,
@@ -77,11 +78,17 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Oturum bulunamadı." }, { status: 401 });
   }
 
-  const payload = (await request.json().catch(() => null)) as {
+  const parsedPayload = await readJsonBody<{
     lat?: unknown;
     lng?: unknown;
     accuracy?: unknown;
-  } | null;
+  }>(request, 16 * 1024);
+
+  if (!parsedPayload.ok) {
+    return parsedPayload.response;
+  }
+
+  const payload = parsedPayload.data;
 
   const lat = Number(payload?.lat);
   const lng = Number(payload?.lng);
@@ -97,7 +104,7 @@ export async function PATCH(request: Request) {
   const safeLat = roundCoordinate(lat);
   const safeLng = roundCoordinate(lng);
   const safeAccuracy = Number.isFinite(accuracy)
-    ? Math.max(Math.round(accuracy), 0)
+    ? Math.min(Math.max(Math.round(accuracy), 0), 10_000)
     : null;
   const now = new Date().toISOString();
 

@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeUuid } from "@/lib/validation";
 
 type RollRandomQuoteRow = {
   roll_id: string;
@@ -57,6 +59,19 @@ export async function rollRandomQuoteAction(): Promise<{
     redirect("/auth/login");
   }
 
+  const rateLimit = checkRateLimit(`action:roll-random-quote:${user.id}`, {
+    limit: 20,
+    windowMs: 60_000,
+  });
+
+  if (!rateLimit.allowed) {
+    return {
+      ok: false,
+      message: `Çok hızlı zar atıyorsun. Lütfen ${rateLimit.retryAfterSeconds} saniye sonra tekrar dene.`,
+      quote: null,
+    };
+  }
+
   const { data, error } = await supabase.rpc("roll_random_quote");
 
   if (error) {
@@ -100,6 +115,7 @@ export async function rollRandomQuoteAction(): Promise<{
 }
 
 export async function addQuoteFavoriteAction(quoteId: string) {
+  const safeQuoteId = normalizeUuid(quoteId);
   const supabase = await createClient();
 
   const {
@@ -110,7 +126,7 @@ export async function addQuoteFavoriteAction(quoteId: string) {
     redirect("/auth/login");
   }
 
-  if (!quoteId) {
+  if (!safeQuoteId) {
     return {
       ok: false,
       message: "Alıntı bulunamadı.",
@@ -120,7 +136,7 @@ export async function addQuoteFavoriteAction(quoteId: string) {
   const { data: quote } = await supabase
     .from("quote_items")
     .select("id, status, is_active")
-    .eq("id", quoteId)
+    .eq("id", safeQuoteId)
     .maybeSingle();
 
   if (!quote || quote.status !== "approved" || !quote.is_active) {
@@ -133,7 +149,7 @@ export async function addQuoteFavoriteAction(quoteId: string) {
   const { error } = await supabase.from("quote_favorites").upsert(
     {
       user_id: user.id,
-      quote_id: quoteId,
+      quote_id: safeQuoteId,
     },
     {
       onConflict: "user_id,quote_id",
@@ -160,6 +176,7 @@ export async function addQuoteFavoriteAction(quoteId: string) {
 }
 
 export async function removeQuoteFavoriteAction(quoteId: string) {
+  const safeQuoteId = normalizeUuid(quoteId);
   const supabase = await createClient();
 
   const {
@@ -170,7 +187,7 @@ export async function removeQuoteFavoriteAction(quoteId: string) {
     redirect("/auth/login");
   }
 
-  if (!quoteId) {
+  if (!safeQuoteId) {
     return {
       ok: false,
       message: "Alıntı bulunamadı.",
@@ -181,7 +198,7 @@ export async function removeQuoteFavoriteAction(quoteId: string) {
     .from("quote_favorites")
     .delete()
     .eq("user_id", user.id)
-    .eq("quote_id", quoteId);
+    .eq("quote_id", safeQuoteId);
 
   if (error) {
     console.error("REMOVE_QUOTE_FAVORITE_ERROR", error);

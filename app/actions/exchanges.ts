@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireActiveAccount } from "@/lib/account-status";
+import { normalizeInternalPath, normalizeUuid } from "@/lib/validation";
 
 const activeStatuses = ["requested", "meeting_planned", "handed_over"] as const;
 
@@ -33,13 +34,12 @@ function getOtherParticipant(
 }
 
 export async function createExchangeAction(formData: FormData) {
-  const conversationId = String(formData.get("conversationId") || "");
-  const returnTo = String(
-    formData.get("returnTo") || `/mesajlar/${conversationId}`
+  const conversationId = normalizeUuid(formData.get("conversationId"));
+  const returnTo = normalizeInternalPath(
+    formData.get("returnTo"),
+    conversationId ? `/mesajlar/${conversationId}` : "/mesajlar"
   );
-  const safeReturnTo = returnTo.startsWith("/")
-    ? returnTo
-    : `/mesajlar/${conversationId}`;
+  const safeReturnTo = returnTo;
 
   if (!conversationId) {
     redirect("/mesajlar");
@@ -120,15 +120,14 @@ export async function createExchangeAction(formData: FormData) {
 }
 
 export async function updateExchangeStatusAction(formData: FormData) {
-  const exchangeId = String(formData.get("exchangeId") || "");
-  const conversationId = String(formData.get("conversationId") || "");
+  const exchangeId = normalizeUuid(formData.get("exchangeId"));
+  const conversationId = normalizeUuid(formData.get("conversationId"));
 
-  const returnTo = String(
-    formData.get("returnTo") || `/mesajlar/${conversationId}`
+  const returnTo = normalizeInternalPath(
+    formData.get("returnTo"),
+    conversationId ? `/mesajlar/${conversationId}` : "/mesajlar"
   );
-  const safeReturnTo = returnTo.startsWith("/")
-    ? returnTo
-    : `/mesajlar/${conversationId}`;
+  const safeReturnTo = returnTo;
 
   const nextStatus = String(formData.get("status") || "");
 

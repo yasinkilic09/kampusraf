@@ -8,7 +8,9 @@ import {
   getMatchDistanceConfig,
   normalizeDistanceRadiusForPlan,
 } from "@/lib/match-plans";
+import { enforceActionRateLimit } from "@/lib/server-action-security";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeTextInput } from "@/lib/validation";
 
 function cleanUsername(value: string) {
   return value
@@ -63,12 +65,23 @@ function withoutDistancePreferenceColumns(payload: Record<string, unknown>) {
 }
 
 export async function updateProfileAction(formData: FormData) {
-  const fullName = String(formData.get("fullName") || "").trim();
-  const usernameInput = String(formData.get("username") || "").trim();
-  const university = String(formData.get("university") || "").trim();
-  const department = String(formData.get("department") || "").trim();
-  const city = String(formData.get("city") || "").trim();
-  const bio = String(formData.get("bio") || "").trim();
+  const fullName = normalizeTextInput(formData.get("fullName"), {
+    maxLength: 120,
+  });
+  const usernameInput = normalizeTextInput(formData.get("username"), {
+    maxLength: 40,
+  });
+  const university = normalizeTextInput(formData.get("university"), {
+    maxLength: 120,
+  });
+  const department = normalizeTextInput(formData.get("department"), {
+    maxLength: 120,
+  });
+  const city = normalizeTextInput(formData.get("city"), { maxLength: 80 });
+  const bio = normalizeTextInput(formData.get("bio"), {
+    maxLength: 500,
+    preserveLineBreaks: true,
+  });
 
   const gender = normalizeGender(String(formData.get("gender") || ""));
   const requestedMatchPreference = normalizeMatchGenderPreference(
@@ -226,6 +239,14 @@ export async function updatePlanAction(formData: FormData) {
     redirect("/auth/login");
   }
 
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "update-profile",
+    limit: 12,
+    windowMs: 60_000,
+    redirectTo: "/profilim",
+  });
+
   const selectedPlan = planType as keyof typeof planLimits;
   const canKeepMatchPreference = canUseGenderMatchPreference(selectedPlan);
   const distanceConfig = getMatchDistanceConfig(selectedPlan);
@@ -349,9 +370,10 @@ export async function sendStudentVerificationCodeAction(formData: FormData) {
   const universityEmail = normalizeEmail(
     String(formData.get("universityEmail") || "")
   );
-  const verificationNote = String(
-    formData.get("verificationNote") || ""
-  ).trim();
+  const verificationNote = normalizeTextInput(formData.get("verificationNote"), {
+    maxLength: 500,
+    preserveLineBreaks: true,
+  });
 
   if (!isValidEmail(universityEmail)) {
     redirect(
@@ -372,6 +394,14 @@ export async function sendStudentVerificationCodeAction(formData: FormData) {
   if (!user) {
     redirect("/auth/login");
   }
+
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "send-student-verification-code",
+    limit: 3,
+    windowMs: 10 * 60_000,
+    redirectTo: "/ogrenci-dogrulama",
+  });
 
   const domainAllowed = await isAllowedUniversityEmailDomain(
     supabase,
@@ -491,6 +521,14 @@ export async function verifyStudentVerificationCodeAction(formData: FormData) {
     redirect("/auth/login");
   }
 
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "verify-student-code",
+    limit: 10,
+    windowMs: 10 * 60_000,
+    redirectTo: "/ogrenci-dogrulama",
+  });
+
   const { data: codeRow, error: codeError } = await supabase
     .from("student_verification_codes")
     .select("id, code_hash, attempts, expires_at, consumed_at")
@@ -603,7 +641,10 @@ export async function submitStudentVerificationAction(formData: FormData) {
   const universityEmail = normalizeEmail(
     String(formData.get("universityEmail") || "")
   );
-  const verificationNote = String(formData.get("verificationNote") || "").trim();
+  const verificationNote = normalizeTextInput(formData.get("verificationNote"), {
+    maxLength: 500,
+    preserveLineBreaks: true,
+  });
 
   if (method === "university_email") {
     return sendStudentVerificationCodeAction(formData);
@@ -628,6 +669,14 @@ export async function submitStudentVerificationAction(formData: FormData) {
   if (!user) {
     redirect("/auth/login");
   }
+
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "submit-student-verification",
+    limit: 5,
+    windowMs: 10 * 60_000,
+    redirectTo: "/ogrenci-dogrulama",
+  });
 
   const { error } = await supabase
     .from("profiles")

@@ -3,6 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { enforceActionRateLimit } from "@/lib/server-action-security";
+import {
+  getSafeImageExtension,
+  isAllowedImageFile,
+} from "@/lib/validation";
 
 function getSafeVisibility(value: string) {
   if (value === "public") return "public";
@@ -11,20 +16,11 @@ function getSafeVisibility(value: string) {
 }
 
 function getFileExtension(file: File) {
-  const fallback = "jpg";
-  const extension = file.name.split(".").pop()?.toLowerCase();
-
-  if (!extension) return fallback;
-
-  if (["jpg", "jpeg", "png", "webp"].includes(extension)) {
-    return extension;
-  }
-
-  return fallback;
+  return getSafeImageExtension(file);
 }
 
 function isValidImage(file: File) {
-  return ["image/jpeg", "image/png", "image/webp"].includes(file.type);
+  return isAllowedImageFile(file);
 }
 
 async function uploadProfileImage({
@@ -81,6 +77,14 @@ export async function updateSocialProfileAction(formData: FormData) {
   if (!user) {
     return;
   }
+
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "update-social-profile",
+    limit: 8,
+    windowMs: 60_000,
+    redirectTo: "/profilim",
+  });
 
   const avatarFile = formData.get("avatar") as File | null;
   const coverFile = formData.get("cover") as File | null;

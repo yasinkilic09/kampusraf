@@ -3,12 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import {
+  normalizeEnum,
+  normalizeInternalPath,
+  normalizeUuid,
+} from "@/lib/validation";
 
 export async function sendFriendRequestAction(formData: FormData) {
   const supabase = await createClient();
 
-  const addresseeId = String(formData.get("addresseeId") || "");
-  const redirectTo = String(formData.get("redirectTo") || "/arkadaslar");
+  const addresseeId = normalizeUuid(formData.get("addresseeId"));
+  const redirectTo = normalizeInternalPath(
+    formData.get("redirectTo"),
+    "/arkadaslar"
+  );
 
   if (!addresseeId) {
     return;
@@ -27,17 +35,19 @@ export async function sendFriendRequestAction(formData: FormData) {
   revalidatePath("/eslesmeler");
   revalidatePath("/mesajlar");
 
-  if (redirectTo.startsWith("/")) {
-    revalidatePath(redirectTo);
-    redirect(redirectTo);
-  }
+  revalidatePath(redirectTo);
+  redirect(redirectTo);
 }
 
 export async function respondFriendRequestAction(formData: FormData) {
   const supabase = await createClient();
 
-  const friendshipId = String(formData.get("friendshipId") || "");
-  const response = String(formData.get("response") || "");
+  const friendshipId = normalizeUuid(formData.get("friendshipId"));
+  const response = normalizeEnum(
+    formData.get("response"),
+    ["accepted", "rejected"] as const,
+    "rejected"
+  );
 
   if (!friendshipId || !response) {
     return;
@@ -59,7 +69,7 @@ export async function respondFriendRequestAction(formData: FormData) {
 export async function removeFriendshipAction(formData: FormData) {
   const supabase = await createClient();
 
-  const friendshipId = String(formData.get("friendshipId") || "");
+  const friendshipId = normalizeUuid(formData.get("friendshipId"));
 
   if (!friendshipId) {
     return;
