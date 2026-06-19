@@ -228,7 +228,7 @@ export default function AudioScreen() {
             <Pressable
               key={item.id}
               style={({ pressed }) => [styles.card, pressed && styles.pressedCard]}
-              onPress={() => router.push(`/audio/${item.id}` as any)}
+              onPress={() => router.push(`/audio/${item.id}` as never)}
             >
               <View style={styles.cardTopRow}>
                 <View style={styles.audioIconBox}>

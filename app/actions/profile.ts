@@ -474,13 +474,15 @@ export async function sendStudentVerificationCodeAction(formData: FormData) {
   revalidatePath("/admin/dogrulamalar");
 
   if (isStudentVerificationTestMode()) {
-  console.log("KAMPUSRAF_VERIFICATION_CODE", {
-    to: universityEmail,
-    code,
-  });
+    if (process.env.NODE_ENV !== "production") {
+      console.info("KAMPUSRAF_VERIFICATION_CODE", {
+        to: universityEmail,
+        code,
+      });
+    }
 
-  redirect("/ogrenci-dogrulama?success=code-created");
-}
+    redirect("/ogrenci-dogrulama?success=code-created");
+  }
 
   redirect(
     `/ogrenci-dogrulama?error=${encodeURIComponent(

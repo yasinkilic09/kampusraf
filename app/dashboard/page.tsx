@@ -174,69 +174,81 @@ export default async function DashboardPage() {
     redirect("/auth/login");
   }
 
-  const { data: profileData } = await supabase
-    .from("profiles")
-    .select(
+  const [
+    profileResult,
+    myBooksResult,
+    requestsResult,
+    unreadMessagesResult,
+    unreadNotificationsResult,
+    myPostsResult,
+    friendsResult,
+    matchesResult,
+    friendshipsResult,
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        `
+        id,
+        full_name,
+        username,
+        email,
+        avatar_url,
+        plan_type,
+        verification_status,
+        trust_score,
+        role
       `
-      id,
-      full_name,
-      username,
-      email,
-      avatar_url,
-      plan_type,
-      verification_status,
-      trust_score,
-      role
-    `
-    )
-    .eq("id", user.id)
-    .maybeSingle();
+      )
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("user_books")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id),
+    supabase
+      .from("book_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id),
+    supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .eq("receiver_id", user.id)
+      .eq("is_read", false),
+    supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false),
+    supabase
+      .from("social_posts")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id),
+    supabase
+      .from("friendships")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "accepted")
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
+    supabase
+      .from("book_matches")
+      .select("*", { count: "exact", head: true })
+      .or(`requester_id.eq.${user.id},owner_id.eq.${user.id}`),
+    supabase
+      .from("friendships")
+      .select("requester_id, addressee_id, status")
+      .eq("status", "accepted")
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
+  ]);
 
-  const profile = profileData as Profile | null;
-
-  const { count: myBooksCount } = await supabase
-    .from("user_books")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id);
-
-  const { count: requestsCount } = await supabase
-    .from("book_requests")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id);
-
-  const { count: unreadMessagesCount } = await supabase
-    .from("messages")
-    .select("*", { count: "exact", head: true })
-    .eq("receiver_id", user.id)
-    .eq("is_read", false);
-
-  const { count: unreadNotificationsCount } = await supabase
-    .from("notifications")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("is_read", false);
-
-  const { count: myPostsCount } = await supabase
-    .from("social_posts")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id);
-
-  const { count: friendsCount } = await supabase
-    .from("friendships")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "accepted")
-    .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
-
-  const { count: matchesCount } = await supabase
-    .from("book_matches")
-    .select("*", { count: "exact", head: true })
-    .or(`requester_id.eq.${user.id},owner_id.eq.${user.id}`);
-
-  const { data: friendshipsData } = await supabase
-    .from("friendships")
-    .select("requester_id, addressee_id, status")
-    .eq("status", "accepted")
-    .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
+  const profile = profileResult.data as Profile | null;
+  const myBooksCount = myBooksResult.count;
+  const requestsCount = requestsResult.count;
+  const unreadMessagesCount = unreadMessagesResult.count;
+  const unreadNotificationsCount = unreadNotificationsResult.count;
+  const myPostsCount = myPostsResult.count;
+  const friendsCount = friendsResult.count;
+  const matchesCount = matchesResult.count;
+  const friendshipsData = friendshipsResult.data;
 
   const friendships = (friendshipsData || []) as Friendship[];
 
@@ -426,15 +438,17 @@ export default async function DashboardPage() {
   const quoteRollsLimit = getDailyRollLimit(quotePlanType);
   const today = new Date().toISOString().slice(0, 10);
 
-  const { count: quoteRollsCount } = await supabase
-    .from("quote_rolls")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("roll_date", today);
+  const [quoteRollsResult, dailyWord] = await Promise.all([
+    supabase
+      .from("quote_rolls")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("roll_date", today),
+    getDailyWordForUser(user.id),
+  ]);
 
-  const quoteRollsUsed = quoteRollsCount || 0;
+  const quoteRollsUsed = quoteRollsResult.count || 0;
   const remainingQuoteRolls = Math.max(quoteRollsLimit - quoteRollsUsed, 0);
-  const dailyWord = await getDailyWordForUser(user.id);
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">

@@ -28,7 +28,12 @@ export default function RootLayout() {
 
     async function syncPushForUser(userId?: string | null) {
       if (!active || !userId) return;
-      await registerForPushNotificationsAsync(userId);
+
+      try {
+        await registerForPushNotificationsAsync(userId);
+      } catch (error) {
+        console.warn("PUSH_BOOTSTRAP_ERROR", error);
+      }
     }
 
     async function bootstrapPush() {

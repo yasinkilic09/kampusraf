@@ -205,74 +205,147 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
-  const { count: totalUsersCount } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true });
+  const [
+    totalUsersResult,
+    pendingVerificationResult,
+    verifiedStudentResult,
+    suspendedUsersResult,
+    bannedUsersResult,
+    totalBooksResult,
+    totalRequestsResult,
+    activeExchangesResult,
+    completedExchangesResult,
+    pendingReportsResult,
+    actionTakenReportsResult,
+    pendingQuotesResult,
+    approvedQuotesResult,
+    activeDailyWordsResult,
+    planRowsResult,
+    pendingProfilesResult,
+    recentExchangesResult,
+    recentReportsResult,
+  ] = await Promise.all([
+    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("verification_status", "pending"),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("verification_status", "verified"),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("account_status", "suspended"),
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("account_status", "banned"),
+    supabase.from("user_books").select("*", { count: "exact", head: true }),
+    supabase.from("book_requests").select("*", { count: "exact", head: true }),
+    supabase
+      .from("exchanges")
+      .select("*", { count: "exact", head: true })
+      .in("status", ["requested", "meeting_planned", "handed_over"]),
+    supabase
+      .from("exchanges")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "completed"),
+    supabase
+      .from("user_reports")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("user_reports")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "action_taken"),
+    supabase
+      .from("quote_items")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("quote_items")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "approved"),
+    supabase
+      .from("daily_words")
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true),
+    supabase.from("profiles").select("plan_type"),
+    supabase
+      .from("profiles")
+      .select(
+        `
+        id,
+        full_name,
+        username,
+        email,
+        role,
+        plan_type,
+        verification_status,
+        is_verified,
+        university,
+        department,
+        city,
+        verification_requested_at
+      `
+      )
+      .eq("verification_status", "pending")
+      .order("verification_requested_at", {
+        ascending: false,
+        nullsFirst: false,
+      })
+      .limit(5),
+    supabase
+      .from("exchanges")
+      .select(
+        `
+        id,
+        conversation_id,
+        status,
+        updated_at,
+        requester_id,
+        owner_id
+      `
+      )
+      .order("updated_at", { ascending: false })
+      .limit(5),
+    supabase
+      .from("user_reports")
+      .select(
+        `
+        id,
+        reason,
+        status,
+        created_at,
+        reported_user:profiles!user_reports_reported_user_id_fkey (
+          full_name,
+          username,
+          email,
+          account_status
+        )
+      `
+      )
+      .order("created_at", { ascending: false })
+      .limit(5),
+  ]);
 
-  const { count: pendingVerificationCount } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .eq("verification_status", "pending");
-
-  const { count: verifiedStudentCount } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .eq("verification_status", "verified");
-
-  const { count: suspendedUsersCount } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .eq("account_status", "suspended");
-
-  const { count: bannedUsersCount } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .eq("account_status", "banned");
-
-  const { count: totalBooksCount } = await supabase
-    .from("user_books")
-    .select("*", { count: "exact", head: true });
-
-  const { count: totalRequestsCount } = await supabase
-    .from("book_requests")
-    .select("*", { count: "exact", head: true });
-
-  const { count: activeExchangesCount } = await supabase
-    .from("exchanges")
-    .select("*", { count: "exact", head: true })
-    .in("status", ["requested", "meeting_planned", "handed_over"]);
-
-  const { count: completedExchangesCount } = await supabase
-    .from("exchanges")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "completed");
-
-  const { count: pendingReportsCount } = await supabase
-    .from("user_reports")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "pending");
-
-  const { count: actionTakenReportsCount } = await supabase
-    .from("user_reports")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "action_taken");
-
-    const { count: pendingQuotesCount } = await supabase
-  .from("quote_items")
-  .select("*", { count: "exact", head: true })
-  .eq("status", "pending");
-
-const { count: approvedQuotesCount } = await supabase
-  .from("quote_items")
-  .select("*", { count: "exact", head: true })
-  .eq("status", "approved");
-
-  const { count: activeDailyWordsCount } = await supabase
-    .from("daily_words")
-    .select("*", { count: "exact", head: true })
-    .eq("is_active", true);
-
-  const { data: planRows } = await supabase.from("profiles").select("plan_type");
+  const totalUsersCount = totalUsersResult.count;
+  const pendingVerificationCount = pendingVerificationResult.count;
+  const verifiedStudentCount = verifiedStudentResult.count;
+  const suspendedUsersCount = suspendedUsersResult.count;
+  const bannedUsersCount = bannedUsersResult.count;
+  const totalBooksCount = totalBooksResult.count;
+  const totalRequestsCount = totalRequestsResult.count;
+  const activeExchangesCount = activeExchangesResult.count;
+  const completedExchangesCount = completedExchangesResult.count;
+  const pendingReportsCount = pendingReportsResult.count;
+  const actionTakenReportsCount = actionTakenReportsResult.count;
+  const pendingQuotesCount = pendingQuotesResult.count;
+  const approvedQuotesCount = approvedQuotesResult.count;
+  const activeDailyWordsCount = activeDailyWordsResult.count;
+  const planRows = planRowsResult.data;
 
   const planStats = {
     free: (planRows || []).filter(
@@ -284,68 +357,9 @@ const { count: approvedQuotesCount } = await supabase
     pro: (planRows || []).filter((item) => item.plan_type === "pro").length,
   };
 
-  const { data: pendingProfilesData } = await supabase
-    .from("profiles")
-    .select(
-      `
-      id,
-      full_name,
-      username,
-      email,
-      role,
-      plan_type,
-      verification_status,
-      is_verified,
-      university,
-      department,
-      city,
-      verification_requested_at
-    `
-    )
-    .eq("verification_status", "pending")
-    .order("verification_requested_at", {
-      ascending: false,
-      nullsFirst: false,
-    })
-    .limit(5);
-
-  const { data: recentExchangesData } = await supabase
-    .from("exchanges")
-    .select(
-      `
-      id,
-      conversation_id,
-      status,
-      updated_at,
-      requester_id,
-      owner_id
-    `
-    )
-    .order("updated_at", { ascending: false })
-    .limit(5);
-
-  const { data: recentReportsData } = await supabase
-    .from("user_reports")
-    .select(
-      `
-      id,
-      reason,
-      status,
-      created_at,
-      reported_user:profiles!user_reports_reported_user_id_fkey (
-        full_name,
-        username,
-        email,
-        account_status
-      )
-    `
-    )
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  const pendingProfiles = (pendingProfilesData || []) as ProfileRow[];
-  const recentExchanges = (recentExchangesData || []) as ExchangeRow[];
-  const recentReports = (recentReportsData || []) as RecentReportRow[];
+  const pendingProfiles = (pendingProfilesResult.data || []) as ProfileRow[];
+  const recentExchanges = (recentExchangesResult.data || []) as ExchangeRow[];
+  const recentReports = (recentReportsResult.data || []) as RecentReportRow[];
 
   const exchangeProfileIds = Array.from(
     new Set(
