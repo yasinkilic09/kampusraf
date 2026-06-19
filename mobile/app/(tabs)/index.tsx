@@ -12,6 +12,7 @@ import { Image } from "expo-image";
 
 import { AnimatedAppear, PressableScale } from "@/components/animated-primitives";
 import { SponsorSlot } from "@/components/sponsor-slot";
+import { DailyWordSelection, getDailyWordForUser } from "@/lib/daily-word";
 import { supabase } from "@/lib/supabase";
 
 const GREEN = "#2E7D5B";
@@ -38,6 +39,7 @@ const initialState: DashboardState = {
   friends: 0,
   socialPosts: 0,
   favoriteQuotes: 0,
+  dailyWord: null,
 };
 
 type DashboardState = {
@@ -55,6 +57,7 @@ type DashboardState = {
   friends: number;
   socialPosts: number;
   favoriteQuotes: number;
+  dailyWord: DailyWordSelection | null;
 };
 
 function planLabel(value: string) {
@@ -153,6 +156,7 @@ export default function DashboardScreen() {
       friendsRes,
       socialPostsRes,
       favoriteQuotesRes,
+      dailyWordRes,
     ] = await Promise.all([
       supabase
         .from("profiles")
@@ -183,6 +187,7 @@ export default function DashboardScreen() {
         .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
       supabase.from("social_posts").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("quote_favorites").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      getDailyWordForUser(user.id),
     ]);
 
     const firstError = [
@@ -219,6 +224,7 @@ export default function DashboardScreen() {
       friends: friendsRes.count || 0,
       socialPosts: socialPostsRes.count || 0,
       favoriteQuotes: favoriteQuotesRes.count || 0,
+      dailyWord: dailyWordRes,
     });
   }, []);
 
@@ -281,6 +287,24 @@ export default function DashboardScreen() {
         </AnimatedAppear>
       ) : null}
 
+      {state.dailyWord ? (
+        <AnimatedAppear delay={70}>
+          <PressableScale style={styles.dailyWordCard} onPress={() => router.push("/daily-word" as never)}>
+            <View style={styles.dailyWordTopRow}>
+              <View style={styles.dailyWordBadge}>
+                <Text style={styles.dailyWordBadgeText}>Gunun Kelimesi</Text>
+              </View>
+              <Text style={styles.dailyWordDate}>{state.dailyWord.dateLabel}</Text>
+            </View>
+            <Text style={styles.dailyWordTitle}>{state.dailyWord.word}</Text>
+            <Text style={styles.dailyWordMeaning} numberOfLines={2}>
+              {state.dailyWord.meaning}
+            </Text>
+            <Text style={styles.dailyWordLink}>Anlami ve ornegi gor {">"}</Text>
+          </PressableScale>
+        </AnimatedAppear>
+      ) : null}
+
       <AnimatedAppear delay={80} style={styles.primaryCard}>
         <Text style={styles.primaryIcon}>{primaryAction.icon}</Text>
         <View style={styles.primaryContent}>
@@ -326,6 +350,11 @@ export default function DashboardScreen() {
             route="/random-shelf/favorites"
             accent="amber"
           />
+        </View>
+
+        <View style={styles.dualRow}>
+          <QuickAction label="Kelime Sozlugu" hint="Her gun yeni kelime" route="/daily-word" accent="green" />
+          <QuickAction label="Topluluklar" hint="Okuma gruplari" route="/communities" accent="amber" />
         </View>
 
         <View style={styles.socialSummary}>
@@ -471,6 +500,23 @@ const styles = StyleSheet.create({
   },
   errorTitle: { color: "#B91C1C", fontWeight: "900", fontSize: 13 },
   errorText: { marginTop: 5, color: "#991B1B", fontWeight: "700", fontSize: 12, lineHeight: 18 },
+  dailyWordCard: {
+    marginTop: 16,
+    borderRadius: 28,
+    backgroundColor: "#1F2933",
+    padding: 18,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  dailyWordTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  dailyWordBadge: { borderRadius: 999, backgroundColor: AMBER, paddingHorizontal: 12, paddingVertical: 7 },
+  dailyWordBadgeText: { color: "#fff", fontSize: 11, fontWeight: "900", textTransform: "uppercase" },
+  dailyWordDate: { flex: 1, color: "rgba(255,255,255,0.62)", fontSize: 11, fontWeight: "800", textAlign: "right" },
+  dailyWordTitle: { marginTop: 14, color: "#fff", fontSize: 28, fontWeight: "900" },
+  dailyWordMeaning: { marginTop: 8, color: "rgba(255,255,255,0.72)", fontSize: 13, lineHeight: 20, fontWeight: "700" },
+  dailyWordLink: { marginTop: 12, color: AMBER, fontSize: 13, fontWeight: "900" },
   primaryCard: {
     marginTop: 16,
     borderRadius: 28,

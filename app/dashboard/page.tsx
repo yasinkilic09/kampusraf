@@ -595,6 +595,46 @@ export default async function DashboardPage() {
           </aside>
         </div>
 
+        {dailyWord ? (
+          <Link
+            href="/kelime-sozlugu"
+            className="group mt-6 grid gap-4 overflow-hidden rounded-[1.8rem] bg-[#1F2933] p-5 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-900/10 md:mt-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:rounded-[2rem] md:p-6"
+          >
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-[#F59E0B] px-3 py-1 text-xs font-black text-white">
+                  Günün Kelimesi
+                </span>
+                {dailyWord.category ? (
+                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-[#F5EBDD]">
+                    {dailyWord.category}
+                  </span>
+                ) : null}
+              </div>
+              <h2 className="mt-3 text-3xl font-black tracking-tight md:text-4xl">
+                {dailyWord.word}
+              </h2>
+              <p className="mt-3 line-clamp-2 max-w-4xl text-sm font-semibold leading-6 text-white/72">
+                {dailyWord.meaning}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 rounded-[1.4rem] bg-white/10 p-4 md:min-w-[240px]">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#F5EBDD]">
+                  Kelime Sözlüğü
+                </p>
+                <p className="mt-1 text-sm font-black text-[#F59E0B]">
+                  Anlamı ve örneği gör
+                </p>
+              </div>
+              <span className="text-2xl font-black text-[#F59E0B] transition group-hover:translate-x-0.5">
+                →
+              </span>
+            </div>
+          </Link>
+        ) : null}
+
         <section className="mt-6 grid gap-3 md:mt-8 md:grid-cols-2 lg:grid-cols-4">
           {primaryActions.map((action) => (
             <Link
@@ -836,38 +876,6 @@ export default async function DashboardPage() {
                 ))}
               </div>
             </div>
-
-            {dailyWord ? (
-              <Link
-                href="/kelime-sozlugu"
-                className="group rounded-[1.8rem] bg-[#1F2933] p-5 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-900/10 md:rounded-[2rem] md:p-6"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F5EBDD]">
-                      Günün Kelimesi
-                    </p>
-                    <h2 className="mt-2 text-3xl font-black tracking-tight">
-                      {dailyWord.word}
-                    </h2>
-                  </div>
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F59E0B] text-sm font-black text-white">
-                    K
-                  </span>
-                </div>
-                <p className="mt-4 line-clamp-3 text-sm font-semibold leading-6 text-white/72">
-                  {dailyWord.meaning}
-                </p>
-                {dailyWord.category ? (
-                  <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#F59E0B]">
-                    {dailyWord.category}
-                  </p>
-                ) : null}
-                <p className="mt-5 text-sm font-black text-[#F59E0B] transition group-hover:translate-x-0.5">
-                  Anlamı ve örneği gör →
-                </p>
-              </Link>
-            ) : null}
 
             <PageShortcuts
               eyebrow="Kitap & Takas"

@@ -37,9 +37,17 @@ function redirectAdminWords(params: Record<string, string>): never {
   redirect(`/admin/kelimeler?${search.toString()}`);
 }
 
+function capitalizeFirstLetter(value: string) {
+  if (!value) return value;
+
+  return `${value.charAt(0).toLocaleUpperCase("tr-TR")}${value.slice(1)}`;
+}
+
 function readWordForm(formData: FormData) {
+  const word = normalizeTextInput(formData.get("word"), { maxLength: 80 });
+
   return {
-    word: normalizeTextInput(formData.get("word"), { maxLength: 80 }),
+    word: capitalizeFirstLetter(word),
     meaning: normalizeTextInput(formData.get("meaning"), {
       maxLength: 700,
       preserveLineBreaks: true,

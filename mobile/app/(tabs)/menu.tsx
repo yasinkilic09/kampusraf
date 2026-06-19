@@ -40,6 +40,13 @@ const primaryItems: MenuItem[] = [
     tone: "soft",
   },
   {
+    label: "Kelime Sözlüğü",
+    hint: "Her gün yeni kelime",
+    route: "/daily-word",
+    icon: "text",
+    tone: "soft",
+  },
+  {
     label: "Harita",
     hint: "Yakındaki açık raflar",
     route: "/map",
@@ -208,9 +215,9 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   searchButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
-  primaryGrid: { marginTop: 16, flexDirection: "row", gap: 10 },
+  primaryGrid: { marginTop: 16, flexDirection: "row", flexWrap: "wrap", gap: 10 },
   primaryCard: {
-    flex: 1,
+    width: "48%",
     minHeight: 138,
     borderRadius: 26,
     backgroundColor: "#FFFFFF",

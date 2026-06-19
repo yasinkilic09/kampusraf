@@ -33,6 +33,7 @@ export function getMobileRouteFromUrl(value?: string | null) {
   if (url.startsWith("/profilim") || url.startsWith("/profile")) return "/profile";
   if (url.startsWith("/ogrenci-dogrulama") || url.startsWith("/paketler")) return "/profile";
   if (url.startsWith("/rastgele-raf")) return "/random-shelf";
+  if (url.startsWith("/kelime-sozlugu") || url.startsWith("/daily-word")) return "/daily-word";
   if (url.startsWith("/favori-alintilarim")) return "/random-shelf/favorites";
 
   return null;

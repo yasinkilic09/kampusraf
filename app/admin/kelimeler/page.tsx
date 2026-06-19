@@ -217,6 +217,7 @@ export default async function AdminDailyWordsPage({
                   required
                   minLength={2}
                   maxLength={80}
+                  autoCapitalize="words"
                   placeholder="Örn. Muvazene"
                   className="rounded-2xl border border-slate-200 bg-[#FAF7F0] px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#2E7D5B]"
                 />
@@ -347,6 +348,7 @@ export default async function AdminDailyWordsPage({
                         required
                         minLength={2}
                         maxLength={80}
+                        autoCapitalize="words"
                         defaultValue={item.word}
                         className="rounded-2xl border border-transparent bg-white px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#2E7D5B]"
                       />
