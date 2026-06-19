@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
+import { createLegalConsentMetadata } from "@/lib/legal";
 import { createClient } from "@/lib/supabase/client";
 
 const onboardingSteps = [
@@ -78,6 +79,9 @@ export default function SignUpPage() {
   );
   const [locationMessage, setLocationMessage] = useState("");
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [acceptedKvkk, setAcceptedKvkk] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
 
   const cleanUsername = useMemo(() => cleanUsernameValue(username), [username]);
   const passwordIsWeak = password.length > 0 && password.length < 6;
@@ -149,6 +153,15 @@ export default function SignUpPage() {
       return;
     }
 
+    if (!acceptedKvkk || !acceptedTerms) {
+      setMessage(
+        "Devam etmek için KVKK aydınlatma metnini ve kullanım koşullarını onaylamalısın."
+      );
+      setMessageType("error");
+      setIsLoading(false);
+      return;
+    }
+
     const locationMetadata = signupLocation
       ? {
           location_lat: signupLocation.lat,
@@ -170,6 +183,10 @@ export default function SignUpPage() {
           department: department.trim(),
           city: city.trim(),
           ...locationMetadata,
+          ...createLegalConsentMetadata({
+            source: "web-sign-up",
+            marketingConsent,
+          }),
         },
       },
     });
@@ -477,6 +494,78 @@ export default function SignUpPage() {
                       {locationMessage}
                     </p>
                   ) : null}
+                </div>
+
+                <div className="rounded-[1.4rem] border border-slate-200 bg-white p-4">
+                  <p className="text-sm font-black text-[#1F2933]">
+                    Yasal onaylar
+                  </p>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                    Hesabını oluşturmak için aydınlatma metnini okuduğunu ve
+                    kullanım koşullarını kabul ettiğini kaydediyoruz.
+                  </p>
+
+                  <div className="mt-4 space-y-3">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-100 bg-[#FAF7F0] p-3 text-sm font-semibold leading-6 text-slate-700">
+                      <input
+                        type="checkbox"
+                        required
+                        checked={acceptedKvkk}
+                        onChange={(event) =>
+                          setAcceptedKvkk(event.target.checked)
+                        }
+                        className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#2E7D5B]"
+                      />
+                      <span>
+                        <Link
+                          href="/kvkk-aydinlatma-metni"
+                          target="_blank"
+                          className="font-black text-[#2E7D5B] underline-offset-4 hover:underline"
+                        >
+                          KVKK aydınlatma metnini
+                        </Link>{" "}
+                        okudum ve kabul ediyorum.
+                      </span>
+                    </label>
+
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-100 bg-[#FAF7F0] p-3 text-sm font-semibold leading-6 text-slate-700">
+                      <input
+                        type="checkbox"
+                        required
+                        checked={acceptedTerms}
+                        onChange={(event) =>
+                          setAcceptedTerms(event.target.checked)
+                        }
+                        className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#2E7D5B]"
+                      />
+                      <span>
+                        <Link
+                          href="/kullanim-kosullari"
+                          target="_blank"
+                          className="font-black text-[#2E7D5B] underline-offset-4 hover:underline"
+                        >
+                          Kullanım koşullarını
+                        </Link>{" "}
+                        okudum ve kabul ediyorum.
+                      </span>
+                    </label>
+
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#F59E0B]/15 bg-[#FFFBEB] p-3 text-sm font-semibold leading-6 text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={marketingConsent}
+                        onChange={(event) =>
+                          setMarketingConsent(event.target.checked)
+                        }
+                        className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#F59E0B]"
+                      />
+                      <span>
+                        KampüsRaf duyuruları, paket avantajları ve kitap
+                        önerileri hakkında e-posta/bildirim almak istiyorum.
+                        Bu tercih zorunlu değildir.
+                      </span>
+                    </label>
+                  </div>
                 </div>
 
                 {message && (

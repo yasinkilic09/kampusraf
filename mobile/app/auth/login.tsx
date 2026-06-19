@@ -1,5 +1,5 @@
 import { Link, router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { Image } from "expo-image";
+import * as SecureStore from "expo-secure-store";
 
 import { supabase } from "@/lib/supabase";
 
@@ -21,11 +22,67 @@ const AMBER = "#F59E0B";
 const BG = "#FAF7F0";
 const TEXT = "#1F2933";
 const brandSymbol = require("../../assets/images/brand-symbol.png");
+const rememberEmailKey = "kampusraf:remember-email";
+const rememberPreferenceKey = "kampusraf:remember-login";
+
+async function getRememberItem(key: string) {
+  if (Platform.OS === "web" && typeof localStorage !== "undefined") {
+    return localStorage.getItem(key);
+  }
+
+  return SecureStore.getItemAsync(key);
+}
+
+async function setRememberItem(key: string, value: string) {
+  if (Platform.OS === "web" && typeof localStorage !== "undefined") {
+    localStorage.setItem(key, value);
+    return;
+  }
+
+  await SecureStore.setItemAsync(key, value);
+}
+
+async function deleteRememberItem(key: string) {
+  if (Platform.OS === "web" && typeof localStorage !== "undefined") {
+    localStorage.removeItem(key);
+    return;
+  }
+
+  await SecureStore.deleteItemAsync(key);
+}
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadRememberedEmail() {
+      const [storedPreference, storedEmail] = await Promise.all([
+        getRememberItem(rememberPreferenceKey),
+        getRememberItem(rememberEmailKey),
+      ]);
+
+      if (!active) return;
+
+      if (storedPreference === "false") {
+        setRememberMe(false);
+      }
+
+      if (storedEmail) {
+        setEmail(storedEmail);
+      }
+    }
+
+    loadRememberedEmail();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleLogin() {
     const cleanEmail = email.trim().toLowerCase();
@@ -47,6 +104,14 @@ export default function LoginScreen() {
     if (error) {
       Alert.alert("Giriş yapılamadı", error.message);
       return;
+    }
+
+    if (rememberMe) {
+      await setRememberItem(rememberPreferenceKey, "true");
+      await setRememberItem(rememberEmailKey, cleanEmail);
+    } else {
+      await setRememberItem(rememberPreferenceKey, "false");
+      await deleteRememberItem(rememberEmailKey);
     }
 
     router.replace("/(tabs)");
@@ -90,6 +155,29 @@ export default function LoginScreen() {
             placeholderTextColor="#94A3B8"
             style={styles.input}
           />
+
+          <Pressable
+            onPress={() => setRememberMe((current) => !current)}
+            style={({ pressed }) => [
+              styles.rememberRow,
+              pressed && { opacity: 0.9 },
+            ]}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                rememberMe && styles.checkboxChecked,
+              ]}
+            >
+              {rememberMe ? <Text style={styles.checkboxMark}>✓</Text> : null}
+            </View>
+            <View style={styles.rememberTextBox}>
+              <Text style={styles.rememberTitle}>Beni hatırla</Text>
+              <Text style={styles.rememberDescription}>
+                Bu cihazda e-postanı hatırlarız ve mevcut oturumunu açık tutarız.
+              </Text>
+            </View>
+          </Pressable>
 
           <Pressable
             onPress={handleLogin}
@@ -181,6 +269,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 15,
     color: TEXT,
+    fontWeight: "700",
+  },
+  rememberRow: {
+    marginTop: 14,
+    minHeight: 58,
+    borderRadius: 18,
+    backgroundColor: "#EAF5EF",
+    borderWidth: 1,
+    borderColor: "rgba(46,125,91,0.12)",
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  checkbox: {
+    width: 23,
+    height: 23,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "rgba(46,125,91,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  checkboxChecked: {
+    backgroundColor: GREEN,
+    borderColor: GREEN,
+  },
+  checkboxMark: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 16,
+  },
+  rememberTextBox: { flex: 1 },
+  rememberTitle: {
+    color: TEXT,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  rememberDescription: {
+    marginTop: 3,
+    color: "#64748B",
+    fontSize: 12,
+    lineHeight: 18,
     fontWeight: "700",
   },
   primaryButton: {

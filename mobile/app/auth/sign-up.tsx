@@ -16,6 +16,7 @@ import { Image } from "expo-image";
 import * as Location from "expo-location";
 
 import { roundCoordinate } from "@/lib/location";
+import { createLegalConsentMetadata } from "@/lib/legal";
 import { supabase } from "@/lib/supabase";
 
 const GREEN = "#2E7D5B";
@@ -55,6 +56,9 @@ export default function SignUpScreen() {
   const [signupLocation, setSignupLocation] = useState<SignupLocation | null>(
     null
   );
+  const [acceptedKvkk, setAcceptedKvkk] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
 
   async function requestSignupLocation() {
     setRequestingLocation(true);
@@ -107,6 +111,14 @@ export default function SignUpScreen() {
       return;
     }
 
+    if (!acceptedKvkk || !acceptedTerms) {
+      Alert.alert(
+        "Onay gerekli",
+        "Devam etmek için KVKK aydınlatma metnini ve kullanım koşullarını onaylamalısın."
+      );
+      return;
+    }
+
     setLoading(true);
 
     const locationMetadata = signupLocation
@@ -127,6 +139,10 @@ export default function SignUpScreen() {
           full_name: cleanName,
           username: cleanUser || null,
           ...locationMetadata,
+          ...createLegalConsentMetadata({
+            source: "mobile-sign-up",
+            marketingConsent,
+          }),
         },
       },
     });
@@ -247,6 +263,90 @@ export default function SignUpScreen() {
             </Pressable>
           </View>
 
+          <View style={styles.consentBox}>
+            <Text style={styles.consentTitle}>Yasal onaylar</Text>
+            <Text style={styles.consentDescription}>
+              Hesabını oluşturmak için aydınlatma metnini okuduğunu ve kullanım
+              koşullarını kabul ettiğini kaydediyoruz.
+            </Text>
+
+            <Pressable
+              onPress={() => setAcceptedKvkk((current) => !current)}
+              style={({ pressed }) => [
+                styles.consentRow,
+                pressed && { opacity: 0.9 },
+              ]}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  acceptedKvkk && styles.checkboxChecked,
+                ]}
+              >
+                {acceptedKvkk ? <Text style={styles.checkboxMark}>✓</Text> : null}
+              </View>
+              <Text style={styles.consentText}>
+                <Text
+                  style={styles.consentLink}
+                  onPress={() => router.push("/legal/kvkk" as never)}
+                >
+                  KVKK aydınlatma metnini
+                </Text>{" "}
+                okudum ve kabul ediyorum.
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setAcceptedTerms((current) => !current)}
+              style={({ pressed }) => [
+                styles.consentRow,
+                pressed && { opacity: 0.9 },
+              ]}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  acceptedTerms && styles.checkboxChecked,
+                ]}
+              >
+                {acceptedTerms ? <Text style={styles.checkboxMark}>✓</Text> : null}
+              </View>
+              <Text style={styles.consentText}>
+                <Text
+                  style={styles.consentLink}
+                  onPress={() => router.push("/legal/terms" as never)}
+                >
+                  Kullanım koşullarını
+                </Text>{" "}
+                okudum ve kabul ediyorum.
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setMarketingConsent((current) => !current)}
+              style={({ pressed }) => [
+                styles.consentRow,
+                styles.optionalConsentRow,
+                pressed && { opacity: 0.9 },
+              ]}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  styles.optionalCheckbox,
+                  marketingConsent && styles.optionalCheckboxChecked,
+                ]}
+              >
+                {marketingConsent ? <Text style={styles.checkboxMark}>✓</Text> : null}
+              </View>
+              <Text style={styles.consentText}>
+                KampüsRaf duyuruları, paket avantajları ve kitap önerileri
+                hakkında e-posta/bildirim almak istiyorum. Bu tercih zorunlu
+                değildir.
+              </Text>
+            </Pressable>
+          </View>
+
           <Pressable
             onPress={handleSignUp}
             disabled={loading}
@@ -364,6 +464,81 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   locationButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
+  consentBox: {
+    marginTop: 16,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.08)",
+  },
+  consentTitle: {
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  consentDescription: {
+    marginTop: 5,
+    color: "#64748B",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  consentRow: {
+    marginTop: 11,
+    minHeight: 56,
+    borderRadius: 18,
+    backgroundColor: BG,
+    borderWidth: 1,
+    borderColor: "rgba(15,23,42,0.06)",
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  optionalConsentRow: {
+    backgroundColor: "#FFFBEB",
+    borderColor: "rgba(245,158,11,0.22)",
+  },
+  checkbox: {
+    width: 23,
+    height: 23,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "rgba(46,125,91,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  checkboxChecked: {
+    backgroundColor: GREEN,
+    borderColor: GREEN,
+  },
+  optionalCheckbox: {
+    borderColor: "rgba(245,158,11,0.45)",
+  },
+  optionalCheckboxChecked: {
+    backgroundColor: AMBER,
+    borderColor: AMBER,
+  },
+  checkboxMark: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 16,
+  },
+  consentText: {
+    flex: 1,
+    color: "#475569",
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "800",
+  },
+  consentLink: {
+    color: GREEN,
+    fontWeight: "900",
+    textDecorationLine: "underline",
+  },
   primaryButton: {
     marginTop: 20,
     minHeight: 56,

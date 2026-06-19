@@ -39,16 +39,30 @@ const stats = [
   },
 ];
 
+const rememberEmailKey = "kampusraf:remember-email";
+const rememberPreferenceKey = "kampusraf:remember-login";
+
+function getInitialRememberMe() {
+  if (typeof window === "undefined") return true;
+  return window.localStorage.getItem(rememberPreferenceKey) !== "false";
+}
+
+function getInitialEmail() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(rememberEmailKey) || "";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(getInitialEmail);
   const [password, setPassword] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(getInitialRememberMe);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,6 +81,14 @@ export default function LoginPage() {
       setMessage("Giriş yapılamadı. E-posta veya şifreyi kontrol et.");
       setIsLoading(false);
       return;
+    }
+
+    if (rememberMe) {
+      window.localStorage.setItem(rememberPreferenceKey, "true");
+      window.localStorage.setItem(rememberEmailKey, email.trim().toLowerCase());
+    } else {
+      window.localStorage.setItem(rememberPreferenceKey, "false");
+      window.localStorage.removeItem(rememberEmailKey);
     }
 
     router.push("/dashboard");
@@ -236,6 +258,24 @@ export default function LoginPage() {
                     </button>
                   </div>
                 </div>
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#2E7D5B]/10 bg-[#EAF5EF] p-3 text-sm font-semibold leading-6 text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(event) => setRememberMe(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#2E7D5B]"
+                  />
+                  <span>
+                    <span className="font-black text-[#1F2933]">
+                      Beni hatırla
+                    </span>
+                    <span className="block text-xs font-bold leading-5 text-slate-500">
+                      Bu cihazda e-postanı hatırlarız ve mevcut oturumunu
+                      açık tutarız.
+                    </span>
+                  </span>
+                </label>
 
                 {message && (
                   <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">
