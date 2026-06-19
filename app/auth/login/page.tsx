@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const featureCards = [
@@ -54,7 +54,7 @@ function getInitialEmail() {
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [email, setEmail] = useState(getInitialEmail);
   const [password, setPassword] = useState("");
@@ -72,8 +72,10 @@ export default function LoginPage() {
     setIsLoading(true);
     setMessage("");
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       password,
     });
 
@@ -85,11 +87,13 @@ export default function LoginPage() {
 
     if (rememberMe) {
       window.localStorage.setItem(rememberPreferenceKey, "true");
-      window.localStorage.setItem(rememberEmailKey, email.trim().toLowerCase());
+      window.localStorage.setItem(rememberEmailKey, normalizedEmail);
     } else {
       window.localStorage.setItem(rememberPreferenceKey, "false");
       window.localStorage.removeItem(rememberEmailKey);
     }
+
+    await supabase.auth.getSession();
 
     router.push("/dashboard");
     router.refresh();

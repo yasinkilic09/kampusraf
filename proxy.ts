@@ -1,11 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import {
   checkRateLimit,
   createRateLimitHeaders,
   getClientIp,
   type RateLimitConfig,
 } from "@/lib/rate-limit";
+import { supabaseCookieOptions } from "@/lib/supabase/cookie-options";
 
 const ONE_MINUTE = 60_000;
 const MAX_DEFAULT_BODY_BYTES = 1 * 1024 * 1024;
@@ -50,6 +52,14 @@ const blockedExactPaths = new Set([
   "/phpinfo.php",
   "/xmlrpc.php",
 ]);
+
+function hasSupabaseAuthCookie(request: NextRequest) {
+  return request.cookies
+    .getAll()
+    .some(
+      ({ name }) => name.startsWith("sb-") && name.includes("-auth-token")
+    );
+}
 
 function isMutationRequest(request: NextRequest) {
   return ["POST", "PUT", "PATCH", "DELETE"].includes(request.method);
@@ -202,7 +212,47 @@ function blockedResponse(status: number, message: string) {
   });
 }
 
-export function proxy(request: NextRequest) {
+async function refreshSupabaseSession(request: NextRequest) {
+  let response = NextResponse.next({ request });
+
+  if (!hasSupabaseAuthCookie(request)) {
+    return response;
+  }
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookieOptions: supabaseCookieOptions,
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet, headersToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
+
+          response = NextResponse.next({ request });
+
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
+
+          Object.entries(headersToSet).forEach(([key, value]) => {
+            response.headers.set(key, value);
+          });
+        },
+      },
+    }
+  );
+
+  await supabase.auth.getUser();
+
+  return response;
+}
+
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (!allowedMethods.has(request.method)) {
@@ -245,7 +295,7 @@ export function proxy(request: NextRequest) {
     });
   }
 
-  const response = NextResponse.next();
+  const response = await refreshSupabaseSession(request);
 
   for (const [key, value] of Object.entries(createRateLimitHeaders(rateResult))) {
     response.headers.set(key, value);
