@@ -1,8 +1,8 @@
 import Link from "next/link";
 import {
-  bookSeoHubFaq,
-  bookSeoPages,
-} from "@/lib/book-seo-content";
+  geoSeoHubFaq,
+  geoSeoPages,
+} from "@/lib/geo-seo-content";
 import {
   absoluteUrl,
   createJsonLd,
@@ -11,59 +11,55 @@ import {
 } from "@/lib/seo";
 
 export const metadata = createPageMetadata({
-  title: "Kitap Rehberi - Takas, İkinci El, Ödünç ve Sanal Kütüphane",
+  title: "Yerel Kitap Takas - Şehir ve Kampüs Bazlı Kitap Paylaşımı",
   description:
-    "Kitap arayan, kitap paylaşmak isteyen ve sanal kütüphane oluşturmak isteyen öğrenciler için KampüsRaf kitap rehberi.",
-  path: "/kitap-rehberi",
+    "İstanbul, Ankara, İzmir, Eskişehir, Bursa ve diğer öğrenci şehirlerinde kitap takas, ikinci el kitap, ödünç kitap ve yakındaki kitapları bulma rehberi.",
+  path: "/yerel-kitap-takas",
   keywords: [
-    "kitap rehberi",
-    "kitap arama",
-    "kitap paylaşımı",
-    "ikinci el kitap",
-    "kitap takas",
-    "sanal kütüphane",
+    "yerel kitap takas",
+    "şehir bazlı kitap takas",
+    "yakınımdaki kitaplar",
+    "kampüs kitap paylaşımı",
   ],
 });
 
 const hubJsonLd = [
   {
     "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: "KampüsRaf kitap rehberi konuları",
-    itemListOrder: "https://schema.org/ItemListOrderAscending",
-    numberOfItems: bookSeoPages.length,
-    itemListElement: bookSeoPages.map((page, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: page.title,
-      url: absoluteUrl(`/kitap-rehberi/${page.slug}`),
-    })),
-  },
-  {
-    "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: "KampüsRaf Kitap Rehberi",
-    url: absoluteUrl("/kitap-rehberi"),
+    name: "Yerel kitap takas rehberi",
+    url: absoluteUrl("/yerel-kitap-takas"),
     description:
-      "Öğrenciler için kitap takası, ikinci el kitap, ödünç alma, kitap bağışı, ders kitabı ve sanal kütüphane rehberleri.",
+      "Türkiye'deki öğrenci şehirleri için kitap takas, ikinci el kitap, ödünç kitap ve yakın kitap keşfi rehberleri.",
     inLanguage: "tr-TR",
     isPartOf: {
       "@type": "WebSite",
       name: siteName,
       url: absoluteUrl("/"),
     },
-    hasPart: bookSeoPages.map((page) => ({
-      "@type": "Article",
-      name: page.title,
-      url: absoluteUrl(`/kitap-rehberi/${page.slug}`),
-      description: page.description,
-      about: page.keywords,
+    about: [
+      "şehir bazlı kitap takas",
+      "yakındaki kitaplar",
+      "kampüs kitap paylaşımı",
+      "öğrenci kitap platformu",
+    ],
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Şehir bazlı kitap takas sayfaları",
+    numberOfItems: geoSeoPages.length,
+    itemListElement: geoSeoPages.map((page, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: page.shortTitle,
+      url: absoluteUrl(`/yerel-kitap-takas/${page.slug}`),
     })),
   },
   {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: bookSeoHubFaq.map((item) => ({
+    mainEntity: geoSeoHubFaq.map((item) => ({
       "@type": "Question",
       name: item.question,
       acceptedAnswer: {
@@ -85,17 +81,14 @@ const hubJsonLd = [
       {
         "@type": "ListItem",
         position: 2,
-        name: "Kitap Rehberi",
-        item: absoluteUrl("/kitap-rehberi"),
+        name: "Yerel Kitap Takas",
+        item: absoluteUrl("/yerel-kitap-takas"),
       },
     ],
   },
 ];
 
-const featuredPages = bookSeoPages.slice(0, 4);
-const remainingPages = bookSeoPages.slice(4);
-
-export default function KitapRehberiPage() {
+export default function YerelKitapTakasPage() {
   return (
     <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
       <script
@@ -114,10 +107,10 @@ export default function KitapRehberiPage() {
 
           <div className="flex items-center gap-3">
             <Link
-              href="/auth/login"
+              href="/kitap-rehberi"
               className="hidden rounded-full px-5 py-2.5 text-sm font-bold text-[#2E7D5B] transition hover:bg-white md:inline-flex"
             >
-              Giriş Yap
+              Kitap Rehberi
             </Link>
             <Link
               href="/auth/sign-up"
@@ -131,18 +124,18 @@ export default function KitapRehberiPage() {
         <div className="relative mx-auto grid max-w-7xl gap-10 py-16 md:grid-cols-[1.05fr_0.95fr] md:items-center md:py-24">
           <div>
             <div className="inline-flex rounded-full border border-[#2E7D5B]/20 bg-white/70 px-4 py-2 text-sm font-black text-[#2E7D5B] shadow-sm">
-              Kitap arayanlar için rehber
+              Şehir ve kampüs bazlı kitap keşfi
             </div>
 
             <h1 className="mt-6 max-w-4xl text-4xl font-black leading-tight tracking-tight md:text-6xl">
-              Kitap bulma, takas, ödünç alma ve sanal kütüphane rehberi.
+              Türkiye&apos;deki öğrenci şehirlerinde kitap takas ve yakın kitap keşfi.
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-              KampüsRaf Kitap Rehberi, öğrencilerin kitapla ilgili en sık
-              aradığı konuları tek yerde toplar: ikinci el kitap, kitap takası,
-              yakınındaki kitaplar, ders kitapları, kitap bağışı, alıntı
-              paylaşımı ve sanal kütüphane.
+              KampüsRaf, kitap paylaşımını yalnızca genel bir liste olarak değil;
+              şehir, üniversite, yaklaşık mesafe ve paylaşım türü bağlamıyla ele
+              alır. Böylece arayan öğrenci kendi şehrindeki rafları daha anlamlı
+              keşfedebilir.
             </p>
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
@@ -150,13 +143,13 @@ export default function KitapRehberiPage() {
                 href="/auth/sign-up"
                 className="rounded-full bg-[#2E7D5B] px-8 py-4 text-center text-sm font-black text-white shadow-xl shadow-[#2E7D5B]/20 transition hover:-translate-y-1 hover:bg-[#25684c]"
               >
-                Kitaplarını Rafa Ekle
+                Şehrinde Raf Oluştur
               </Link>
               <Link
-                href="/kitap-takas"
+                href="/kitap-rehberi/yakindaki-kitaplar"
                 className="rounded-full border border-[#2E7D5B]/20 bg-white px-8 py-4 text-center text-sm font-black text-[#2E7D5B] shadow-sm transition hover:-translate-y-1 hover:border-[#2E7D5B]/40"
               >
-                Kitap Takasını İncele
+                Yakındaki Kitapları Öğren
               </Link>
             </div>
           </div>
@@ -164,34 +157,29 @@ export default function KitapRehberiPage() {
           <aside className="rounded-[2rem] border border-white/70 bg-white/85 p-5 shadow-2xl shadow-slate-900/10 backdrop-blur">
             <div className="rounded-[1.6rem] bg-[#2E7D5B] p-6 text-white">
               <p className="text-sm font-black text-white/65">
-                KampüsRaf arama odağı
+                Yerel arama odağı
               </p>
               <h2 className="mt-2 text-3xl font-black">
-                Kitapla ilgili ihtiyacı doğru sayfaya bağlar.
+                Kitap araması şehirden ve kampüsten başlar.
               </h2>
               <p className="mt-4 text-sm font-semibold leading-7 text-white/70">
-                Her rehber sayfası gerçek bir kullanıcı niyetine cevap verir ve
-                KampüsRaf içindeki raf, harita, takas, topluluk ve mesajlaşma
-                akışlarına bağlanır.
+                İstanbul, Ankara, İzmir, Eskişehir ve diğer öğrenci şehirleri
+                için yerel kitap paylaşım sayfaları; arama motorlarına ve AI
+                cevap motorlarına daha net bağlam verir.
               </p>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
-              {[
-                "İkinci el",
-                "Takas",
-                "Ödünç",
-                "Bağış",
-                "Ders kitabı",
-                "Yakındaki kitaplar",
-              ].map((item) => (
-                <div
-                  key={item}
-                  className="rounded-3xl bg-[#FAF7F0] p-4 text-sm font-black text-slate-700"
-                >
-                  {item}
-                </div>
-              ))}
+              {["Şehir", "Üniversite", "Yakınlık", "Takas", "Ödünç", "Bağış"].map(
+                (item) => (
+                  <div
+                    key={item}
+                    className="rounded-3xl bg-[#FAF7F0] p-4 text-sm font-black text-slate-700"
+                  >
+                    {item}
+                  </div>
+                )
+              )}
             </div>
           </aside>
         </div>
@@ -200,83 +188,44 @@ export default function KitapRehberiPage() {
       <section className="mx-auto max-w-7xl px-6 py-12">
         <div className="max-w-3xl">
           <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
-            En çok aranan kitap konuları
+            Şehir rehberleri
           </p>
           <h2 className="mt-3 text-3xl font-black tracking-tight md:text-5xl">
-            Kitap araması yapan kullanıcıyı doğru çözüme götüren sayfalar.
+            Öğrencilerin kitap aradığı yerel bağlamları görünür kıl.
           </h2>
         </div>
 
-        <div className="mt-10 grid gap-5 md:grid-cols-2">
-          {featuredPages.map((page) => (
+        <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {geoSeoPages.map((page) => (
             <Link
               key={page.slug}
-              href={`/kitap-rehberi/${page.slug}`}
+              href={`/yerel-kitap-takas/${page.slug}`}
               className="group rounded-[2rem] border border-[#2E7D5B]/10 bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/5"
             >
               <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F59E0B]">
-                {page.intent}
+                {page.region}
               </p>
               <h3 className="mt-4 text-2xl font-black text-[#2E7D5B]">
                 {page.shortTitle}
               </h3>
               <p className="mt-3 text-sm font-semibold leading-7 text-slate-600">
-                {page.summary}
+                {page.description}
               </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {page.universities.slice(0, 3).map((university) => (
+                  <span
+                    key={university}
+                    className="rounded-full bg-[#FAF7F0] px-3 py-1 text-xs font-black text-slate-600"
+                  >
+                    {university}
+                  </span>
+                ))}
+              </div>
               <p className="mt-5 text-sm font-black text-[#F59E0B] transition group-hover:translate-x-1">
-                Rehberi oku →
+                Şehir rehberini oku →
               </p>
             </Link>
           ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-6 py-12">
-        <div className="rounded-[2rem] bg-white p-6 shadow-sm md:p-10">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
-                Tüm rehberler
-              </p>
-              <h2 className="mt-3 text-3xl font-black tracking-tight">
-                Kitap ekosisteminin tamamını kapsayan içerik ağı.
-              </h2>
-            </div>
-            <div className="flex flex-wrap gap-4">
-              <Link
-                href="/yerel-kitap-takas"
-                className="text-sm font-black text-[#2E7D5B] transition hover:text-[#25684c]"
-              >
-                Yerel kitap takas
-              </Link>
-              <Link
-                href="/kampusraf-nedir"
-                className="text-sm font-black text-[#2E7D5B] transition hover:text-[#25684c]"
-              >
-                KampüsRaf nedir?
-              </Link>
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {remainingPages.map((page) => (
-              <Link
-                key={page.slug}
-                href={`/kitap-rehberi/${page.slug}`}
-                className="group rounded-[1.5rem] bg-[#FAF7F0] p-5 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/5"
-              >
-                <h3 className="text-lg font-black text-[#2E7D5B]">
-                  {page.shortTitle}
-                </h3>
-                <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-                  {page.description}
-                </p>
-                <p className="mt-4 text-sm font-black text-[#F59E0B] transition group-hover:translate-x-1">
-                  Detaylar →
-                </p>
-              </Link>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -286,7 +235,7 @@ export default function KitapRehberiPage() {
             Sık sorulanlar
           </p>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {bookSeoHubFaq.map((item) => (
+            {geoSeoHubFaq.map((item) => (
               <article
                 key={item.question}
                 className="rounded-3xl border border-white/10 bg-white/5 p-5"

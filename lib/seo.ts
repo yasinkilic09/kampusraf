@@ -1,5 +1,6 @@
 import type { Metadata, MetadataRoute } from "next";
 import { bookSeoPages } from "@/lib/book-seo-content";
+import { geoSeoPages } from "@/lib/geo-seo-content";
 
 export const defaultSiteUrl = "https://www.kampusraf.com";
 export const siteName = "KampüsRaf";
@@ -22,6 +23,7 @@ export const seoKeywords = [
   "kitap ödünç alma",
   "üniversite kitap takası",
   "yakınımdaki kitaplar",
+  "şehir bazlı kitap takas",
   "KampüsRaf",
 ];
 
@@ -63,10 +65,20 @@ export const publicSeoRoutes: PublicSeoRoute[] = [
     changeFrequency: "weekly",
     priority: 0.92,
   },
+  {
+    path: "/yerel-kitap-takas",
+    changeFrequency: "weekly",
+    priority: 0.88,
+  },
   ...bookSeoPages.map((page) => ({
     path: `/kitap-rehberi/${page.slug}`,
     changeFrequency: "monthly" as const,
     priority: 0.82,
+  })),
+  ...geoSeoPages.map((page) => ({
+    path: `/yerel-kitap-takas/${page.slug}`,
+    changeFrequency: "monthly" as const,
+    priority: 0.78,
   })),
 ];
 

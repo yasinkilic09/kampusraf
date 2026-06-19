@@ -1,0 +1,425 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import {
+  geoSeoPages,
+  getGeoSeoPage,
+  getRelatedGeoSeoPages,
+} from "@/lib/geo-seo-content";
+import {
+  absoluteUrl,
+  createJsonLd,
+  createPageMetadata,
+  siteName,
+} from "@/lib/seo";
+
+type GeoGuidePageProps = {
+  params: Promise<{
+    slug: string;
+  }>;
+};
+
+export function generateStaticParams() {
+  return geoSeoPages.map((page) => ({
+    slug: page.slug,
+  }));
+}
+
+export async function generateMetadata({
+  params,
+}: GeoGuidePageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const page = getGeoSeoPage(slug);
+
+  if (!page) {
+    return createPageMetadata({
+      title: "Yerel Kitap Takas",
+      description: "KampüsRaf şehir bazlı kitap takas rehberi.",
+      path: "/yerel-kitap-takas",
+      noIndex: true,
+    });
+  }
+
+  return createPageMetadata({
+    title: `${page.shortTitle} - KampüsRaf Yerel Kitap Rehberi`,
+    description: page.description,
+    path: `/yerel-kitap-takas/${page.slug}`,
+    keywords: page.keywords,
+  });
+}
+
+export default async function GeoGuideDetailPage({
+  params,
+}: GeoGuidePageProps) {
+  const { slug } = await params;
+  const page = getGeoSeoPage(slug);
+
+  if (!page) {
+    notFound();
+  }
+
+  const pageUrl = absoluteUrl(`/yerel-kitap-takas/${page.slug}`);
+  const relatedPages = getRelatedGeoSeoPages(page);
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: page.title,
+      description: page.description,
+      url: pageUrl,
+      inLanguage: "tr-TR",
+      isPartOf: {
+        "@type": "WebSite",
+        name: siteName,
+        url: absoluteUrl("/"),
+      },
+      about: page.keywords,
+      contentLocation: {
+        "@type": "City",
+        name: `${page.city}, Türkiye`,
+        geo: {
+          "@type": "GeoCoordinates",
+          latitude: page.coordinates.latitude,
+          longitude: page.coordinates.longitude,
+        },
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: `${page.city} kitap takas ve kitap paylaşım rehberi`,
+      serviceType: "Kitap takas, ödünç kitap ve kampüs kitap paylaşımı",
+      provider: {
+        "@type": "Organization",
+        name: siteName,
+        url: absoluteUrl("/"),
+        logo: absoluteUrl("/logo.png"),
+      },
+      areaServed: {
+        "@type": "City",
+        name: `${page.city}, Türkiye`,
+        geo: {
+          "@type": "GeoCoordinates",
+          latitude: page.coordinates.latitude,
+          longitude: page.coordinates.longitude,
+        },
+      },
+      audience: {
+        "@type": "EducationalAudience",
+        educationalRole: "student",
+      },
+      availableChannel: {
+        "@type": "ServiceChannel",
+        serviceUrl: absoluteUrl("/auth/sign-up"),
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: page.faq.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer,
+        },
+      })),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Ana sayfa",
+          item: absoluteUrl("/"),
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: "Yerel Kitap Takas",
+          item: absoluteUrl("/yerel-kitap-takas"),
+        },
+        {
+          "@type": "ListItem",
+          position: 3,
+          name: page.shortTitle,
+          item: pageUrl,
+        },
+      ],
+    },
+  ];
+
+  return (
+    <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: createJsonLd(jsonLd) }}
+      />
+
+      <section className="relative overflow-hidden px-6 py-6">
+        <div className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-[#2E7D5B]/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-10 h-80 w-80 rounded-full bg-[#F59E0B]/15 blur-3xl" />
+
+        <nav className="relative mx-auto flex max-w-7xl items-center justify-between">
+          <Link href="/" className="text-xl font-black tracking-tight">
+            Kampüs<span className="text-[#F59E0B]">Raf</span>
+          </Link>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/yerel-kitap-takas"
+              className="hidden rounded-full px-5 py-2.5 text-sm font-bold text-[#2E7D5B] transition hover:bg-white md:inline-flex"
+            >
+              Yerel Rehberler
+            </Link>
+            <Link
+              href="/auth/sign-up"
+              className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#2E7D5B]/20 transition hover:-translate-y-0.5 hover:bg-[#25684c]"
+            >
+              Ücretsiz Başla
+            </Link>
+          </div>
+        </nav>
+
+        <div className="relative mx-auto grid max-w-7xl gap-10 py-16 md:grid-cols-[1.05fr_0.95fr] md:items-center md:py-24">
+          <div>
+            <div className="inline-flex rounded-full border border-[#2E7D5B]/20 bg-white/70 px-4 py-2 text-sm font-black text-[#2E7D5B] shadow-sm">
+              {page.region} öğrenci rafları
+            </div>
+
+            <h1 className="mt-6 max-w-4xl text-4xl font-black leading-tight tracking-tight md:text-6xl">
+              {page.title}
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
+              {page.summary}
+            </p>
+
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+              <Link
+                href="/auth/sign-up"
+                className="rounded-full bg-[#2E7D5B] px-8 py-4 text-center text-sm font-black text-white shadow-xl shadow-[#2E7D5B]/20 transition hover:-translate-y-1 hover:bg-[#25684c]"
+              >
+                {page.city} Rafına Katıl
+              </Link>
+              <Link
+                href="/kitap-rehberi/yakindaki-kitaplar"
+                className="rounded-full border border-[#2E7D5B]/20 bg-white px-8 py-4 text-center text-sm font-black text-[#2E7D5B] shadow-sm transition hover:-translate-y-1 hover:border-[#2E7D5B]/40"
+              >
+                Yakın Kitap Rehberi
+              </Link>
+            </div>
+          </div>
+
+          <aside className="rounded-[2rem] border border-white/70 bg-white/85 p-5 shadow-2xl shadow-slate-900/10 backdrop-blur">
+            <div className="rounded-[1.6rem] bg-[#2E7D5B] p-6 text-white">
+              <p className="text-sm font-black text-white/65">
+                {page.city} yerel sinyalleri
+              </p>
+              <h2 className="mt-2 text-3xl font-black">
+                Üniversite, yakınlık ve paylaşım türü birlikte çalışır.
+              </h2>
+              <p className="mt-4 text-sm font-semibold leading-7 text-white/70">
+                {page.city} için kitap araması yalnızca kitap adıyla değil;
+                kampüs, semt, mesafe ve kitabın takas/ödünç/satış/bağış durumu
+                ile anlam kazanır.
+              </p>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {page.universities.map((university) => (
+                <span
+                  key={university}
+                  className="rounded-full bg-[#FAF7F0] px-4 py-2 text-xs font-black text-slate-700"
+                >
+                  {university}
+                </span>
+              ))}
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 py-12">
+        <div className="grid gap-6 md:grid-cols-3">
+          {page.localAngles.map((angle) => (
+            <article
+              key={angle}
+              className="rounded-[2rem] border border-[#2E7D5B]/10 bg-white p-7 shadow-sm"
+            >
+              <h2 className="text-xl font-black text-[#2E7D5B]">
+                Yerel keşif sinyali
+              </h2>
+              <p className="mt-4 text-sm font-semibold leading-7 text-slate-600">
+                {angle}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 py-12">
+        <div className="rounded-[2rem] bg-white p-7 shadow-sm md:p-10">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
+            Güvenli teslim ve mesajlaşma
+          </p>
+          <h2 className="mt-3 text-3xl font-black tracking-tight">
+            {page.city} içinde kitap paylaşırken süreci net tut.
+          </h2>
+
+          <div className="mt-7 grid gap-4 md:grid-cols-3">
+            {page.deliveryIdeas.map((idea) => (
+              <article key={idea} className="rounded-3xl bg-[#FAF7F0] p-5">
+                <p className="text-sm font-bold leading-7 text-slate-700">
+                  {idea}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 py-12">
+        <div className="rounded-[2rem] bg-[#1F2933] p-8 text-white md:p-12">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
+            Sık sorulanlar
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {page.faq.map((item) => (
+              <article
+                key={item.question}
+                className="rounded-3xl border border-white/10 bg-white/5 p-5"
+              >
+                <h2 className="text-lg font-black">{item.question}</h2>
+                <p className="mt-3 text-sm font-semibold leading-7 text-white/70">
+                  {item.answer}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 py-12">
+        <div className="rounded-[2rem] bg-white p-7 shadow-sm md:p-10">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
+                İlgili aramalar
+              </p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight">
+                {page.city} aramasıyla birlikte bakılabilecek rehberler.
+              </h2>
+            </div>
+            <Link
+              href="/yerel-kitap-takas"
+              className="text-sm font-black text-[#2E7D5B] transition hover:text-[#25684c]"
+            >
+              Tüm şehirleri gör
+            </Link>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <Link
+              href="/kitap-rehberi/ikinci-el-kitap"
+              className="group rounded-[1.5rem] bg-[#FAF7F0] p-5 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/5"
+            >
+              <h3 className="text-lg font-black text-[#2E7D5B]">
+                İkinci el kitap
+              </h3>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                Kitabın durumunu, fiyatını ve teslim koşullarını daha net gör.
+              </p>
+              <p className="mt-4 text-sm font-black text-[#F59E0B] transition group-hover:translate-x-1">
+                Oku →
+              </p>
+            </Link>
+            <Link
+              href="/kitap-rehberi/kitap-takasi-nasil-yapilir"
+              className="group rounded-[1.5rem] bg-[#FAF7F0] p-5 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/5"
+            >
+              <h3 className="text-lg font-black text-[#2E7D5B]">
+                Kitap takası nasıl yapılır?
+              </h3>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                Takas beklentisini, mesajlaşmayı ve teslim planını doğru kur.
+              </p>
+              <p className="mt-4 text-sm font-black text-[#F59E0B] transition group-hover:translate-x-1">
+                Oku →
+              </p>
+            </Link>
+            <Link
+              href="/kitap-rehberi/yakindaki-kitaplar"
+              className="group rounded-[1.5rem] bg-[#FAF7F0] p-5 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/5"
+            >
+              <h3 className="text-lg font-black text-[#2E7D5B]">
+                Yakındaki kitaplar
+              </h3>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                Tam adres paylaşmadan yakın kitap keşfi mantığını öğren.
+              </p>
+              <p className="mt-4 text-sm font-black text-[#F59E0B] transition group-hover:translate-x-1">
+                Oku →
+              </p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 pb-20">
+        <div className="rounded-[2rem] bg-[#2E7D5B] p-8 text-center text-white shadow-2xl shadow-[#2E7D5B]/20 md:p-14">
+          <h2 className="text-4xl font-black tracking-tight md:text-5xl">
+            {page.city} içinde rafını görünür kıl.
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-white/75">
+            Kitaplarını paylaşım türüne göre düzenle, şehir ve üniversite
+            bağlamında daha kolay keşfedilmesini sağla.
+          </p>
+          <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
+            <Link
+              href="/auth/sign-up"
+              className="rounded-full bg-white px-8 py-4 text-sm font-black text-[#2E7D5B] transition hover:-translate-y-1"
+            >
+              Ücretsiz Kayıt Ol
+            </Link>
+            <Link
+              href="/kitap-takas"
+              className="rounded-full border border-white/25 px-8 py-4 text-sm font-black text-white transition hover:-translate-y-1 hover:bg-white/10"
+            >
+              Kitap Takası Rehberi
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 pb-20">
+        <div className="rounded-[2rem] bg-white p-7 shadow-sm md:p-10">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
+            Diğer şehirler
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {relatedPages.map((relatedPage) => (
+              <Link
+                key={relatedPage.slug}
+                href={`/yerel-kitap-takas/${relatedPage.slug}`}
+                className="group rounded-[1.5rem] bg-[#FAF7F0] p-5 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-900/5"
+              >
+                <h3 className="text-lg font-black text-[#2E7D5B]">
+                  {relatedPage.shortTitle}
+                </h3>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                  {relatedPage.description}
+                </p>
+                <p className="mt-4 text-sm font-black text-[#F59E0B] transition group-hover:translate-x-1">
+                  Şehri incele →
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}

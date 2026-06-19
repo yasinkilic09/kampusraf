@@ -7,6 +7,7 @@ import {
   siteDescription,
   siteName,
 } from "@/lib/seo";
+import { geoSeoPages } from "@/lib/geo-seo-content";
 
 export const metadata = createPageMetadata({
   title: "KampüsRaf - Öğrenciler için kitap takas ve paylaşım platformu",
@@ -41,6 +42,15 @@ const homeJsonLd = [
       "yakındaki kitaplar",
       "sanal kütüphane",
     ],
+    areaServed: geoSeoPages.map((page) => ({
+      "@type": "City",
+      name: `${page.city}, Türkiye`,
+      geo: {
+        "@type": "GeoCoordinates",
+        latitude: page.coordinates.latitude,
+        longitude: page.coordinates.longitude,
+      },
+    })),
   },
   {
     "@context": "https://schema.org",
@@ -56,6 +66,7 @@ const homeJsonLd = [
       "öğrenci kitap platformu",
       "yakın konumda kitap keşfi",
       "sosyal okuma",
+      "şehir bazlı kitap takas",
     ],
   },
   {
@@ -84,6 +95,7 @@ const homeJsonLd = [
       "Kitap ödünç alma ve bağış",
       "Sosyal okuma akışı",
       "Kampüs toplulukları",
+      "Şehir ve üniversite bazlı kitap keşfi",
     ],
   },
   {
@@ -625,6 +637,11 @@ export default function Home() {
                 href: "/kampus-kitap-paylasimi",
                 title: "Kampüs kitap paylaşımı",
                 text: "Aynı şehirde ve üniversitede kitapları dolaşıma çıkarma.",
+              },
+              {
+                href: "/yerel-kitap-takas",
+                title: "Yerel kitap takas",
+                text: "İstanbul, Ankara, İzmir ve öğrenci şehirlerinde yakın kitap keşfi.",
               },
               {
                 href: "/ogrenci-kitap-platformu",

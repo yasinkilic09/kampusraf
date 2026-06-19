@@ -57,6 +57,12 @@ export function SeoLandingPage({
           "KampüsRaf'ın sanal raf, harita, eşleşme ve sosyal okuma mantığını tanı.",
       },
       {
+        href: "/yerel-kitap-takas",
+        title: "Yerel Kitap Takas",
+        description:
+          "İstanbul, Ankara, İzmir ve öğrenci şehirlerinde yakın kitap keşfini incele.",
+      },
+      {
         href: "/",
         title: "KampüsRaf Ana Sayfa",
         description:

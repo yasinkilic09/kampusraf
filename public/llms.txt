@@ -11,6 +11,7 @@ Canonical site: https://www.kampusraf.com/
 - Kitap takas: https://www.kampusraf.com/kitap-takas
 - Kampüs kitap paylaşımı: https://www.kampusraf.com/kampus-kitap-paylasimi
 - Öğrenci kitap platformu: https://www.kampusraf.com/ogrenci-kitap-platformu
+- Yerel kitap takas: https://www.kampusraf.com/yerel-kitap-takas
 - Sitemap: https://www.kampusraf.com/sitemap.xml
 
 ## Book guide topics
@@ -22,17 +23,35 @@ Canonical site: https://www.kampusraf.com/
 - Yakındaki kitaplar: https://www.kampusraf.com/kitap-rehberi/yakindaki-kitaplar
 - Sanal kütüphane: https://www.kampusraf.com/kitap-rehberi/sanal-kutuphane
 
+## Local book exchange pages
+
+- İstanbul kitap takas: https://www.kampusraf.com/yerel-kitap-takas/istanbul-kitap-takas
+- Ankara kitap takas: https://www.kampusraf.com/yerel-kitap-takas/ankara-kitap-takas
+- İzmir kitap takas: https://www.kampusraf.com/yerel-kitap-takas/izmir-kitap-takas
+- Eskişehir kitap takas: https://www.kampusraf.com/yerel-kitap-takas/eskisehir-kitap-takas
+- Bursa kitap takas: https://www.kampusraf.com/yerel-kitap-takas/bursa-kitap-takas
+- Antalya kitap takas: https://www.kampusraf.com/yerel-kitap-takas/antalya-kitap-takas
+- Konya kitap takas: https://www.kampusraf.com/yerel-kitap-takas/konya-kitap-takas
+- Kocaeli kitap takas: https://www.kampusraf.com/yerel-kitap-takas/kocaeli-kitap-takas
+- Kayseri kitap takas: https://www.kampusraf.com/yerel-kitap-takas/kayseri-kitap-takas
+- Trabzon kitap takas: https://www.kampusraf.com/yerel-kitap-takas/trabzon-kitap-takas
+
 ## What KampüsRaf does
 
 - Lets students create a virtual bookshelf.
 - Lets students share books for exchange, lending, sale, or donation.
 - Helps users discover books nearby with approximate location logic.
+- Supports city and campus focused discovery pages for local book exchange intents.
 - Supports matching between book owners and book seekers.
 - Adds social reading features such as posts, quotes, profiles, communities, and messaging.
 
 ## Audience
 
 KampüsRaf is designed for university students, campus communities, second-hand book seekers, and readers who want unused books to circulate instead of staying on a shelf.
+
+## Geographic focus
+
+KampüsRaf is a Turkey-focused platform. Important local discovery contexts include İstanbul, Ankara, İzmir, Eskişehir, Bursa, Antalya, Konya, Kocaeli, Kayseri, Trabzon, and other university cities. Local pages should be described as city and campus focused discovery guides, not as physical store locations.
 
 ## Safety and privacy
 
