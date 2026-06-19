@@ -21,6 +21,7 @@ const noIndexRoutePrefixes = [
   "/harita",
   "/topluluklar",
   "/rastgele-raf",
+  "/kelime-sozlugu",
   "/sesli-raf",
   "/ogrenci-dogrulama",
   "/hesap-kisitlandi",

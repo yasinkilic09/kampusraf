@@ -40,6 +40,7 @@ export const appNavItems: AppHeaderNavItem[] = [
   { key: "arkadaslar", href: "/arkadaslar", label: "Arkadaşlar" },
   { key: "bildirimler", href: "/bildirimler", label: "Bildirimler" },
   { key: "rastgele-raf", href: "/rastgele-raf", label: "Rastgele Raf" },
+  { key: "kelime-sozlugu", href: "/kelime-sozlugu", label: "Kelime Sözlüğü" },
   { key: "favori-alintilarim", href: "/favori-alintilarim", label: "Favori Alıntılar" },
   { key: "sesli-raf", href: "/sesli-raf", label: "Sesli Raf" },
   { key: "ogrenci-dogrulama", href: "/ogrenci-dogrulama", label: "Öğrenci Doğrulama" },
@@ -53,6 +54,7 @@ export const adminNavItems: AppHeaderNavItem[] = [
   { key: "admin-kullanicilar", href: "/admin/kullanicilar", label: "Kullanıcılar" },
   { key: "admin-sikayetler", href: "/admin/sikayetler", label: "Şikayetler" },
   { key: "admin-alintilar", href: "/admin/alintilar", label: "Alıntılar" },
+  { key: "admin-kelimeler", href: "/admin/kelimeler", label: "Kelimeler" },
   { key: "admin-sesli-raf", href: "/admin/sesli-raf", label: "Sesli Raf" },
   { key: "panel", href: "/dashboard", label: "Panel" },
 ];
@@ -85,8 +87,8 @@ const appNavGroups: AppHeaderNavGroup[] = [
   {
     key: "discover",
     label: "Keşif",
-    description: "Alıntı ve sesli raf",
-    itemKeys: ["rastgele-raf", "favori-alintilarim", "sesli-raf"],
+    description: "Alıntı, kelime ve sesli raf",
+    itemKeys: ["rastgele-raf", "kelime-sozlugu", "favori-alintilarim", "sesli-raf"],
   },
   {
     key: "social",
@@ -112,8 +114,8 @@ const adminNavGroups: AppHeaderNavGroup[] = [
   {
     key: "admin-content",
     label: "İçerik",
-    description: "Alıntı ve ses",
-    itemKeys: ["admin-alintilar", "admin-sesli-raf"],
+    description: "Alıntı, kelime ve ses",
+    itemKeys: ["admin-alintilar", "admin-kelimeler", "admin-sesli-raf"],
   },
   {
     key: "admin-safety",

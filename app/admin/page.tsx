@@ -267,6 +267,11 @@ const { count: approvedQuotesCount } = await supabase
   .select("*", { count: "exact", head: true })
   .eq("status", "approved");
 
+  const { count: activeDailyWordsCount } = await supabase
+    .from("daily_words")
+    .select("*", { count: "exact", head: true })
+    .eq("is_active", true);
+
   const { data: planRows } = await supabase.from("profiles").select("plan_type");
 
   const planStats = {
@@ -569,6 +574,14 @@ const { count: approvedQuotesCount } = await supabase
                   description: "Rastgele Raf havuzu ve çevirileri yönet.",
                   tone: "amber",
                   badge: `${pendingQuotesCount || 0}/${approvedQuotesCount || 0}`,
+                },
+                {
+                  title: "Kelime Sözlüğü",
+                  href: "/admin/kelimeler",
+                  icon: "K",
+                  description: "Günün kelimelerini ekle ve düzenle.",
+                  tone: "blue",
+                  badge: activeDailyWordsCount || null,
                 },
                 {
                   title: "Bildirimler",

@@ -164,6 +164,170 @@ export const geoSeoPages: GeoSeoPage[] = [
     ],
   },
   {
+    slug: "aydin-kitap-takas",
+    city: "Aydın",
+    region: "Ege",
+    coordinates: { latitude: 37.856, longitude: 27.8416 },
+    universities: ["Aydın Adnan Menderes Üniversitesi"],
+    title: "Aydın Kitap Takas ve Kampüs Kitap Paylaşımı",
+    shortTitle: "Aydın kitap takas",
+    description:
+      "Aydın'da öğrenciler için kitap takas, ikinci el kitap, ödünç kitap, bağış kitap ve Adnan Menderes Üniversitesi çevresinde yakın kitap keşfi rehberi.",
+    keywords: [
+      "Aydın kitap takas",
+      "Aydın ikinci el kitap",
+      "Aydın öğrenci kitap",
+      "Adnan Menderes Üniversitesi kitap",
+    ],
+    summary:
+      "Aydın'da öğrenci kitap paylaşımı, özellikle Adnan Menderes Üniversitesi çevresindeki ders kitabı, roman ve kaynak kitap ihtiyacını görünür kıldığında daha hızlı işler. KampüsRaf, şehir ve yaklaşık konum sinyalleriyle Aydın'daki açık rafları keşfetmeyi kolaylaştırır.",
+    localAngles: [
+      "Adnan Menderes Üniversitesi çevresinde ders kitabı ve kaynak kitap aramaları yoğunlaşabilir.",
+      "Aydın, İzmir, Denizli ve Muğla hattındaki öğrenciler için bölgesel kitap dolaşımı güçlü bir fırsattır.",
+      "Yaklaşık konum, tam adres paylaşmadan uygun teslim noktası planlamaya yardımcı olur.",
+    ],
+    deliveryIdeas: [
+      "Kampüs içi ortak alanları, kütüphane çevresini veya merkezi ulaşım noktalarını tercih et.",
+      "Kitabın baskı yılı, kondisyonu ve paylaşım türünü mesajlaşmada netleştir.",
+      "Ödünç kitaplarda iade tarihini ve kitabın korunma koşullarını en başta konuş.",
+    ],
+    faq: [
+      {
+        question: "Aydın'da kitap takası için KampüsRaf kullanılabilir mi?",
+        answer:
+          "Evet. Aydın'daki kullanıcılar kitaplarını rafa ekleyip takas, ödünç, satış veya bağış seçenekleriyle görünür hale getirebilir.",
+      },
+      {
+        question: "Aydın'da Adnan Menderes Üniversitesi çevresindeki kitaplar bulunabilir mi?",
+        answer:
+          "Kullanıcılar kitap görünürlüğünü ve konum iznini açarsa KampüsRaf, Aydın'daki uygun kitapları yaklaşık mesafe mantığıyla keşfetmeyi kolaylaştırır.",
+      },
+    ],
+  },
+  {
+    slug: "denizli-kitap-takas",
+    city: "Denizli",
+    region: "Ege",
+    coordinates: { latitude: 37.7765, longitude: 29.0864 },
+    universities: ["Pamukkale Üniversitesi"],
+    title: "Denizli Kitap Takas ve Öğrenci Kitap Paylaşımı",
+    shortTitle: "Denizli kitap takas",
+    description:
+      "Denizli'de öğrenciler için kitap takas, Pamukkale Üniversitesi ders kitapları, ikinci el kitap, ödünç kitap ve yakın kitap keşfi rehberi.",
+    keywords: [
+      "Denizli kitap takas",
+      "Denizli ikinci el kitap",
+      "Pamukkale Üniversitesi kitap",
+      "Denizli öğrenci kitap",
+    ],
+    summary:
+      "Denizli'de kitap paylaşımı, Pamukkale Üniversitesi çevresindeki öğrencilerin ders kitabı ve okuma kitabı ihtiyacını daha görünür hale getirir. KampüsRaf, kitapları sanal raf, şehir bilgisi ve yakın keşif mantığıyla dolaşıma sokar.",
+    localAngles: [
+      "Pamukkale Üniversitesi çevresindeki ders kitabı ihtiyacı dönem başlarında artabilir.",
+      "Aydın ve Muğla gibi yakın şehirlerle bölgesel öğrenci hareketliliği kitap dolaşımını destekleyebilir.",
+      "Takas ve ödünç seçenekleri tek dönem kullanılan kaynakların maliyetini azaltır.",
+    ],
+    deliveryIdeas: [
+      "Kampüs, kütüphane veya merkezi toplu taşıma noktalarında teslim planla.",
+      "Ders kitabı için bölüm, ders ve baskı bilgisini doğrula.",
+      "Kitap sahibinin profil ve güven sinyallerini incele.",
+    ],
+    faq: [
+      {
+        question: "Denizli'de ders kitabı takası yapılabilir mi?",
+        answer:
+          "Evet. Kitap sahibi kitabını takasa veya ödünce açarsa arayan öğrenciler uygulama içinden iletişime geçebilir.",
+      },
+      {
+        question: "Denizli'deki yakın kitaplar tam adres gösterir mi?",
+        answer:
+          "Hayır. KampüsRaf yakın keşfi tam adres yerine yaklaşık konum ve kullanıcı kontrollü görünürlük mantığıyla tasarlar.",
+      },
+    ],
+  },
+  {
+    slug: "mugla-kitap-takas",
+    city: "Muğla",
+    region: "Ege",
+    coordinates: { latitude: 37.2153, longitude: 28.3636 },
+    universities: ["Muğla Sıtkı Koçman Üniversitesi"],
+    title: "Muğla Kitap Takas ve Kampüs Kitap Paylaşımı",
+    shortTitle: "Muğla kitap takas",
+    description:
+      "Muğla'da öğrenciler için kitap takas, Muğla Sıtkı Koçman Üniversitesi çevresinde ikinci el kitap, ödünç kitap ve yakın kitap keşfi rehberi.",
+    keywords: [
+      "Muğla kitap takas",
+      "Muğla ikinci el kitap",
+      "Muğla öğrenci kitap",
+      "Muğla Sıtkı Koçman kitap",
+    ],
+    summary:
+      "Muğla'da kampüs çevresindeki kitap paylaşımı, ders kaynaklarının ve okuma kitaplarının öğrenciler arasında daha uzun süre kullanılmasını sağlar. KampüsRaf bu dolaşımı sanal raf ve uygulama içi mesajlaşmayla düzenler.",
+    localAngles: [
+      "Muğla Sıtkı Koçman Üniversitesi çevresinde kitap arama ve paylaşma ihtiyacı kampüs odaklıdır.",
+      "Aydın ve Denizli hattındaki yakın öğrenci şehirleriyle bölgesel kitap paylaşımı düşünülebilir.",
+      "Bağış ve ödünç kitaplar öğrenciler için ekonomik ve sosyal bir alternatif oluşturur.",
+    ],
+    deliveryIdeas: [
+      "Kitap tesliminde kampüs ortak alanlarını ve güvenli buluşma noktalarını seç.",
+      "Kitabın durumunu fotoğraf ve açıklamayla netleştir.",
+      "Bağış veya ödünç seçeneğinde beklentiyi en başta yazılı hale getir.",
+    ],
+    faq: [
+      {
+        question: "Muğla'da kitap bağışı KampüsRaf'ta görünür olur mu?",
+        answer:
+          "Kitap sahibi bağış seçeneğini ve görünürlüğü açarsa bağış kitapları arama ve yakın keşif akışlarında daha kolay fark edilebilir.",
+      },
+      {
+        question: "Muğla'da kitap takası için mesajlaşma var mı?",
+        answer:
+          "Evet. Kitap sahibiyle uygulama içinden konuşup teslim noktası, kitap durumu ve paylaşım koşulları netleştirilebilir.",
+      },
+    ],
+  },
+  {
+    slug: "manisa-kitap-takas",
+    city: "Manisa",
+    region: "Ege",
+    coordinates: { latitude: 38.6191, longitude: 27.4289 },
+    universities: ["Manisa Celal Bayar Üniversitesi"],
+    title: "Manisa Kitap Takas ve Üniversite Ders Kitapları",
+    shortTitle: "Manisa kitap takas",
+    description:
+      "Manisa'da öğrenciler için kitap takas, Celal Bayar Üniversitesi ders kitapları, ikinci el kitap, ödünç kitap ve yakın kitap keşfi rehberi.",
+    keywords: [
+      "Manisa kitap takas",
+      "Manisa ikinci el kitap",
+      "Celal Bayar Üniversitesi kitap",
+      "Manisa öğrenci kitap",
+    ],
+    summary:
+      "Manisa'da öğrenci kitap paylaşımı, Celal Bayar Üniversitesi çevresindeki ders kitabı ve kaynak kitap ihtiyacını daha erişilebilir hale getirebilir. KampüsRaf, kitapları şehir ve üniversite bağlamıyla görünür kılar.",
+    localAngles: [
+      "Manisa ve İzmir yakınlığı, bölgesel öğrenci kitap dolaşımı için güçlü bir bağlam oluşturur.",
+      "Ders kitabı, kaynak kitap ve romanlar farklı paylaşım türleriyle rafa eklenebilir.",
+      "Yaklaşık mesafe, teslim planı yaparken ilk karar sinyali olarak kullanılabilir.",
+    ],
+    deliveryIdeas: [
+      "Kampüs çevresindeki ortak alanları ve merkezi ulaşım noktalarını tercih et.",
+      "Satış, takas, ödünç veya bağış beklentisini açıkça belirt.",
+      "Kitap kondisyonu ve baskı bilgisini teslimden önce kontrol et.",
+    ],
+    faq: [
+      {
+        question: "Manisa'da Celal Bayar Üniversitesi çevresinde kitap bulunabilir mi?",
+        answer:
+          "Kullanıcılar kitaplarını rafa ekleyip görünür hale getirdikçe Manisa'daki uygun kitaplar arama ve yakın keşif akışlarında bulunabilir.",
+      },
+      {
+        question: "Manisa'da ikinci el kitap yerine ödünç alma mümkün mü?",
+        answer:
+          "Kitap sahibi ödünç seçeneğini açtıysa arayan öğrenci uygulama içinden süre ve teslim koşullarını konuşabilir.",
+      },
+    ],
+  },
+  {
     slug: "eskisehir-kitap-takas",
     city: "Eskişehir",
     region: "İç Anadolu",

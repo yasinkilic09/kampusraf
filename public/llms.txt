@@ -28,6 +28,10 @@ Canonical site: https://www.kampusraf.com/
 - İstanbul kitap takas: https://www.kampusraf.com/yerel-kitap-takas/istanbul-kitap-takas
 - Ankara kitap takas: https://www.kampusraf.com/yerel-kitap-takas/ankara-kitap-takas
 - İzmir kitap takas: https://www.kampusraf.com/yerel-kitap-takas/izmir-kitap-takas
+- Aydın kitap takas: https://www.kampusraf.com/yerel-kitap-takas/aydin-kitap-takas
+- Denizli kitap takas: https://www.kampusraf.com/yerel-kitap-takas/denizli-kitap-takas
+- Muğla kitap takas: https://www.kampusraf.com/yerel-kitap-takas/mugla-kitap-takas
+- Manisa kitap takas: https://www.kampusraf.com/yerel-kitap-takas/manisa-kitap-takas
 - Eskişehir kitap takas: https://www.kampusraf.com/yerel-kitap-takas/eskisehir-kitap-takas
 - Bursa kitap takas: https://www.kampusraf.com/yerel-kitap-takas/bursa-kitap-takas
 - Antalya kitap takas: https://www.kampusraf.com/yerel-kitap-takas/antalya-kitap-takas
@@ -44,6 +48,7 @@ Canonical site: https://www.kampusraf.com/
 - Supports city and campus focused discovery pages for local book exchange intents.
 - Supports matching between book owners and book seekers.
 - Adds social reading features such as posts, quotes, profiles, communities, and messaging.
+- Adds a private daily word dictionary where admins can curate words and users discover one word with its meaning each day.
 
 ## Audience
 
@@ -51,7 +56,7 @@ KampüsRaf is designed for university students, campus communities, second-hand 
 
 ## Geographic focus
 
-KampüsRaf is a Turkey-focused platform. Important local discovery contexts include İstanbul, Ankara, İzmir, Eskişehir, Bursa, Antalya, Konya, Kocaeli, Kayseri, Trabzon, and other university cities. Local pages should be described as city and campus focused discovery guides, not as physical store locations.
+KampüsRaf is a Turkey-focused platform. Important local discovery contexts include İstanbul, Ankara, İzmir, Aydın, Denizli, Muğla, Manisa, Eskişehir, Bursa, Antalya, Konya, Kocaeli, Kayseri, Trabzon, and other university cities. Local pages should be described as city and campus focused discovery guides, not as physical store locations.
 
 ## Safety and privacy
 

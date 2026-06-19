@@ -24,6 +24,11 @@ export const seoKeywords = [
   "üniversite kitap takası",
   "yakınımdaki kitaplar",
   "şehir bazlı kitap takas",
+  "Aydın kitap takas",
+  "Aydın ikinci el kitap",
+  "Denizli kitap takas",
+  "Muğla kitap takas",
+  "Manisa kitap takas",
   "KampüsRaf",
 ];
 

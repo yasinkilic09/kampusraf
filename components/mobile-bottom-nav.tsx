@@ -76,6 +76,13 @@ const quickActions: ShortcutItem[] = [
     tone: "amber",
   },
   {
+    title: "Kelime Sözlüğü",
+    href: "/kelime-sozlugu",
+    icon: "K",
+    description: "Günün kelimesi",
+    tone: "light",
+  },
+  {
     title: "Topluluklar",
     href: "/topluluklar",
     icon: "T",
@@ -175,6 +182,12 @@ const shortcutGroups: ShortcutGroup[] = [
         description: "Zar at, alıntı keşfet",
       },
       {
+        title: "Kelime Sözlüğü",
+        href: "/kelime-sozlugu",
+        icon: "K",
+        description: "Her gün yeni kelime ve anlamı",
+      },
+      {
         title: "Favoriler",
         href: "/favori-alintilarim",
         icon: "F",
@@ -256,6 +269,12 @@ const adminMenuItems: ShortcutItem[] = [
     href: "/admin/alintilar",
     icon: "A",
     description: "Rastgele Raf havuzu",
+  },
+  {
+    title: "Kelimeler",
+    href: "/admin/kelimeler",
+    icon: "K",
+    description: "Günün kelime havuzu",
   },
 ];
 

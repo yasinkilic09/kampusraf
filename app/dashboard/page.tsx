@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 import { PageShortcuts } from "@/components/page-shortcuts";
 import { AdSlot } from "@/components/ad-slot";
+import { getDailyWordForUser } from "@/lib/daily-word";
 import { shouldShowAdsForPlan } from "@/lib/monetization";
 import { createPrivatePageMetadata } from "@/lib/seo";
 
@@ -402,6 +403,12 @@ export default async function DashboardPage() {
       description: "Günlük zar hakkınla kısa kitap alıntıları keşfet ve dinle.",
     },
     {
+      title: "Kelime Sözlüğü",
+      href: "/kelime-sozlugu",
+      icon: "K",
+      description: "Her gün yeni bir kelimeyi anlamı ve örneğiyle keşfet.",
+    },
+    {
       title: "Takaslarım",
       href: "/takaslar",
       icon: "🤝",
@@ -427,6 +434,7 @@ export default async function DashboardPage() {
 
   const quoteRollsUsed = quoteRollsCount || 0;
   const remainingQuoteRolls = Math.max(quoteRollsLimit - quoteRollsUsed, 0);
+  const dailyWord = await getDailyWordForUser(user.id);
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">
@@ -828,6 +836,38 @@ export default async function DashboardPage() {
                 ))}
               </div>
             </div>
+
+            {dailyWord ? (
+              <Link
+                href="/kelime-sozlugu"
+                className="group rounded-[1.8rem] bg-[#1F2933] p-5 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-900/10 md:rounded-[2rem] md:p-6"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F5EBDD]">
+                      Günün Kelimesi
+                    </p>
+                    <h2 className="mt-2 text-3xl font-black tracking-tight">
+                      {dailyWord.word}
+                    </h2>
+                  </div>
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F59E0B] text-sm font-black text-white">
+                    K
+                  </span>
+                </div>
+                <p className="mt-4 line-clamp-3 text-sm font-semibold leading-6 text-white/72">
+                  {dailyWord.meaning}
+                </p>
+                {dailyWord.category ? (
+                  <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#F59E0B]">
+                    {dailyWord.category}
+                  </p>
+                ) : null}
+                <p className="mt-5 text-sm font-black text-[#F59E0B] transition group-hover:translate-x-0.5">
+                  Anlamı ve örneği gör →
+                </p>
+              </Link>
+            ) : null}
 
             <PageShortcuts
               eyebrow="Kitap & Takas"
