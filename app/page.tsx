@@ -25,6 +25,25 @@ export const metadata = createPageMetadata({
 const homeJsonLd = [
   {
     "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: siteName,
+    url: absoluteUrl("/"),
+    inLanguage: "tr-TR",
+    publisher: {
+      "@type": "Organization",
+      name: siteName,
+      logo: absoluteUrl("/logo.png"),
+    },
+    about: [
+      "kitap takası",
+      "kampüs kitap paylaşımı",
+      "öğrenci kitap platformu",
+      "yakındaki kitaplar",
+      "sanal kütüphane",
+    ],
+  },
+  {
+    "@context": "https://schema.org",
     "@type": "Organization",
     name: siteName,
     url: absoluteUrl("/"),

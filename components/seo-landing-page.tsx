@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createJsonLd, siteName } from "@/lib/seo";
+import { absoluteUrl, createJsonLd, siteName } from "@/lib/seo";
 
 type SeoLandingSection = {
   title: string;
@@ -11,43 +11,114 @@ type SeoLandingFaq = {
   answer: string;
 };
 
+type SeoLandingRelatedLink = {
+  href: string;
+  title: string;
+  description: string;
+};
+
 type SeoLandingPageProps = {
   eyebrow: string;
   title: string;
   description: string;
+  path: string;
   primaryKeyword: string;
   highlights: string[];
   sections: SeoLandingSection[];
   faq: SeoLandingFaq[];
+  relatedLinks?: SeoLandingRelatedLink[];
 };
 
 export function SeoLandingPage({
   eyebrow,
   title,
   description,
+  path,
   primaryKeyword,
   highlights,
   sections,
   faq,
+  relatedLinks,
 }: SeoLandingPageProps) {
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faq.map((item) => ({
-      "@type": "Question",
-      name: item.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: item.answer,
+  const pageUrl = absoluteUrl(path);
+  const links =
+    relatedLinks ||
+    [
+      {
+        href: "/kitap-rehberi",
+        title: "Kitap Rehberi",
+        description:
+          "İkinci el kitap, takas, ödünç alma, bağış ve sanal kütüphane rehberleri.",
       },
-    })),
-  };
+      {
+        href: "/kampusraf-nedir",
+        title: "KampüsRaf Nedir?",
+        description:
+          "KampüsRaf'ın sanal raf, harita, eşleşme ve sosyal okuma mantığını tanı.",
+      },
+      {
+        href: "/",
+        title: "KampüsRaf Ana Sayfa",
+        description:
+          "Öğrenciler için kitap paylaşımı, takas ve sosyal okuma platformuna dön.",
+      },
+    ];
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: title,
+      description,
+      url: pageUrl,
+      inLanguage: "tr-TR",
+      isPartOf: {
+        "@type": "WebSite",
+        name: siteName,
+        url: absoluteUrl("/"),
+      },
+      about: primaryKeyword,
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: absoluteUrl("/logo.png"),
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faq.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer,
+        },
+      })),
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Ana sayfa",
+          item: absoluteUrl("/"),
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: title,
+          item: pageUrl,
+        },
+      ],
+    },
+  ];
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] text-[#1F2933]">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: createJsonLd(faqJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: createJsonLd(jsonLd) }}
       />
 
       <section className="relative overflow-hidden px-6 py-6">
@@ -167,6 +238,35 @@ export function SeoLandingPage({
                   {item.answer}
                 </p>
               </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-6 pb-20">
+        <div className="rounded-[2rem] bg-[#1F2933] p-7 text-white shadow-xl shadow-slate-900/10 md:p-10">
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-[#F59E0B]">
+            İlgili KampüsRaf rehberleri
+          </p>
+          <h2 className="mt-3 text-3xl font-black tracking-tight">
+            Bu konuyla birlikte aranan sayfalar.
+          </h2>
+
+          <div className="mt-7 grid gap-4 md:grid-cols-3">
+            {links.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group rounded-[1.5rem] border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:bg-white/10"
+              >
+                <h3 className="text-lg font-black">{item.title}</h3>
+                <p className="mt-2 text-sm font-semibold leading-6 text-white/65">
+                  {item.description}
+                </p>
+                <p className="mt-4 text-sm font-black text-[#F59E0B] transition group-hover:translate-x-1">
+                  İncele →
+                </p>
+              </Link>
             ))}
           </div>
         </div>

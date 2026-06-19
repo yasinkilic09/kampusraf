@@ -20,6 +20,7 @@ export default function KampusKitapPaylasimiPage() {
       eyebrow="Kampüs kitap paylaşımı"
       title="Kampüste aradığın kitap, düşündüğünden daha yakın olabilir."
       description="KampüsRaf; öğrencilerin kitaplarını kampüs içinde dolaşıma çıkarmasını, yakınındaki paylaşım kitaplarını keşfetmesini ve kitap üzerinden yeni bağlantılar kurmasını kolaylaştırır."
+      path="/kampus-kitap-paylasimi"
       primaryKeyword="kampüs kitap paylaşımı"
       highlights={[
         "Üniversite ve şehir odaklı keşif",

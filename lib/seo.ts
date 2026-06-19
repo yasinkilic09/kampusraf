@@ -4,6 +4,9 @@ import { bookSeoPages } from "@/lib/book-seo-content";
 export const defaultSiteUrl = "https://www.kampusraf.com";
 export const siteName = "KampüsRaf";
 export const siteShortName = "KampüsRaf";
+export const siteLanguage = "tr-TR";
+export const siteLocale = "tr_TR";
+export const seoLastModified = "2026-06-19";
 
 export const siteDescription =
   "Öğrenciler için kitap paylaşımı, takas, ödünç alma, yakın konumda kitap bulma ve sosyal okuma platformu.";
@@ -26,6 +29,7 @@ type PublicSeoRoute = {
   path: string;
   changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
   priority: number;
+  lastModified?: string;
 };
 
 export const publicSeoRoutes: PublicSeoRoute[] = [
@@ -112,7 +116,14 @@ export function createPageMetadata({
     keywords: [...seoKeywords, ...keywords],
     alternates: {
       canonical: url,
+      languages: {
+        [siteLanguage]: url,
+      },
     },
+    applicationName: siteName,
+    category: "education",
+    creator: siteName,
+    publisher: siteName,
     openGraph: {
       title,
       description,
@@ -126,7 +137,7 @@ export function createPageMetadata({
           alt: `${siteName} logo`,
         },
       ],
-      locale: "tr_TR",
+      locale: siteLocale,
       type: "website",
     },
     twitter: {
@@ -139,6 +150,10 @@ export function createPageMetadata({
       ? {
           index: false,
           follow: false,
+          googleBot: {
+            index: false,
+            follow: false,
+          },
         }
       : {
           index: true,
@@ -152,6 +167,23 @@ export function createPageMetadata({
           },
         },
   };
+}
+
+export function createPrivatePageMetadata({
+  title,
+  description,
+  path = "/dashboard",
+}: {
+  title: string;
+  description: string;
+  path?: string;
+}): Metadata {
+  return createPageMetadata({
+    title,
+    description,
+    path,
+    noIndex: true,
+  });
 }
 
 export function createJsonLd(data: unknown) {

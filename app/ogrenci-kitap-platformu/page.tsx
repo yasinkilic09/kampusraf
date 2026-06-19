@@ -20,6 +20,7 @@ export default function OgrenciKitapPlatformuPage() {
       eyebrow="Öğrenci kitap platformu"
       title="Kitap arama, paylaşma ve sosyalleşme tek bir öğrenci platformunda."
       description="KampüsRaf, öğrencilerin kendi sanal kütüphanesini oluşturmasına, kitaplarını paylaşmasına, yakınındaki kitaplarla eşleşmesine ve okuma topluluklarına katılmasına yardımcı olur."
+      path="/ogrenci-kitap-platformu"
       primaryKeyword="öğrenci kitap platformu"
       highlights={[
         "Sanal kütüphane ve Rafım deneyimi",

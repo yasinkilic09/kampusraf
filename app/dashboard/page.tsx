@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { redirectIfBanned } from "@/lib/account-status";
@@ -6,6 +7,14 @@ import { AppHeader } from "@/components/app-header";
 import { PageShortcuts } from "@/components/page-shortcuts";
 import { AdSlot } from "@/components/ad-slot";
 import { shouldShowAdsForPlan } from "@/lib/monetization";
+import { createPrivatePageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = createPrivatePageMetadata({
+  title: "Kullanıcı Paneli",
+  description:
+    "KampüsRaf kullanıcı paneli; raf, sosyal akış, eşleşme, mesaj, bildirim ve paket alanlarını tek yerden yönetir.",
+  path: "/dashboard",
+});
 
 function getDailyRollLimit(planType?: string | null) {
   if (planType === "plus") return 3;

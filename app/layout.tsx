@@ -6,6 +6,8 @@ import {
   getSiteUrl,
   seoKeywords,
   siteDescription,
+  siteLanguage,
+  siteLocale,
   siteName,
   socialDescription,
 } from "@/lib/seo";
@@ -34,6 +36,9 @@ export const metadata: Metadata = {
   keywords: seoKeywords,
   alternates: {
     canonical: "/",
+    languages: {
+      [siteLanguage]: "/",
+    },
   },
   category: "education",
   creator: siteName,
@@ -77,7 +82,7 @@ export const metadata: Metadata = {
     url: "/",
     siteName,
     images: ["/logo-symbol.png"],
-    locale: "tr_TR",
+    locale: siteLocale,
     type: "website",
   },
   twitter: {
@@ -102,7 +107,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="tr"
+      lang={siteLanguage}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">

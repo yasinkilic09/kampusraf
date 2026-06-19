@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import {
+  noIndexHeaderSources,
+  noIndexRobotsHeaderValue,
+} from "./lib/seo-paths";
 
 function getSupabaseOrigins() {
   const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -69,6 +73,13 @@ const nextConfig: NextConfig = {
     },
   },
   async headers() {
+    const noIndexHeaders = [
+      {
+        key: "X-Robots-Tag",
+        value: noIndexRobotsHeaderValue,
+      },
+    ];
+
     return [
       {
         source: "/:path*",
@@ -116,6 +127,10 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      ...noIndexHeaderSources.map((source) => ({
+        source,
+        headers: noIndexHeaders,
+      })),
       {
         source: "/api/:path*",
         headers: [

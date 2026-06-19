@@ -28,6 +28,19 @@ export const metadata = createPageMetadata({
 const hubJsonLd = [
   {
     "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "KampüsRaf kitap rehberi konuları",
+    itemListOrder: "https://schema.org/ItemListOrderAscending",
+    numberOfItems: bookSeoPages.length,
+    itemListElement: bookSeoPages.map((page, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: page.title,
+      url: absoluteUrl(`/kitap-rehberi/${page.slug}`),
+    })),
+  },
+  {
+    "@context": "https://schema.org",
     "@type": "CollectionPage",
     name: "KampüsRaf Kitap Rehberi",
     url: absoluteUrl("/kitap-rehberi"),

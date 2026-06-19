@@ -20,6 +20,7 @@ export default function KitapTakasPage() {
       eyebrow="Kitap takas platformu"
       title="Öğrenciler arası kitap takası artık daha yakın ve daha güvenli."
       description="KampüsRaf, rafında duran kitapları başka öğrencilerle buluşturur. Kitabını takasa, ödünce, satışa veya bağışa açabilir; aradığın kitabı yakınındaki öğrencilerde keşfedebilirsin."
+      path="/kitap-takas"
       primaryKeyword="kitap takas"
       highlights={[
         "Takas, ödünç, satış ve bağış seçenekleri",
