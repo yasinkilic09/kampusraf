@@ -202,13 +202,33 @@ export function NotificationBell() {
       }
     }
 
-    void setupRealtimeNotifications();
+    let idleCallbackId: number | null = null;
+    let setupTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    if (typeof window.requestIdleCallback === "function") {
+      idleCallbackId = window.requestIdleCallback(
+        () => {
+          void setupRealtimeNotifications();
+        },
+        { timeout: 2200 }
+      );
+    } else {
+      setupTimeoutId = globalThis.setTimeout(() => {
+        void setupRealtimeNotifications();
+      }, 900);
+    }
 
     const backupInterval = window.setInterval(fetchNotifications, 60000);
     window.addEventListener("focus", fetchNotifications);
 
     return () => {
       isActive = false;
+      if (idleCallbackId !== null) {
+        window.cancelIdleCallback(idleCallbackId);
+      }
+      if (setupTimeoutId !== null) {
+        globalThis.clearTimeout(setupTimeoutId);
+      }
       window.clearInterval(backupInterval);
       window.removeEventListener("focus", fetchNotifications);
 
@@ -219,6 +239,8 @@ export function NotificationBell() {
   }, [fetchNotifications, pathname, shouldHide, supabase]);
 
   useEffect(() => {
+    if (!isOpen) return;
+
     function handleClickOutside(event: MouseEvent) {
       if (
         dropdownRef.current &&
@@ -233,7 +255,7 @@ export function NotificationBell() {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, [isOpen]);
 
   if (shouldHide || !isLoggedIn) {
     return null;

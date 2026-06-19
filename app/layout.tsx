@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { MobileBottomNav } from "@/components/mobile-bottom-nav";
-import { NotificationBell } from "@/components/notification-bell";
+import { AppChrome } from "@/components/app-chrome";
 import {
   getSiteUrl,
   seoKeywords,
@@ -107,9 +106,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <NotificationBell />
-        <div className="flex-1 pb-24 md:pb-0">{children}</div>
-        <MobileBottomNav />
+        <div className="flex-1">{children}</div>
+        <AppChrome />
       </body>
     </html>
   );

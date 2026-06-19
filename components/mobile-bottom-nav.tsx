@@ -282,9 +282,12 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const [openMenuPath, setOpenMenuPath] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminRoleLoaded, setAdminRoleLoaded] = useState(false);
   const isMenuOpen = openMenuPath === pathname;
 
   useEffect(() => {
+    if (!isMenuOpen || adminRoleLoaded) return;
+
     let isMounted = true;
 
     async function loadRole() {
@@ -295,7 +298,12 @@ export function MobileBottomNav() {
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (!user) return;
+        if (!user) {
+          if (isMounted) {
+            setAdminRoleLoaded(true);
+          }
+          return;
+        }
 
         const { data } = await supabase
           .from("profiles")
@@ -305,10 +313,12 @@ export function MobileBottomNav() {
 
         if (isMounted) {
           setIsAdmin(data?.role === "admin");
+          setAdminRoleLoaded(true);
         }
       } catch {
         if (isMounted) {
           setIsAdmin(false);
+          setAdminRoleLoaded(true);
         }
       }
     }
@@ -318,7 +328,7 @@ export function MobileBottomNav() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [adminRoleLoaded, isMenuOpen]);
 
   const activeTab = useMemo(
     () => primaryTabs.find((item) => isActivePath(pathname, item.href)),
