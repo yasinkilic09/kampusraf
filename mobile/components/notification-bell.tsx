@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, usePathname } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { InteractionManager, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { supabase } from "@/lib/supabase";
@@ -96,13 +96,17 @@ export function NotificationBell() {
     }
 
     let authSubscription: { unsubscribe: () => void } | null = null;
+    let interactionTask: { cancel: () => void } | null = null;
 
-    setup().then((subscription) => {
-      authSubscription = subscription || null;
+    interactionTask = InteractionManager.runAfterInteractions(() => {
+      setup().then((subscription) => {
+        authSubscription = subscription || null;
+      });
     });
 
     return () => {
       active = false;
+      interactionTask?.cancel();
       authSubscription?.unsubscribe();
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);

@@ -181,7 +181,6 @@ export default async function DashboardPage() {
     unreadMessagesResult,
     unreadNotificationsResult,
     myPostsResult,
-    friendsResult,
     matchesResult,
     friendshipsResult,
   ] = await Promise.all([
@@ -204,34 +203,29 @@ export default async function DashboardPage() {
       .maybeSingle(),
     supabase
       .from("user_books")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", user.id),
     supabase
       .from("book_requests")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", user.id),
     supabase
       .from("messages")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("receiver_id", user.id)
       .eq("is_read", false),
     supabase
       .from("notifications")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
       .eq("is_read", false),
     supabase
       .from("social_posts")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", user.id),
     supabase
-      .from("friendships")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "accepted")
-      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`),
-    supabase
       .from("book_matches")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .or(`requester_id.eq.${user.id},owner_id.eq.${user.id}`),
     supabase
       .from("friendships")
@@ -246,7 +240,6 @@ export default async function DashboardPage() {
   const unreadMessagesCount = unreadMessagesResult.count;
   const unreadNotificationsCount = unreadNotificationsResult.count;
   const myPostsCount = myPostsResult.count;
-  const friendsCount = friendsResult.count;
   const matchesCount = matchesResult.count;
   const friendshipsData = friendshipsResult.data;
 
@@ -257,6 +250,7 @@ export default async function DashboardPage() {
       ? friendship.addressee_id
       : friendship.requester_id
   );
+  const friendsCount = friendIds.length;
 
   const visibleUserIds = Array.from(new Set([user.id, ...friendIds]));
 

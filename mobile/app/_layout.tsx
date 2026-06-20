@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { InteractionManager } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppLaunchScreen } from "@/components/app-launch-screen";
@@ -25,6 +26,8 @@ export default function RootLayout() {
   useEffect(() => {
     let active = true;
     let authSubscription: { unsubscribe: () => void } | null = null;
+    let pushDelay: ReturnType<typeof setTimeout> | null = null;
+    let interactionTask: { cancel: () => void } | null = null;
 
     async function syncPushForUser(userId?: string | null) {
       if (!active || !userId) return;
@@ -49,10 +52,18 @@ export default function RootLayout() {
       authSubscription = data.subscription;
     }
 
-    bootstrapPush();
+    interactionTask = InteractionManager.runAfterInteractions(() => {
+      pushDelay = setTimeout(() => {
+        void bootstrapPush();
+      }, 1800);
+    });
 
     return () => {
       active = false;
+      if (pushDelay) {
+        clearTimeout(pushDelay);
+      }
+      interactionTask?.cancel();
       authSubscription?.unsubscribe();
     };
   }, []);

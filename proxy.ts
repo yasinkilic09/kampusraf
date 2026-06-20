@@ -247,7 +247,7 @@ async function refreshSupabaseSession(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  await supabase.auth.getSession();
 
   return response;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Script from "next/script";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AdPlacement } from "@/lib/monetization";
 
 declare global {
@@ -78,13 +78,41 @@ function isAdSenseConfigured(slotId: string) {
 }
 
 export function AdSlot({ placement, className = "", compact = false }: AdSlotProps) {
+  const containerRef = useRef<HTMLElement | null>(null);
   const pushedRef = useRef(false);
+  const [isReady, setIsReady] = useState(false);
   const slotId = slotMap[placement];
   const configured = adsEnabled && isAdSenseConfigured(slotId);
   const copy = placementCopy[placement];
 
   useEffect(() => {
-    if (!configured || pushedRef.current) return;
+    if (!configured) return;
+
+    const node = containerRef.current;
+
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setIsReady(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setIsReady(true);
+        observer.disconnect();
+      },
+      { rootMargin: "640px 0px" }
+    );
+
+    observer.observe(node);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [configured]);
+
+  useEffect(() => {
+    if (!configured || !isReady || pushedRef.current) return;
 
     pushedRef.current = true;
 
@@ -94,12 +122,13 @@ export function AdSlot({ placement, className = "", compact = false }: AdSlotPro
     } catch {
       pushedRef.current = false;
     }
-  }, [configured, slotId]);
+  }, [configured, isReady, slotId]);
 
   if (!adsEnabled) return null;
 
   return (
     <aside
+      ref={containerRef}
       className={[
         "overflow-hidden rounded-[1.5rem] border border-[#2E7D5B]/10 bg-white shadow-sm ring-1 ring-[#2E7D5B]/5",
         compact ? "p-4" : "p-4 md:p-5",
@@ -116,7 +145,7 @@ export function AdSlot({ placement, className = "", compact = false }: AdSlotPro
         </span>
       </div>
 
-      {configured ? (
+      {configured && isReady ? (
         <>
           <Script
             id="kampusraf-adsense"
@@ -137,6 +166,14 @@ export function AdSlot({ placement, className = "", compact = false }: AdSlotPro
             data-full-width-responsive="true"
           />
         </>
+      ) : configured ? (
+        <div
+          className="rounded-[1.2rem] bg-[#FAF7F0]"
+          style={{
+            minHeight: compact ? 96 : 132,
+          }}
+          aria-hidden="true"
+        />
       ) : (
         <div
           className={[
@@ -153,4 +190,3 @@ export function AdSlot({ placement, className = "", compact = false }: AdSlotPro
     </aside>
   );
 }
-

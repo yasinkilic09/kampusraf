@@ -44,6 +44,7 @@ export function NotificationBell() {
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const isOpenRef = useRef(false);
 
   const [unreadCount, setUnreadCount] = useState(0);
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -56,6 +57,40 @@ export function NotificationBell() {
     pathname.startsWith("/auth/login") ||
     pathname.startsWith("/auth/sign-up");
 
+  const fetchUnreadSummary = useCallback(async () => {
+    if (shouldHide) return null;
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
+
+      if (!user) {
+        setIsLoggedIn(false);
+        setUnreadCount(0);
+        setItems([]);
+        return null;
+      }
+
+      const { count } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+
+      setIsLoggedIn(true);
+      setUnreadCount(count || 0);
+
+      return user.id;
+    } catch {
+      setIsLoggedIn(false);
+      setUnreadCount(0);
+      setItems([]);
+      return null;
+    }
+  }, [shouldHide, supabase]);
+
   const fetchNotifications = useCallback(async () => {
     if (shouldHide) return;
 
@@ -63,8 +98,9 @@ export function NotificationBell() {
 
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
 
       if (!user) {
         setIsLoggedIn(false);
@@ -73,24 +109,25 @@ export function NotificationBell() {
         return;
       }
 
-      const { count } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("is_read", false);
-
-      const { data } = await supabase
-        .from("notifications")
-        .select(
-          "id, type, title, message, link_url, target_url, is_read, created_at"
-        )
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
+      const [countResult, listResult] = await Promise.all([
+        supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false),
+        supabase
+          .from("notifications")
+          .select(
+            "id, type, title, message, link_url, target_url, is_read, created_at"
+          )
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ]);
 
       setIsLoggedIn(true);
-      setUnreadCount(count || 0);
-      setItems((data || []) as NotificationItem[]);
+      setUnreadCount(countResult.count || 0);
+      setItems((listResult.data || []) as NotificationItem[]);
     } catch {
       setIsLoggedIn(false);
       setUnreadCount(0);
@@ -118,7 +155,11 @@ export function NotificationBell() {
         targetUrl: targetUrl || "",
       });
 
-      await fetchNotifications();
+      if (isOpenRef.current) {
+        await fetchNotifications();
+      } else {
+        await fetchUnreadSummary();
+      }
     } catch {
       // Optimistic read state is enough if the network is temporarily unavailable.
     }
@@ -127,8 +168,9 @@ export function NotificationBell() {
   async function markAllAsRead() {
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
 
       if (!user) return;
 
@@ -167,6 +209,10 @@ export function NotificationBell() {
   }
 
   useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  useEffect(() => {
     if (shouldHide) return;
 
     let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
@@ -174,26 +220,26 @@ export function NotificationBell() {
 
     async function setupRealtimeNotifications() {
       try {
-        await fetchNotifications();
+        const userId = await fetchUnreadSummary();
 
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user || !isActive) return;
+        if (!userId || !isActive) return;
 
         realtimeChannel = supabase
-          .channel(`notifications:${user.id}`)
+          .channel(`notifications:${userId}`)
           .on(
             "postgres_changes",
             {
               event: "*",
               schema: "public",
               table: "notifications",
-              filter: `user_id=eq.${user.id}`,
+              filter: `user_id=eq.${userId}`,
             },
             async () => {
-              await fetchNotifications();
+              if (isOpenRef.current) {
+                await fetchNotifications();
+              } else {
+                await fetchUnreadSummary();
+              }
             }
           )
           .subscribe();
@@ -218,8 +264,15 @@ export function NotificationBell() {
       }, 900);
     }
 
-    const backupInterval = window.setInterval(fetchNotifications, 60000);
-    window.addEventListener("focus", fetchNotifications);
+    const backupInterval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void fetchUnreadSummary();
+      }
+    }, 90000);
+    const handleFocus = () => {
+      void fetchUnreadSummary();
+    };
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       isActive = false;
@@ -230,13 +283,13 @@ export function NotificationBell() {
         globalThis.clearTimeout(setupTimeoutId);
       }
       window.clearInterval(backupInterval);
-      window.removeEventListener("focus", fetchNotifications);
+      window.removeEventListener("focus", handleFocus);
 
       if (realtimeChannel) {
         supabase.removeChannel(realtimeChannel);
       }
     };
-  }, [fetchNotifications, pathname, shouldHide, supabase]);
+  }, [fetchNotifications, fetchUnreadSummary, shouldHide, supabase]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -269,8 +322,15 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => {
-          setIsOpen((current) => !current);
-          fetchNotifications();
+          setIsOpen((current) => {
+            const nextOpen = !current;
+
+            if (nextOpen) {
+              void fetchNotifications();
+            }
+
+            return nextOpen;
+          });
         }}
         className="relative flex h-12 w-12 items-center justify-center rounded-full border border-[#2E7D5B]/10 bg-white text-xl shadow-xl shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-[#FAF7F0]"
         aria-label="Bildirimler"

@@ -232,7 +232,7 @@ export default function FeedScreen() {
       )
       .in("user_id", visibleUserIds)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(24);
 
     if (postsError) {
       setErrorMessage(postsError.message);
