@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -84,6 +85,12 @@ type PostLike = {
   user_id: string;
 };
 
+type PostSave = {
+  id: string;
+  post_id: string;
+  user_id: string;
+};
+
 type PostComment = {
   id: string;
   post_id: string;
@@ -132,13 +139,17 @@ export default function FeedScreen() {
   const [favoriteQuoteCount, setFavoriteQuoteCount] = useState(0);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [saveCounts, setSaveCounts] = useState<Record<string, number>>({});
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
+  const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyLikeId, setBusyLikeId] = useState<string | null>(null);
+  const [busySaveId, setBusySaveId] = useState<string | null>(null);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [savesAvailable, setSavesAvailable] = useState(true);
 
   async function loadFeed() {
     setErrorMessage(null);
@@ -245,14 +256,24 @@ export default function FeedScreen() {
 
     let likes: PostLike[] = [];
     let comments: PostComment[] = [];
+    let saves: PostSave[] = [];
 
     if (postIds.length > 0) {
       const { data: likesData } = await supabase.from("post_likes").select("id, post_id, user_id").in("post_id", postIds);
 
       const { data: commentsData } = await supabase.from("post_comments").select("id, post_id").in("post_id", postIds);
 
+      const { data: savesData, error: savesError } = await supabase.from("post_saves").select("id, post_id, user_id").in("post_id", postIds);
+
       likes = (likesData || []) as PostLike[];
       comments = (commentsData || []) as PostComment[];
+
+      if (savesError) {
+        setSavesAvailable(false);
+      } else {
+        setSavesAvailable(true);
+        saves = (savesData || []) as PostSave[];
+      }
     }
 
     setPosts(nextPosts);
@@ -261,7 +282,9 @@ export default function FeedScreen() {
     setFriendCount(friendIds.length);
     setLikeCounts(countByPostId(likes));
     setCommentCounts(countByPostId(comments));
+    setSaveCounts(countByPostId(saves));
     setLikedPostIds(new Set(likes.filter((like) => like.user_id === user.id).map((like) => like.post_id)));
+    setSavedPostIds(new Set(saves.filter((save) => save.user_id === user.id).map((save) => save.post_id)));
   }
 
   useEffect(() => {
@@ -328,6 +351,65 @@ export default function FeedScreen() {
     setBusyLikeId(null);
   }
 
+  async function toggleSave(postId: string) {
+    if (!currentUserId || busySaveId) return;
+
+    if (!savesAvailable) {
+      Alert.alert("Kaydetme hazir degil", "Supabase SQL calistirildiktan sonra kaydetme aktif olur.");
+      return;
+    }
+
+    setBusySaveId(postId);
+    const saved = savedPostIds.has(postId);
+
+    if (saved) {
+      const { data: existingSave, error } = await supabase
+        .from("post_saves")
+        .select("id")
+        .eq("post_id", postId)
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+
+      if (!error && existingSave) {
+        await supabase.from("post_saves").delete().eq("id", existingSave.id);
+        setSavedPostIds((current) => {
+          const next = new Set(current);
+          next.delete(postId);
+          return next;
+        });
+        setSaveCounts((current) => ({ ...current, [postId]: Math.max((current[postId] || 1) - 1, 0) }));
+      }
+    } else {
+      const { error } = await supabase.from("post_saves").insert({
+        post_id: postId,
+        user_id: currentUserId,
+      });
+
+      if (!error) {
+        setSavedPostIds((current) => new Set([...current, postId]));
+        setSaveCounts((current) => ({ ...current, [postId]: (current[postId] || 0) + 1 }));
+      }
+    }
+
+    setBusySaveId(null);
+  }
+
+  async function sharePost(post: SocialPost) {
+    const profile = first(post.profiles);
+    const quoteItem = first(post.quote_items);
+    const text =
+      quoteItem?.quote_text_tr ||
+      quoteItem?.quote_text ||
+      post.caption ||
+      `${getProfileName(profile)} KampusRaf'ta bir kitap ani paylasti.`;
+
+    await Share.share({
+      title: "KampusRaf gonderisi",
+      message: `${text}\n\nhttps://www.kampusraf.com/gonderi/${post.id}`,
+      url: `https://www.kampusraf.com/gonderi/${post.id}`,
+    });
+  }
+
   async function deletePost(post: SocialPost) {
     if (!currentUserId || deletingPostId) return;
 
@@ -361,6 +443,22 @@ export default function FeedScreen() {
   }
 
   const totalLikes = useMemo(() => Object.values(likeCounts).reduce((sum, value) => sum + value, 0), [likeCounts]);
+  const storyProfiles = useMemo(() => {
+    const profileMap = new Map<string, PostProfile>();
+
+    if (currentProfile) {
+      profileMap.set(currentProfile.id, currentProfile);
+    }
+
+    posts.forEach((post) => {
+      const profile = first(post.profiles);
+      if (profile) {
+        profileMap.set(profile.id, profile);
+      }
+    });
+
+    return Array.from(profileMap.values()).slice(0, 12);
+  }, [currentProfile, posts]);
 
   if (loading) {
     return (
@@ -399,6 +497,31 @@ export default function FeedScreen() {
           <Text style={styles.outlineButtonText}>Rastgele Raf</Text>
         </Pressable>
       </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.storyRail}
+        contentContainerStyle={styles.storyRailContent}
+      >
+        <StoryBubble
+          label="Sen"
+          profile={currentProfile}
+          active
+          onPress={() => router.push("/share" as never)}
+        />
+
+        {storyProfiles.map((profile) => (
+          <StoryBubble
+            key={profile.id}
+            label={profile.id === currentUserId ? "Sen" : getProfileName(profile)}
+            profile={profile}
+            onPress={() => {
+              router.push("/friends" as never);
+            }}
+          />
+        ))}
+      </ScrollView>
 
       <View style={styles.communityCard}>
         <View style={styles.communityHeader}>
@@ -455,6 +578,7 @@ export default function FeedScreen() {
             const quoteBook = first(quoteItem?.quote_books);
             const isQuotePost = post.post_type === "quote" && Boolean(quoteItem);
             const liked = likedPostIds.has(post.id);
+            const saved = savedPostIds.has(post.id);
             const isOwnPost = currentUserId === post.user_id;
 
             return (
@@ -572,6 +696,33 @@ export default function FeedScreen() {
                   >
                     <Text style={styles.commentButtonText}>Yorum • {commentCounts[post.id] || 0}</Text>
                   </Pressable>
+
+                  <Pressable
+                    style={[styles.saveButton, saved && styles.activeSaveButton]}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      toggleSave(post.id);
+                    }}
+                    disabled={busySaveId === post.id}
+                  >
+                    {busySaveId === post.id ? (
+                      <ActivityIndicator color={saved ? "#fff" : GREEN} size="small" />
+                    ) : (
+                      <Text style={[styles.saveButtonText, saved && styles.activeSaveButtonText]}>
+                        {saved ? "Kaydedildi" : "Kaydet"} â€¢ {saveCounts[post.id] || 0}
+                      </Text>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.shareButton}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      sharePost(post);
+                    }}
+                  >
+                    <Text style={styles.shareButtonText}>Paylas</Text>
+                  </Pressable>
                 </View>
               </Pressable>
               </Fragment>
@@ -604,6 +755,40 @@ function MiniAction({ label, onPress }: { label: string; onPress: () => void }) 
   return (
     <Pressable style={styles.miniAction} onPress={onPress}>
       <Text style={styles.miniActionText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function StoryBubble({
+  label,
+  profile,
+  active = false,
+  onPress,
+}: {
+  label: string;
+  profile?: PostProfile | null;
+  active?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.storyBubble} onPress={onPress}>
+      <View style={[styles.storyRing, active && styles.storyRingActive]}>
+        <View style={styles.storyAvatar}>
+          {profile?.avatar_url ? (
+            <Image
+              source={{ uri: profile.avatar_url }}
+              style={styles.storyAvatarImage}
+              contentFit="cover"
+              accessibilityLabel={getProfileName(profile)}
+            />
+          ) : (
+            <Text style={styles.storyAvatarText}>{active ? "+" : getInitial(profile)}</Text>
+          )}
+        </View>
+      </View>
+      <Text style={styles.storyLabel} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -648,6 +833,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   outlineButtonText: { color: DARK_GREEN, fontSize: 13, fontWeight: "900" },
+  storyRail: { marginTop: 16 },
+  storyRailContent: { gap: 12, paddingRight: 8 },
+  storyBubble: { width: 74, alignItems: "center" },
+  storyRing: {
+    width: 66,
+    height: 66,
+    borderRadius: 999,
+    backgroundColor: "#F59E0B",
+    padding: 3,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  storyRingActive: { backgroundColor: GREEN },
+  storyAvatar: {
+    flex: 1,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: "#fff",
+    backgroundColor: BG,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  storyAvatarImage: { width: "100%", height: "100%" },
+  storyAvatarText: { color: GREEN, fontSize: 20, fontWeight: "900" },
+  storyLabel: { marginTop: 7, color: TEXT, fontSize: 11, fontWeight: "900" },
   communityCard: {
     marginTop: 16,
     borderRadius: 24,
@@ -754,9 +967,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   bookTagText: { color: "#92400E", fontSize: 11, fontWeight: "900" },
-  cardActions: { marginTop: 14, flexDirection: "row", gap: 8 },
+  cardActions: { marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 8 },
   likeButton: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: "46%",
     borderRadius: 18,
     backgroundColor: "rgba(46,125,91,0.08)",
     paddingVertical: 13,
@@ -766,13 +980,34 @@ const styles = StyleSheet.create({
   likeButtonText: { color: DARK_GREEN, fontSize: 12, fontWeight: "900" },
   activeLikeButtonText: { color: "#fff" },
   commentButton: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: "46%",
     borderRadius: 18,
     backgroundColor: "#F8FAFC",
     paddingVertical: 13,
     alignItems: "center",
   },
   commentButtonText: { color: MUTED, fontSize: 12, fontWeight: "900" },
+  saveButton: {
+    flexGrow: 1,
+    minWidth: "46%",
+    borderRadius: 18,
+    backgroundColor: "#FFFBEB",
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  activeSaveButton: { backgroundColor: "#F59E0B" },
+  saveButtonText: { color: "#92400E", fontSize: 12, fontWeight: "900" },
+  activeSaveButtonText: { color: "#fff" },
+  shareButton: {
+    flexGrow: 1,
+    minWidth: "46%",
+    borderRadius: 18,
+    backgroundColor: "#F8FAFC",
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  shareButtonText: { color: MUTED, fontSize: 12, fontWeight: "900" },
   emptyCard: { borderRadius: 26, backgroundColor: CARD, padding: 24, alignItems: "center" },
   emptyTitle: { marginTop: 10, color: TEXT, fontSize: 20, fontWeight: "900" },
   emptyText: { marginTop: 6, color: MUTED, fontSize: 13, fontWeight: "700", lineHeight: 20, textAlign: "center" },

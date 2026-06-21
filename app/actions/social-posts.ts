@@ -259,6 +259,79 @@ export async function togglePostLikeAction(formData: FormData) {
   }
 }
 
+export async function togglePostSaveAction(formData: FormData) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  const postId = normalizeUuid(formData.get("postId"));
+  const redirectTo = normalizeInternalPath(formData.get("redirectTo"), "/akis");
+
+  if (!postId) {
+    return;
+  }
+
+  enforceActionRateLimit({
+    userId: user.id,
+    action: "toggle-post-save",
+    limit: 80,
+    windowMs: 60_000,
+    redirectTo,
+  });
+
+  const { data: existingSave, error: existingSaveError } = await supabase
+    .from("post_saves")
+    .select("id")
+    .eq("post_id", postId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existingSaveError) {
+    console.error("POST_SAVE_FETCH_ERROR", existingSaveError.message);
+
+    if (redirectTo.startsWith("/")) {
+      redirect(redirectTo);
+    }
+
+    return;
+  }
+
+  if (existingSave) {
+    const { error: unsaveError } = await supabase
+      .from("post_saves")
+      .delete()
+      .eq("id", existingSave.id);
+
+    if (unsaveError) {
+      console.error("POST_UNSAVE_DELETE_ERROR", unsaveError.message);
+    }
+  } else {
+    const { error: saveError } = await supabase.from("post_saves").insert({
+      post_id: postId,
+      user_id: user.id,
+    });
+
+    if (saveError) {
+      console.error("POST_SAVE_INSERT_ERROR", saveError.message);
+    }
+  }
+
+  revalidatePath("/akis");
+  revalidatePath("/dashboard");
+  revalidatePath(`/gonderi/${postId}`);
+
+  if (redirectTo.startsWith("/")) {
+    revalidatePath(redirectTo);
+    redirect(redirectTo);
+  }
+}
+
 export async function createPostCommentAction(formData: FormData) {
   const supabase = await createClient();
 
