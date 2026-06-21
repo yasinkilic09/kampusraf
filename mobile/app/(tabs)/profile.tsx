@@ -360,6 +360,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Hizli Erisim</Text>
 
         <QuickButton label="Profil Bilgilerini Duzenle" onPress={() => router.push("/profile/edit")} />
+        <QuickButton label="Ogrenci Dogrulama" onPress={() => router.push("/student-verification" as never)} />
         <QuickButton label="Rastgele Raf" onPress={() => router.push("/random-shelf" as never)} />
         <QuickButton label="Favori Alintilarim" onPress={() => router.push("/random-shelf/favorites" as never)} />
         <QuickButton label="Sosyal Akis" onPress={() => router.push("/feed")} />
@@ -367,6 +368,8 @@ export default function ProfileScreen() {
         <QuickButton label="Arkadaslar" onPress={() => router.push("/friends" as never)} />
         <QuickButton label="Mesajlar" onPress={() => router.push("/messages" as never)} />
         <QuickButton label="Sesli Raf" onPress={() => router.push("/audio" as never)} />
+        <QuickButton label="Hakkimizda" onPress={() => router.push("/about" as never)} />
+        <QuickButton label="Bize Ulasin" onPress={() => router.push("/contact" as never)} />
       </View>
 
       <View style={styles.noticeCard}>

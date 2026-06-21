@@ -46,6 +46,8 @@ export const appNavItems: AppHeaderNavItem[] = [
   { key: "ogrenci-dogrulama", href: "/ogrenci-dogrulama", label: "Öğrenci Doğrulama" },
   { key: "paketler", href: "/paketler", label: "Paketler" },
   { key: "profilim", href: "/profilim", label: "Profilim" },
+  { key: "hakkimizda", href: "/hakkimizda", label: "Hakkımızda" },
+  { key: "bize-ulasin", href: "/bize-ulasin", label: "Bize Ulaşın" },
 ];
 
 export const adminNavItems: AppHeaderNavItem[] = [
@@ -101,6 +103,12 @@ const appNavGroups: AppHeaderNavGroup[] = [
     label: "Hesap",
     description: "Profil ve üyelik",
     itemKeys: ["profilim", "ogrenci-dogrulama", "paketler"],
+  },
+  {
+    key: "support",
+    label: "Destek",
+    description: "KampüsRaf ve iletişim",
+    itemKeys: ["hakkimizda", "bize-ulasin"],
   },
 ];
 

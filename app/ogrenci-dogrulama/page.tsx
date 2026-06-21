@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 type SearchParams = {
   success?: string;
   error?: string;
+  devCode?: string;
 };
 
 type ProfileVerification = {
@@ -328,6 +329,19 @@ const isPending = verificationStatus === "pending";
         {params.error && (
           <div className="mt-4 rounded-2xl bg-red-50 p-4 text-sm font-black text-red-700 md:mt-6">
             {decodeURIComponent(params.error)}
+          </div>
+        )}
+
+        {params.devCode && (
+          <div className="mt-4 rounded-2xl border border-[#F59E0B]/25 bg-[#FFFBEB] p-4 text-sm font-bold leading-7 text-[#92400E] md:mt-6">
+            <p className="font-black">Test doğrulama kodu</p>
+            <p className="mt-1">
+              E-posta sağlayıcısı bağlı olmadığı için geliştirme/test modunda kod
+              burada gösteriliyor:{" "}
+              <span className="rounded-xl bg-white px-3 py-1 font-black tracking-[0.25em] text-[#2E7D5B]">
+                {params.devCode}
+              </span>
+            </p>
           </div>
         )}
 

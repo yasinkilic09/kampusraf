@@ -251,6 +251,24 @@ const shortcutGroups: ShortcutGroup[] = [
       },
     ],
   },
+  {
+    title: "Destek",
+    description: "KampüsRaf ve iletişim",
+    items: [
+      {
+        title: "Hakkımızda",
+        href: "/hakkimizda",
+        icon: "H",
+        description: "Platformun amacı",
+      },
+      {
+        title: "Bize Ulaşın",
+        href: "/bize-ulasin",
+        icon: "I",
+        description: "Destek ve iletişim",
+      },
+    ],
+  },
 ];
 
 const adminMenuItems: ShortcutItem[] = [

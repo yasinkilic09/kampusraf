@@ -56,6 +56,16 @@ export const publicSeoRoutes: PublicSeoRoute[] = [
     priority: 0.95,
   },
   {
+    path: "/hakkimizda",
+    changeFrequency: "monthly",
+    priority: 0.8,
+  },
+  {
+    path: "/bize-ulasin",
+    changeFrequency: "monthly",
+    priority: 0.7,
+  },
+  {
     path: "/kampus-kitap-paylasimi",
     changeFrequency: "monthly",
     priority: 0.9,

@@ -223,6 +223,12 @@ export default function Home() {
             <a href="#guvenlik" className="transition hover:text-[#2E7D5B]">
               Güvenlik
             </a>
+            <Link href="/hakkimizda" className="transition hover:text-[#2E7D5B]">
+              Hakkımızda
+            </Link>
+            <Link href="/bize-ulasin" className="transition hover:text-[#2E7D5B]">
+              Bize Ulaşın
+            </Link>
             <a href="#rastgele-raf" className="transition hover:text-[#2E7D5B]">
   Rastgele Raf
 </a>
@@ -697,6 +703,20 @@ export default function Home() {
 
       <footer className="border-t border-[#2E7D5B]/10 px-6 py-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm font-semibold text-slate-500 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap gap-4">
+            <Link href="/hakkimizda" className="hover:text-[#2E7D5B]">
+              Hakkımızda
+            </Link>
+            <Link href="/bize-ulasin" className="hover:text-[#2E7D5B]">
+              Bize Ulaşın
+            </Link>
+            <Link href="/kvkk-aydinlatma-metni" className="hover:text-[#2E7D5B]">
+              KVKK
+            </Link>
+            <Link href="/kullanim-kosullari" className="hover:text-[#2E7D5B]">
+              Kullanım Koşulları
+            </Link>
+          </div>
           <p>© 2026 KampüsRaf. Tüm hakları saklıdır.</p>
           <p>Kitaplar paylaşılır, fikirler büyür.</p>
         </div>

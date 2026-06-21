@@ -10,6 +10,12 @@ import {
 } from "@/lib/match-plans";
 import { enforceActionRateLimit } from "@/lib/server-action-security";
 import { createClient } from "@/lib/supabase/server";
+import {
+  normalizeStudentEmail,
+  requestStudentVerificationCode,
+  safeVerificationCodeInput,
+  verifyStudentVerificationCode,
+} from "@/lib/student-verification";
 import { normalizeTextInput } from "@/lib/validation";
 
 function cleanUsername(value: string) {
@@ -324,11 +330,19 @@ function generateVerificationCode() {
 }
 
 function getVerificationSecret() {
-  return (
+  const explicitSecret =
     process.env.STUDENT_VERIFICATION_SECRET ||
     process.env.NEXTAUTH_SECRET ||
     process.env.SUPABASE_JWT_SECRET ||
-    ""
+    "";
+
+  if (explicitSecret) return explicitSecret;
+  if (process.env.NODE_ENV === "production") return "";
+
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    "kampusraf-local-student-verification"
   );
 }
 
@@ -342,12 +356,11 @@ function hashVerificationCode(code: string) {
   return crypto.createHmac("sha256", secret).update(code).digest("hex");
 }
 
-function safeCodeInput(value: string) {
-  return value.replace(/\D/g, "").slice(0, 6);
-}
-
 function isStudentVerificationTestMode() {
-  return process.env.STUDENT_VERIFICATION_TEST_MODE === "true";
+  return (
+    process.env.STUDENT_VERIFICATION_TEST_MODE === "true" ||
+    process.env.NODE_ENV !== "production"
+  );
 }
 
 async function isAllowedUniversityEmailDomain(
@@ -367,7 +380,7 @@ async function isAllowedUniversityEmailDomain(
 }
 
 export async function sendStudentVerificationCodeAction(formData: FormData) {
-  const universityEmail = normalizeEmail(
+  const universityEmail = normalizeStudentEmail(
     String(formData.get("universityEmail") || "")
   );
   const verificationNote = normalizeTextInput(formData.get("verificationNote"), {
@@ -395,13 +408,42 @@ export async function sendStudentVerificationCodeAction(formData: FormData) {
     redirect("/auth/login");
   }
 
+  const userId = user.id;
+
   enforceActionRateLimit({
-    userId: user.id,
+    userId,
     action: "send-student-verification-code",
     limit: 3,
     windowMs: 10 * 60_000,
     redirectTo: "/ogrenci-dogrulama",
   });
+
+  const sendResult = await requestStudentVerificationCode({
+    supabase,
+    userId,
+    universityEmail,
+    verificationNote,
+  });
+
+  if (!sendResult.ok) {
+    redirect(
+      `/ogrenci-dogrulama?error=${encodeURIComponent(sendResult.message)}`
+    );
+  }
+
+  revalidatePath("/ogrenci-dogrulama");
+  revalidatePath("/profilim");
+  revalidatePath("/admin/dogrulamalar");
+
+  const params = new URLSearchParams({
+    success: sendResult.delivery === "email" ? "code-sent" : "code-created",
+  });
+
+  if (sendResult.debugCode) {
+    params.set("devCode", sendResult.debugCode);
+  }
+
+  redirect(`/ogrenci-dogrulama?${params.toString()}`);
 
   const domainAllowed = await isAllowedUniversityEmailDomain(
     supabase,
@@ -427,19 +469,19 @@ export async function sendStudentVerificationCodeAction(formData: FormData) {
     .update({
       consumed_at: nowIso,
     })
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .is("consumed_at", null);
 
-  const { error: insertError } = await supabase
+  const { error: insertError } = (await supabase
     .from("student_verification_codes")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       university_email: universityEmail,
       email_domain: emailDomain,
       code_hash: codeHash,
       expires_at: expiresAt,
       last_sent_at: nowIso,
-    });
+    })) as { error: { message?: string } };
 
   if (insertError) {
     redirect(
@@ -449,7 +491,7 @@ export async function sendStudentVerificationCodeAction(formData: FormData) {
     );
   }
 
-  const { error: profileError } = await supabase
+  const { error: profileError } = (await supabase
     .from("profiles")
     .update({
       verification_status: "pending",
@@ -459,7 +501,7 @@ export async function sendStudentVerificationCodeAction(formData: FormData) {
       verification_requested_at: nowIso,
       updated_at: nowIso,
     })
-    .eq("id", user.id);
+    .eq("id", userId)) as { error: { message?: string } };
 
   if (profileError) {
     redirect(
@@ -492,10 +534,10 @@ export async function sendStudentVerificationCodeAction(formData: FormData) {
 }
 
 export async function verifyStudentVerificationCodeAction(formData: FormData) {
-  const universityEmail = normalizeEmail(
+  const universityEmail = normalizeStudentEmail(
     String(formData.get("universityEmail") || "")
   );
-  const code = safeCodeInput(String(formData.get("code") || ""));
+  const code = safeVerificationCodeInput(String(formData.get("code") || ""));
 
   if (!isValidEmail(universityEmail)) {
     redirect(
@@ -523,18 +565,42 @@ export async function verifyStudentVerificationCodeAction(formData: FormData) {
     redirect("/auth/login");
   }
 
+  const userId = user.id;
+
   enforceActionRateLimit({
-    userId: user.id,
+    userId,
     action: "verify-student-code",
     limit: 10,
     windowMs: 10 * 60_000,
     redirectTo: "/ogrenci-dogrulama",
   });
 
+  const verifyResult = await verifyStudentVerificationCode({
+    supabase,
+    userId,
+    universityEmail,
+    code,
+  });
+
+  if (!verifyResult.ok) {
+    redirect(
+      `/ogrenci-dogrulama?error=${encodeURIComponent(verifyResult.message)}`
+    );
+  }
+
+  revalidatePath("/ogrenci-dogrulama");
+  revalidatePath("/profilim");
+  revalidatePath("/dashboard");
+  revalidatePath("/kitap-ara");
+  revalidatePath("/eslesmeler");
+  revalidatePath("/admin/dogrulamalar");
+
+  redirect("/ogrenci-dogrulama?success=verified");
+
   const { data: codeRow, error: codeError } = await supabase
     .from("student_verification_codes")
     .select("id, code_hash, attempts, expires_at, consumed_at")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("university_email", universityEmail)
     .is("consumed_at", null)
     .order("created_at", { ascending: false })
@@ -549,13 +615,13 @@ export async function verifyStudentVerificationCodeAction(formData: FormData) {
     );
   }
 
-  if (new Date(codeRow.expires_at).getTime() < Date.now()) {
+  if (new Date(codeRow!.expires_at).getTime() < Date.now()) {
     await supabase
       .from("student_verification_codes")
       .update({
         consumed_at: new Date().toISOString(),
       })
-      .eq("id", codeRow.id);
+      .eq("id", codeRow!.id);
 
     redirect(
       `/ogrenci-dogrulama?error=${encodeURIComponent(
@@ -564,7 +630,7 @@ export async function verifyStudentVerificationCodeAction(formData: FormData) {
     );
   }
 
-  if ((codeRow.attempts || 0) >= 5) {
+  if ((codeRow!.attempts || 0) >= 5) {
     redirect(
       `/ogrenci-dogrulama?error=${encodeURIComponent(
         "Çok fazla hatalı deneme yapıldı. Lütfen yeni kod oluştur."
@@ -574,13 +640,13 @@ export async function verifyStudentVerificationCodeAction(formData: FormData) {
 
   const expectedHash = hashVerificationCode(code);
 
-  if (expectedHash !== codeRow.code_hash) {
+  if (expectedHash !== codeRow!.code_hash) {
     await supabase
       .from("student_verification_codes")
       .update({
-        attempts: (codeRow.attempts || 0) + 1,
+        attempts: (codeRow!.attempts || 0) + 1,
       })
-      .eq("id", codeRow.id);
+      .eq("id", codeRow!.id);
 
     redirect(
       `/ogrenci-dogrulama?error=${encodeURIComponent(
@@ -592,14 +658,14 @@ export async function verifyStudentVerificationCodeAction(formData: FormData) {
   const { data: profile } = await supabase
     .from("profiles")
     .select("trust_score")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle();
 
   const currentTrustScore = profile?.trust_score ?? 60;
   const nextTrustScore = Math.min(Math.max(currentTrustScore + 15, 70), 100);
   const now = new Date().toISOString();
 
-  const { error: profileError } = await supabase
+  const { error: profileError } = (await supabase
     .from("profiles")
     .update({
       verification_status: "verified",
@@ -611,7 +677,7 @@ export async function verifyStudentVerificationCodeAction(formData: FormData) {
       verification_note: null,
       updated_at: now,
     })
-    .eq("id", user.id);
+    .eq("id", userId)) as { error: { message?: string } };
 
   if (profileError) {
     redirect(
@@ -626,7 +692,7 @@ export async function verifyStudentVerificationCodeAction(formData: FormData) {
     .update({
       consumed_at: now,
     })
-    .eq("id", codeRow.id);
+    .eq("id", codeRow!.id);
 
   revalidatePath("/ogrenci-dogrulama");
   revalidatePath("/profilim");

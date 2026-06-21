@@ -83,6 +83,12 @@ const discoveryItems: MenuItem[] = [
   { label: "Sesli Raf", hint: "Sesli içerikler", route: "/audio", icon: "headset" },
 ];
 
+const accountItems: MenuItem[] = [
+  { label: "Öğrenci Doğrulama", hint: "Rozet ve güven puanı", route: "/student-verification", icon: "school" },
+  { label: "Hakkımızda", hint: "KampüsRaf'ın amacı", route: "/about", icon: "information-circle" },
+  { label: "Bize Ulaşın", hint: "Destek ve iş birliği", route: "/contact", icon: "mail" },
+];
+
 function openRoute(route: string) {
   router.push(route as never);
 }
@@ -160,6 +166,12 @@ export default function MenuScreen() {
         title="Keşif"
         description="Alıntı, kelime ve sesli raf içerikleri."
         items={discoveryItems}
+        twoColumn
+      />
+      <MenuSection
+        title="Hesap ve Destek"
+        description="Doğrulama, platform bilgisi ve iletişim."
+        items={accountItems}
         twoColumn
       />
     </ScrollView>
