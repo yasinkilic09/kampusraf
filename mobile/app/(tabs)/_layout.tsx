@@ -1,6 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
 import React from "react";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HapticTab } from "@/components/haptic-tab";
@@ -14,11 +15,24 @@ const CARD = "#FFFFFF";
 function TabIcon({
   name,
   color,
+  focused,
+  tone = "green",
 }: {
   name: React.ComponentProps<typeof Ionicons>["name"];
   color: string;
+  focused: boolean;
+  tone?: "green" | "amber";
 }) {
-  return <Ionicons name={name} size={22} color={color} />;
+  return (
+    <View
+      style={[
+        styles.tabIconShell,
+        focused && (tone === "amber" ? styles.tabIconAmber : styles.tabIconActive),
+      ]}
+    >
+      <Ionicons name={name} size={focused ? 22 : 21} color={focused ? "#FFFFFF" : color} />
+    </View>
+  );
 }
 
 export default function TabLayout() {
@@ -38,23 +52,25 @@ export default function TabLayout() {
             left: 12,
             right: 12,
             bottom: Math.max(insets.bottom, 8),
-            height: 66,
-            paddingBottom: 9,
-            paddingTop: 8,
-            backgroundColor: CARD,
+            height: 72,
+            paddingBottom: 10,
+            paddingTop: 9,
+            backgroundColor: "rgba(255,255,255,0.96)",
             borderTopWidth: 0,
-            borderRadius: 26,
+            borderWidth: 1,
+            borderColor: "rgba(46,125,91,0.10)",
+            borderRadius: 28,
             shadowColor: "#0F172A",
-            shadowOpacity: 0.14,
-            shadowRadius: 18,
+            shadowOpacity: 0.12,
+            shadowRadius: 20,
             elevation: 10,
           },
           tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: "800",
+            fontSize: 10.5,
+            fontWeight: "900",
           },
           tabBarItemStyle: {
-            paddingBottom: 2,
+            paddingBottom: 1,
           },
         }}>
         <Tabs.Screen
@@ -62,7 +78,9 @@ export default function TabLayout() {
           options={{
             title: "Panel",
             tabBarAccessibilityLabel: "Panel sekmesi",
-            tabBarIcon: ({ color }) => <TabIcon name="home" color={color} />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="home" color={color} focused={focused} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -70,7 +88,9 @@ export default function TabLayout() {
           options={{
             title: "Akış",
             tabBarAccessibilityLabel: "Akış sekmesi",
-            tabBarIcon: ({ color }) => <TabIcon name="leaf" color={color} />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="leaf" color={color} focused={focused} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -79,7 +99,9 @@ export default function TabLayout() {
             title: "Paylaş",
             tabBarAccessibilityLabel: "Paylaş sekmesi",
             tabBarActiveTintColor: AMBER,
-            tabBarIcon: ({ color }) => <TabIcon name="add-circle" color={color} />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="add-circle" color={color} focused={focused} tone="amber" />
+            ),
           }}
         />
         <Tabs.Screen
@@ -87,7 +109,9 @@ export default function TabLayout() {
           options={{
             title: "Ara",
             tabBarAccessibilityLabel: "Ara sekmesi",
-            tabBarIcon: ({ color }) => <TabIcon name="search" color={color} />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="search" color={color} focused={focused} />
+            ),
           }}
         />
         <Tabs.Screen
@@ -95,7 +119,9 @@ export default function TabLayout() {
           options={{
             title: "Menü",
             tabBarAccessibilityLabel: "Menü sekmesi",
-            tabBarIcon: ({ color }) => <TabIcon name="grid" color={color} />,
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="grid" color={color} focused={focused} />
+            ),
           }}
         />
         <Tabs.Screen name="messages" options={{ href: null }} />
@@ -106,3 +132,27 @@ export default function TabLayout() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIconShell: {
+    width: 34,
+    height: 28,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabIconActive: {
+    backgroundColor: GREEN,
+    shadowColor: GREEN,
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  tabIconAmber: {
+    backgroundColor: AMBER,
+    shadowColor: AMBER,
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+});

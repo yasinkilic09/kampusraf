@@ -129,8 +129,19 @@ function getGroupNavClass(isActive: boolean) {
   return [
     "flex items-center gap-2 rounded-full px-3 py-2 transition",
     isActive
-      ? "bg-[#2E7D5B]/10 text-[#2E7D5B]"
-      : "text-slate-600 hover:bg-[#2E7D5B]/5 hover:text-[#2E7D5B]",
+      ? "bg-white text-[#2E7D5B] shadow-sm"
+      : "text-slate-600 hover:bg-white hover:text-[#2E7D5B]",
+  ].join(" ");
+}
+
+function getPrimaryNavClass(isActive: boolean, isCreateAction: boolean) {
+  return [
+    "rounded-full px-3.5 py-2 transition",
+    isCreateAction
+      ? "bg-[#2E7D5B] text-white shadow-sm hover:bg-[#25684c]"
+      : isActive
+        ? "bg-white text-[#2E7D5B] shadow-sm"
+        : "text-slate-600 hover:bg-white hover:text-[#2E7D5B]",
   ].join(" ");
 }
 
@@ -189,10 +200,19 @@ export function AppHeader({
   actions,
 }: AppHeaderProps) {
   const hasAdminItem = navItems.some((item) => item.key === "admin");
-  const headerGroups = buildNavGroups(navItems, isAdmin);
+  const primaryNavKeys = new Set(
+    isAdmin
+      ? ["admin", "admin-kullanicilar", "admin-dogrulamalar", "panel"]
+      : ["panel", "akis", "paylas", "kitap-ara", "kitaplarim"]
+  );
+  const primaryNavItems = navItems.filter((item) => primaryNavKeys.has(item.key));
+  const secondaryNavItems = navItems.filter(
+    (item) => !primaryNavKeys.has(item.key)
+  );
+  const headerGroups = buildNavGroups(secondaryNavItems, isAdmin);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/88 px-4 py-3 shadow-sm shadow-slate-900/[0.03] backdrop-blur-xl md:px-6 md:py-4">
+    <header className="sticky top-0 z-30 border-b border-[#2E7D5B]/10 bg-white/90 px-4 py-3 shadow-sm shadow-slate-900/[0.03] backdrop-blur-xl md:px-6 md:py-4">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
         <Link href="/dashboard" className="group flex min-w-0 items-center gap-3">
           <BrandMark />
@@ -205,7 +225,28 @@ export function AppHeader({
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-1 text-sm font-black lg:flex">
+        <nav className="hidden items-center gap-2 text-sm font-black lg:flex">
+          <div className="flex items-center gap-1 rounded-full bg-[#FAF7F0] p-1 ring-1 ring-[#2E7D5B]/8">
+            {primaryNavItems.map((item) => {
+              const isCreateAction = item.key === "paylas";
+
+              return (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  prefetch={false}
+                  className={getPrimaryNavClass(
+                    active === item.key,
+                    isCreateAction
+                  )}
+                  aria-current={active === item.key ? "page" : undefined}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+
           {headerGroups.map((group) => {
             const groupActive = group.items.some((item) => active === item.key);
 
@@ -235,6 +276,7 @@ export function AppHeader({
                       <Link
                         key={item.key}
                         href={item.href}
+                        prefetch={false}
                         className={getNavItemClass(active === item.key)}
                       >
                         {item.label}
@@ -247,7 +289,11 @@ export function AppHeader({
           })}
 
           {isAdmin && !hasAdminItem ? (
-            <Link href="/admin" className={getGroupNavClass(active === "admin")}>
+            <Link
+              href="/admin"
+              prefetch={false}
+              className={getGroupNavClass(active === "admin")}
+            >
               Admin
             </Link>
           ) : null}

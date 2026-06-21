@@ -40,13 +40,20 @@ const primaryTabs: ShortcutItem[] = [
     tone: "amber",
   },
   {
-    title: "Rafım",
-    href: "/kitaplarim",
-    icon: "R",
+    title: "Ara",
+    href: "/kitap-ara",
+    icon: "A",
   },
 ];
 
 const quickActions: ShortcutItem[] = [
+  {
+    title: "Rafım",
+    href: "/kitaplarim",
+    icon: "R",
+    description: "Sanal kitaplığın",
+    tone: "green",
+  },
   {
     title: "Kitap Ekle",
     href: "/kitap-ekle",
@@ -410,6 +417,7 @@ export function MobileBottomNav() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      prefetch={false}
                       className={`rounded-[1.25rem] p-3 ring-1 transition hover:-translate-y-0.5 ${getToneClass(
                         item.tone,
                         active
@@ -460,6 +468,7 @@ export function MobileBottomNav() {
                           <Link
                             key={item.href}
                             href={item.href}
+                            prefetch={false}
                             className={`flex items-center gap-3 rounded-[1.1rem] p-3 ring-1 transition hover:-translate-y-0.5 ${
                               active
                                 ? "bg-[#2E7D5B] text-white ring-[#2E7D5B]"
@@ -517,6 +526,7 @@ export function MobileBottomNav() {
                         <Link
                           key={item.href}
                           href={item.href}
+                          prefetch={false}
                           className={`flex items-center gap-3 rounded-[1.1rem] p-3 ring-1 transition hover:-translate-y-0.5 ${
                             active
                               ? "bg-[#F59E0B] text-white ring-[#F59E0B]"
@@ -559,6 +569,7 @@ export function MobileBottomNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 aria-current={active ? "page" : undefined}
                 className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[1.15rem] px-1 py-2 transition ${
                   active

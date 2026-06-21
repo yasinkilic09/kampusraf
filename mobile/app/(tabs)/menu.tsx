@@ -19,11 +19,18 @@ type MenuItem = {
 
 const primaryItems: MenuItem[] = [
   {
-    label: "Akış",
-    hint: "Paylaşımlar ve alıntılar",
-    route: "/feed",
-    icon: "leaf",
+    label: "Rafım",
+    hint: "Sanal kitaplığın",
+    route: "/my-books",
+    icon: "library",
     tone: "green",
+  },
+  {
+    label: "Kitap Ara",
+    hint: "Kitap, yazar veya ISBN",
+    route: "/explore",
+    icon: "search",
+    tone: "soft",
   },
   {
     label: "Paylaş",
@@ -31,20 +38,6 @@ const primaryItems: MenuItem[] = [
     route: "/share",
     icon: "add-circle",
     tone: "amber",
-  },
-  {
-    label: "Rastgele Raf",
-    hint: "Zar at, alıntı keşfet",
-    route: "/random-shelf",
-    icon: "dice",
-    tone: "soft",
-  },
-  {
-    label: "Kelime Sözlüğü",
-    hint: "Her gün yeni kelime",
-    route: "/daily-word",
-    icon: "text",
-    tone: "soft",
   },
   {
     label: "Harita",
@@ -56,26 +49,30 @@ const primaryItems: MenuItem[] = [
 ];
 
 const socialItems: MenuItem[] = [
-  { label: "Topluluklar", hint: "Okuma gruplari", route: "/communities", icon: "people-circle" },
+  { label: "Akış", hint: "Paylaşımlar ve alıntılar", route: "/feed", icon: "leaf" },
+  { label: "Topluluklar", hint: "Okuma grupları", route: "/communities", icon: "people-circle" },
   { label: "Mesajlar", hint: "Sohbetlerini aç", route: "/messages", icon: "chatbubbles" },
   { label: "Arkadaşlar", hint: "Çevreni yönet", route: "/friends", icon: "people" },
   { label: "Bildirimler", hint: "Güncel hareketler", route: "/notifications", icon: "notifications" },
+  { label: "Profilim", hint: "Profil ve ayarlar", route: "/profile", icon: "person-circle" },
+];
+
+const bookItems: MenuItem[] = [
+  { label: "Kitap Ekle", hint: "Yeni kitap paylaş", route: "/books/add", icon: "book" },
+  { label: "Aradıklarım", hint: "Talep listeni yönet", route: "/requests", icon: "bookmark" },
+  { label: "Eşleşmeler", hint: "Akıllı öneriler", route: "/matches", icon: "git-compare" },
+  { label: "Takaslar", hint: "Takas durumları", route: "/exchanges", icon: "swap-horizontal" },
+];
+
+const discoveryItems: MenuItem[] = [
+  { label: "Rastgele Raf", hint: "Zar at, alıntı keşfet", route: "/random-shelf", icon: "dice" },
+  { label: "Kelime Sözlüğü", hint: "Her gün yeni kelime", route: "/daily-word", icon: "text" },
   {
     label: "Favori Alıntılarım",
     hint: "Kaydettiğin alıntılar",
     route: "/random-shelf/favorites",
     icon: "heart",
   },
-  { label: "Profilim", hint: "Profil ve ayarlar", route: "/profile", icon: "person-circle" },
-];
-
-const bookItems: MenuItem[] = [
-  { label: "Rafım", hint: "Paylaştığın kitaplar", route: "/my-books", icon: "library" },
-  { label: "Harita", hint: "Konuma göre kitap bul", route: "/map", icon: "map" },
-  { label: "Kitap Ekle", hint: "Yeni kitap paylaş", route: "/books/add", icon: "book" },
-  { label: "Aradıklarım", hint: "Talep listeni yönet", route: "/requests", icon: "bookmark" },
-  { label: "Eşleşmeler", hint: "Akıllı öneriler", route: "/matches", icon: "git-compare" },
-  { label: "Takaslar", hint: "Takas durumları", route: "/exchanges", icon: "swap-horizontal" },
   { label: "Sesli Raf", hint: "Sesli içerikler", route: "/audio", icon: "headset" },
 ];
 
@@ -100,8 +97,8 @@ export default function MenuScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <AppHero
         eyebrow="Hızlı Menü"
-        title="Web’deki ana yollar artık cebinde."
-        description="Sosyal akış, kitap arama, takas ve profil işlemleri tek ekranda toplandı."
+        title="En sık kullandığın yollar tek ekranda."
+        description="Önce günlük işler, sonra sosyal alanlar ve kitap-takas işlemleri. Daha az karmaşa, daha hızlı erişim."
       >
         <View style={styles.searchBox}>
           <Ionicons name="search" size={19} color={AppColors.green} />
@@ -140,24 +137,47 @@ export default function MenuScreen() {
         ))}
       </AnimatedAppear>
 
-      <MenuSection title="Sosyal" items={socialItems} />
-      <MenuSection title="Kitap ve Takas" items={bookItems} twoColumn />
+      <MenuSection
+        title="Sosyal"
+        description="Akış, topluluk, mesaj ve profil."
+        items={socialItems}
+      />
+      <MenuSection
+        title="Kitap ve Takas"
+        description="Rafını büyüt, taleplerini ve eşleşmelerini yönet."
+        items={bookItems}
+        twoColumn
+        showTip
+      />
+      <MenuSection
+        title="Keşif"
+        description="Alıntı, kelime ve sesli raf içerikleri."
+        items={discoveryItems}
+        twoColumn
+      />
     </ScrollView>
   );
 }
 
 function MenuSection({
   title,
+  description,
   items,
   twoColumn = false,
+  showTip = false,
 }: {
   title: string;
+  description?: string;
   items: MenuItem[];
   twoColumn?: boolean;
+  showTip?: boolean;
 }) {
   return (
     <AnimatedAppear delay={twoColumn ? 180 : 130} style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {description ? <Text style={styles.sectionDescription}>{description}</Text> : null}
+      </View>
       <View style={twoColumn ? styles.grid : styles.list}>
         {items.map((item) => (
           <PressableScale
@@ -177,7 +197,7 @@ function MenuSection({
         ))}
       </View>
 
-      {twoColumn ? (
+      {showTip ? (
         <AppCard tone="amber" style={styles.tipCard}>
           <Text style={styles.tipTitle}>Kısayol ipucu</Text>
           <Text style={styles.tipText}>
@@ -217,8 +237,9 @@ const styles = StyleSheet.create({
   searchButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "900" },
   primaryGrid: { marginTop: 16, flexDirection: "row", flexWrap: "wrap", gap: 10 },
   primaryCard: {
-    width: "48%",
-    minHeight: 138,
+    flexBasis: "47.8%",
+    flexGrow: 1,
+    minHeight: 126,
     borderRadius: 26,
     backgroundColor: "#FFFFFF",
     padding: 13,
@@ -240,7 +261,9 @@ const styles = StyleSheet.create({
   primaryTitle: { color: AppColors.text, fontSize: 14, fontWeight: "900" },
   primaryHint: { color: AppColors.muted, fontSize: 11, lineHeight: 16, fontWeight: "700" },
   section: { marginTop: 18 },
+  sectionHeader: { gap: 4 },
   sectionTitle: { color: AppColors.text, fontSize: 20, fontWeight: "900" },
+  sectionDescription: { color: AppColors.muted, fontSize: 12, lineHeight: 17, fontWeight: "700" },
   list: { marginTop: 12, gap: 10 },
   rowCard: {
     borderRadius: 24,
@@ -268,7 +291,8 @@ const styles = StyleSheet.create({
   rowArrow: { color: AppColors.green, fontSize: 20, fontWeight: "900" },
   grid: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 10 },
   gridCard: {
-    width: "48%",
+    flexBasis: "47.8%",
+    flexGrow: 1,
     minHeight: 112,
     borderRadius: 24,
     backgroundColor: "#FFFFFF",

@@ -81,21 +81,29 @@ export function PageShortcuts({
   compact = false,
 }: PageShortcutsProps) {
   return (
-    <section className="rounded-[1.8rem] bg-white p-5 shadow-sm ring-1 ring-[#2E7D5B]/5 md:rounded-[2rem] md:p-6">
-      <div>
-        <p className="text-sm font-black uppercase tracking-[0.18em] text-[#F59E0B]">
-          {eyebrow}
-        </p>
-        <h2 className="mt-2 text-2xl font-black text-[#1F2933]">{title}</h2>
-        {description ? (
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-            {description}
+    <section
+      className={`rounded-[1.55rem] border border-[#2E7D5B]/10 bg-white/95 shadow-sm shadow-slate-900/[0.03] ring-1 ring-white/60 ${
+        compact ? "p-4" : "p-4 md:p-5"
+      }`}
+    >
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F59E0B]">
+            {eyebrow}
           </p>
-        ) : null}
+          <h2 className="mt-1 text-xl font-black text-[#1F2933] md:text-2xl">
+            {title}
+          </h2>
+          {description ? (
+            <p className="mt-1 max-w-2xl text-sm font-semibold leading-6 text-slate-500">
+              {description}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <div
-        className={`mt-5 grid gap-2 ${
+        className={`mt-4 grid gap-2.5 ${
           columns === "two" ? "sm:grid-cols-2" : ""
         }`}
       >
@@ -106,10 +114,11 @@ export function PageShortcuts({
             <Link
               key={`${item.href}-${item.title}`}
               href={item.href}
-              className={`group flex items-center gap-3 rounded-[1.25rem] border border-transparent bg-[#FAF7F0] p-3.5 transition hover:-translate-y-0.5 hover:shadow-sm ${tone.card}`}
+              prefetch={false}
+              className={`group flex items-center gap-3 rounded-2xl border border-[#2E7D5B]/8 bg-[#FAF7F0]/80 p-3 transition hover:-translate-y-0.5 hover:shadow-sm hover:shadow-slate-900/5 ${tone.card}`}
             >
               <span
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-black shadow-sm ${tone.icon}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[1rem] text-sm font-black shadow-sm ${tone.icon}`}
               >
                 {item.icon || item.title.slice(0, 1)}
               </span>
