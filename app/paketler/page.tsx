@@ -429,7 +429,7 @@ export default async function PackagesPage({
                 </div>
 
                 <div className="mt-5 grid gap-2">
-                  <LimitRow label="Kitap" value={item.limits.books} />
+                  <LimitRow label="Paylaşım Rafı" value={item.limits.books} />
                   <LimitRow label="Arama" value={item.limits.requests} />
                   <LimitRow label="Mesaj" value={item.limits.messages} />
                   <LimitRow label="Eşleşme" value={item.limits.matches} />

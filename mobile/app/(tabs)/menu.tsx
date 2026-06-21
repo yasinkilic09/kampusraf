@@ -26,6 +26,13 @@ const primaryItems: MenuItem[] = [
     tone: "green",
   },
   {
+    label: "Sanal Kitaplık",
+    hint: "Limit dışı kişisel arşiv",
+    route: "/my-books?scope=personal",
+    icon: "albums",
+    tone: "soft",
+  },
+  {
     label: "Kitap Ara",
     hint: "Kitap, yazar veya ISBN",
     route: "/explore",

@@ -7,7 +7,10 @@ import {
   getClientIp,
   type RateLimitConfig,
 } from "@/lib/rate-limit";
-import { supabaseCookieOptions } from "@/lib/supabase/cookie-options";
+import {
+  supabaseCookieOptions,
+  withSupabaseCookieOptions,
+} from "@/lib/supabase/cookie-options";
 
 const ONE_MINUTE = 60_000;
 const MAX_DEFAULT_BODY_BYTES = 1 * 1024 * 1024;
@@ -236,7 +239,11 @@ async function refreshSupabaseSession(request: NextRequest) {
           response = NextResponse.next({ request });
 
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
+            response.cookies.set(
+              name,
+              value,
+              withSupabaseCookieOptions(options)
+            );
           });
 
           Object.entries(headersToSet).forEach(([key, value]) => {

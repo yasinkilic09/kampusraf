@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -38,6 +38,41 @@ const exchangeTypes = [
   { value: "satis", label: "Satış" },
   { value: "bagis", label: "Bağış" },
 ];
+
+type LibraryScope = "exchange" | "personal";
+
+const libraryScopeOptions: {
+  value: LibraryScope;
+  title: string;
+  description: string;
+  badge: string;
+}[] = [
+  {
+    value: "exchange",
+    title: "Paylaşım Rafı",
+    description: "Arama, harita ve eşleşme sistemlerinde görünebilir.",
+    badge: "Limitli",
+  },
+  {
+    value: "personal",
+    title: "Sanal Kitaplık",
+    description: "Sadece senin okuma arşivinde saklanır.",
+    badge: "Sınırsız",
+  },
+];
+
+function isMissingLibraryScopeError(error: { message?: string | null; code?: string | null } | null) {
+  if (!error) return false;
+
+  const message = (error.message || "").toLocaleLowerCase("en-US");
+
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("library_scope") ||
+    message.includes("column")
+  );
+}
 
 type CatalogBook = {
   id: string;
@@ -272,6 +307,8 @@ function getValidatedPublishedYear(value: string) {
 }
 
 export default function AddBookScreen() {
+  const params = useLocalSearchParams<{ scope?: string }>();
+  const initialScope = params.scope === "personal" ? "personal" : "exchange";
   const [userId, setUserId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
@@ -283,6 +320,7 @@ export default function AddBookScreen() {
   const [description, setDescription] = useState("");
   const [condition, setCondition] = useState("temiz");
   const [exchangeType, setExchangeType] = useState("takas");
+  const [libraryScope, setLibraryScope] = useState<LibraryScope>(initialScope);
   const [city, setCity] = useState("");
   const [university, setUniversity] = useState("");
   const [note, setNote] = useState("");
@@ -297,6 +335,7 @@ export default function AddBookScreen() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isPersonalLibrary = libraryScope === "personal";
 
   useEffect(() => {
     async function loadProfile() {
@@ -424,17 +463,27 @@ export default function AddBookScreen() {
 
   async function checkBookLimit() {
     if (!userId) return { allowed: false, limit: 0 };
+    if (isPersonalLibrary) return { allowed: true, limit: Number.POSITIVE_INFINITY };
 
     const monthStart = getCurrentMonthStart();
 
-    const [{ data: profile }, { count }] = await Promise.all([
+    const [{ data: profile }, scopedCountResult] = await Promise.all([
       supabase.from("profiles").select("monthly_book_limit").eq("id", userId).maybeSingle(),
       supabase
         .from("user_books")
         .select("*", { count: "exact", head: true })
         .eq("user_id", userId)
+        .eq("library_scope", "exchange")
         .gte("created_at", monthStart),
     ]);
+
+    const { count } = isMissingLibraryScopeError(scopedCountResult.error)
+      ? await supabase
+          .from("user_books")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .gte("created_at", monthStart)
+      : scopedCountResult;
 
     const limit = profile?.monthly_book_limit ?? 10;
     const currentUsage = count ?? 0;
@@ -507,7 +556,7 @@ export default function AddBookScreen() {
       return;
     }
 
-    if (!city.trim() || !university.trim()) {
+    if (!isPersonalLibrary && (!city.trim() || !university.trim())) {
       Alert.alert("Eksik konum", "Şehir ve üniversite bilgisi zorunlu.");
       return;
     }
@@ -532,32 +581,65 @@ export default function AddBookScreen() {
         bookId = await createCatalogBook();
       }
 
-      const { data: userBook, error } = await supabase
+      const userBookPayload = {
+        user_id: userId,
+        book_id: bookId,
+        library_scope: libraryScope,
+        condition,
+        exchange_type: exchangeType,
+        status: "mevcut",
+        custom_title: cleanTitle,
+        custom_author: cleanAuthor,
+        image_url: cleanNullable(coverUrl),
+        note: cleanNullable(note),
+        city: cleanNullable(city),
+        university: cleanNullable(university),
+        is_active: !isPersonalLibrary,
+      };
+
+      let { data: userBook, error } = await supabase
         .from("user_books")
-        .insert({
-          user_id: userId,
-          book_id: bookId,
-          condition,
-          exchange_type: exchangeType,
-          status: "mevcut",
-          custom_title: cleanTitle,
-          custom_author: cleanAuthor,
-          image_url: cleanNullable(coverUrl),
-          note: cleanNullable(note),
-          city: city.trim(),
-          university: university.trim(),
-          is_active: true,
-        })
+        .insert(userBookPayload)
         .select("id")
         .single();
+
+      if (isMissingLibraryScopeError(error)) {
+        if (isPersonalLibrary) {
+          throw new Error("Sanal Kitaplık için Supabase SQL güncellemesini çalıştırman gerekiyor.");
+        }
+
+        const fallbackInsert = await supabase
+          .from("user_books")
+          .insert({
+            user_id: userId,
+            book_id: bookId,
+            condition,
+            exchange_type: exchangeType,
+            status: "mevcut",
+            custom_title: cleanTitle,
+            custom_author: cleanAuthor,
+            image_url: cleanNullable(coverUrl),
+            note: cleanNullable(note),
+            city: city.trim(),
+            university: university.trim(),
+            is_active: true,
+          })
+          .select("id")
+          .single();
+
+        userBook = fallbackInsert.data;
+        error = fallbackInsert.error;
+      }
 
       if (error || !userBook) {
         throw new Error(error?.message || "Kitap rafa eklenemedi.");
       }
 
-      const { error: matchError } = await supabase.rpc("create_matches_for_user_book", {
-        p_user_book_id: userBook.id,
-      });
+      const { error: matchError } = isPersonalLibrary
+        ? { error: null }
+        : await supabase.rpc("create_matches_for_user_book", {
+            p_user_book_id: userBook.id,
+          });
 
       setSaving(false);
 
@@ -726,6 +808,33 @@ export default function AddBookScreen() {
           <Text style={styles.sectionEyebrow}>2. Adım</Text>
           <Text style={styles.sectionTitle}>Kitap bilgileri</Text>
 
+          <View style={styles.scopeBox}>
+            <Text style={styles.optionLabel}>Kitap nereye eklensin?</Text>
+            <View style={styles.scopeGrid}>
+              {libraryScopeOptions.map((option) => {
+                const active = libraryScope === option.value;
+
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={[styles.scopeCard, active && styles.activeScopeCard]}
+                    onPress={() => setLibraryScope(option.value)}
+                  >
+                    <Text style={[styles.scopeTitle, active && styles.activeScopeText]}>
+                      {option.title}
+                    </Text>
+                    <Text style={[styles.scopeDescription, active && styles.activeScopeDescription]}>
+                      {option.description}
+                    </Text>
+                    <Text style={[styles.scopeBadge, active && styles.activeScopeBadge]}>
+                      {option.badge}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
           <Input label="Kitap Adı" value={title} onChangeText={setTitle} placeholder="Kitap adı" editable={!selectedCatalogBook} />
           <Input label="Yazar" value={author} onChangeText={setAuthor} placeholder="Yazar adı" editable={!selectedCatalogBook} />
           <Input label="Kategori" value={category} onChangeText={setCategory} placeholder="Roman, ders kitabı..." editable={!selectedCatalogBook} />
@@ -771,19 +880,34 @@ export default function AddBookScreen() {
 
           <View style={styles.mapInfoBox}>
             <View style={styles.mapInfoText}>
-              <Text style={styles.mapInfoTitle}>Haritada görünürlük</Text>
+              <Text style={styles.mapInfoTitle}>
+                {isPersonalLibrary ? "Kişisel görünürlük" : "Haritada görünürlük"}
+              </Text>
               <Text style={styles.mapInfoDescription}>
-                Harita ekranından konum izni verdiysen bu kitap paylaşım türüne
-                açık olduğu için yaklaşık konumla listelenebilir.
+                {isPersonalLibrary
+                  ? "Sanal Kitaplık kayıtları arama, harita ve eşleşme sistemlerinde görünmez; paket kitap hakkını kullanmaz."
+                  : "Harita ekranından konum izni verdiysen bu kitap paylaşım türüne açık olduğu için yaklaşık konumla listelenebilir."}
               </Text>
             </View>
-            <Pressable style={styles.mapInfoButton} onPress={() => router.push("/map" as never)}>
-              <Text style={styles.mapInfoButtonText}>Harita</Text>
-            </Pressable>
+            {!isPersonalLibrary ? (
+              <Pressable style={styles.mapInfoButton} onPress={() => router.push("/map" as never)}>
+                <Text style={styles.mapInfoButtonText}>Harita</Text>
+              </Pressable>
+            ) : null}
           </View>
 
-          <Input label="Şehir" value={city} onChangeText={setCity} placeholder="Aydın" />
-          <Input label="Üniversite" value={university} onChangeText={setUniversity} placeholder="Üniversite adı" />
+          <Input
+            label={isPersonalLibrary ? "Şehir (isteğe bağlı)" : "Şehir"}
+            value={city}
+            onChangeText={setCity}
+            placeholder="Aydın"
+          />
+          <Input
+            label={isPersonalLibrary ? "Üniversite (isteğe bağlı)" : "Üniversite"}
+            value={university}
+            onChangeText={setUniversity}
+            placeholder="Üniversite adı"
+          />
           <Input label="Açıklama / Not" value={note} onChangeText={setNote} placeholder="Teslim, takas veya kitap durumu notu" multiline />
         </View>
 
@@ -798,7 +922,13 @@ export default function AddBookScreen() {
           onPress={saveBook}
           disabled={saving || Boolean(errorMessage)}
         >
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Kitabı Rafa Ekle</Text>}
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveButtonText}>
+              {isPersonalLibrary ? "Kitabı Sanal Kitaplığa Ekle" : "Kitabı Rafa Ekle"}
+            </Text>
+          )}
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -905,6 +1035,42 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 3,
+  },
+  scopeBox: { marginTop: 12, marginBottom: 12 },
+  scopeGrid: { marginTop: 10, gap: 10 },
+  scopeCard: {
+    borderRadius: 20,
+    backgroundColor: BG,
+    borderWidth: 1,
+    borderColor: "rgba(46,125,91,0.10)",
+    padding: 14,
+  },
+  activeScopeCard: { backgroundColor: GREEN, borderColor: GREEN },
+  scopeTitle: { color: TEXT, fontSize: 14, fontWeight: "900" },
+  activeScopeText: { color: "#FFFFFF" },
+  scopeDescription: {
+    marginTop: 5,
+    color: MUTED,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
+  },
+  activeScopeDescription: { color: "rgba(255,255,255,0.76)" },
+  scopeBadge: {
+    alignSelf: "flex-start",
+    marginTop: 10,
+    overflow: "hidden",
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    color: GREEN,
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  activeScopeBadge: {
+    backgroundColor: "rgba(255,255,255,0.16)",
+    color: "#FFFFFF",
   },
   sectionEyebrow: { color: AMBER, fontSize: 11, fontWeight: "900", letterSpacing: 1.5, textTransform: "uppercase" },
   sectionTitle: { marginTop: 7, color: TEXT, fontSize: 20, fontWeight: "900" },

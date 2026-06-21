@@ -8,6 +8,7 @@ type SearchParams = Promise<{
   shelf?: string;
   sort?: string;
   view?: string;
+  scope?: string;
 }>;
 
 const conditionLabels: Record<string, string> = {
@@ -43,6 +44,25 @@ const shelfFilters = [
   { label: "Arşiv", value: "archive" },
 ];
 
+const personalShelfFilters = [
+  { label: "Tüm Kitaplık", value: "all" },
+  { label: "Okuma Listesi", value: "active" },
+  { label: "Arşiv", value: "archive" },
+];
+
+const scopeOptions = [
+  {
+    label: "Paylaşım Rafı",
+    value: "exchange",
+    description: "Takas, ödünç, satış veya bağışa açtığın kitaplar.",
+  },
+  {
+    label: "Sanal Kitaplık",
+    value: "personal",
+    description: "Sadece senin gördüğün sınırsız kişisel okuma arşivi.",
+  },
+];
+
 const sortOptions = [
   { label: "Yeni eklenen", value: "newest" },
   { label: "Kitap adına göre", value: "title" },
@@ -57,6 +77,7 @@ const viewOptions = [
 
 type UserBook = {
   id: string;
+  library_scope: string | null;
   condition: string;
   exchange_type: string;
   status: string;
@@ -82,6 +103,23 @@ type UserBook = {
       }[]
     | null;
 };
+
+function isMissingLibraryScopeError(error: { message?: string | null; code?: string | null } | null) {
+  if (!error) return false;
+
+  const message = (error.message || "").toLocaleLowerCase("en-US");
+
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("library_scope") ||
+    message.includes("column")
+  );
+}
+
+function isPersonalBook(userBook: Pick<UserBook, "library_scope">) {
+  return userBook.library_scope === "personal";
+}
 
 function getBookInfo(userBook: UserBook) {
   const relatedBook = Array.isArray(userBook.books)
@@ -146,10 +184,6 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function getSafeShelfFilter(value?: string) {
-  return shelfFilters.some((item) => item.value === value) ? value || "all" : "all";
-}
-
 function getSafeSort(value?: string) {
   return sortOptions.some((item) => item.value === value) ? value || "newest" : "newest";
 }
@@ -163,9 +197,11 @@ function buildMyBooksUrl(params: {
   shelf?: string;
   sort?: string;
   view?: string;
+  scope?: string;
 }) {
   const query = new URLSearchParams();
 
+  if (params.scope && params.scope !== "exchange") query.set("scope", params.scope);
   if (params.q) query.set("q", params.q);
   if (params.shelf && params.shelf !== "all") query.set("shelf", params.shelf);
   if (params.sort && params.sort !== "newest") query.set("sort", params.sort);
@@ -177,6 +213,7 @@ function buildMyBooksUrl(params: {
 }
 
 function getShelfMood(userBook: UserBook) {
+  if (isPersonalBook(userBook)) return "Kişisel kitaplık";
   if (userBook.status === "pasif") return "Gizli arşiv";
   if (userBook.status === "rezerve") return "Ayrılmış kitap";
   if (userBook.status === "verildi" || userBook.status === "takaslandi") {
@@ -189,6 +226,7 @@ function getShelfMood(userBook: UserBook) {
 }
 
 function getShelfAccentClass(userBook: UserBook) {
+  if (isPersonalBook(userBook)) return "from-[#1F2933] to-[#94A3B8]";
   if (userBook.status === "pasif") return "from-slate-400 to-slate-600";
   if (userBook.exchange_type === "odunc") return "from-[#2E7D5B] to-[#8BC6A5]";
   if (userBook.exchange_type === "satis") return "from-[#F59E0B] to-[#FCD34D]";
@@ -213,8 +251,15 @@ function matchesShelf(userBook: UserBook, shelf: string) {
   if (shelf === "all") return true;
   if (shelf === "active") return userBook.status === "mevcut";
   if (shelf === "archive") return userBook.status !== "mevcut";
+  if (isPersonalBook(userBook)) return false;
 
   return userBook.exchange_type === shelf;
+}
+
+function getSafeScope(value?: string) {
+  return scopeOptions.some((item) => item.value === value)
+    ? value || "exchange"
+    : "exchange";
 }
 
 function getCategoryStats(books: UserBook[]) {
@@ -240,7 +285,12 @@ export default async function MyBooksPage({
   searchParams: SearchParams;
 }) {
   const params = await searchParams;
-  const selectedShelf = getSafeShelfFilter(params.shelf);
+  const selectedScope = getSafeScope(params.scope);
+  const availableShelfFilters =
+    selectedScope === "personal" ? personalShelfFilters : shelfFilters;
+  const selectedShelf = availableShelfFilters.some((item) => item.value === params.shelf)
+    ? params.shelf || "all"
+    : "all";
   const selectedSort = getSafeSort(params.sort);
   const selectedView = getSafeView(params.view);
   const searchQuery = (params.q || "").trim();
@@ -254,11 +304,16 @@ export default async function MyBooksPage({
     redirect("/auth/login");
   }
 
-  const { data: books, error } = await supabase
+  let hasLibraryScopeColumn = true;
+  let books: UserBook[] | null = null;
+  let listError: { message: string; code?: string | null } | null = null;
+
+  const scopedBooksQuery = await supabase
     .from("user_books")
     .select(
       `
       id,
+      library_scope,
       condition,
       exchange_type,
       status,
@@ -280,35 +335,102 @@ export default async function MyBooksPage({
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Kitaplarım listeleme hatası:", error);
+  if (isMissingLibraryScopeError(scopedBooksQuery.error)) {
+    hasLibraryScopeColumn = false;
+
+    const fallbackBooksQuery = await supabase
+      .from("user_books")
+      .select(
+        `
+        id,
+        condition,
+        exchange_type,
+        status,
+        custom_title,
+        custom_author,
+        image_url,
+        note,
+        city,
+        university,
+        created_at,
+        books (
+          title,
+          author,
+          category,
+          cover_url
+        )
+      `
+      )
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    books = ((fallbackBooksQuery.data || []) as Omit<UserBook, "library_scope">[]).map(
+      (item) => ({
+        ...item,
+        library_scope: "exchange",
+      })
+    );
+    listError = fallbackBooksQuery.error;
+  } else {
+    books = (scopedBooksQuery.data || []) as UserBook[];
+    listError = scopedBooksQuery.error;
   }
 
-  const activeBooks = (books || []) as UserBook[];
-  const totalBooks = activeBooks.length;
-  const takasCount = activeBooks.filter(
+  if (listError) {
+    console.error("Kitaplarım listeleme hatası:", listError);
+  }
+
+  const activeBooks = (books || []).map((book) => ({
+    ...book,
+    library_scope: book.library_scope || "exchange",
+  }));
+  const exchangeBooks = activeBooks.filter((book) => !isPersonalBook(book));
+  const personalBooks = activeBooks.filter((book) => isPersonalBook(book));
+  const scopedBooks = selectedScope === "personal" ? personalBooks : exchangeBooks;
+  const totalBooks = scopedBooks.length;
+  const addBookHref =
+    selectedScope === "personal" ? "/kitap-ekle?scope=personal" : "/kitap-ekle";
+  const resetHref =
+    selectedScope === "personal" ? "/kitaplarim?scope=personal" : "/kitaplarim";
+  const heroCopy =
+    selectedScope === "personal"
+      ? {
+          eyebrow: "Sanal Kitaplık",
+          title: "Okuduğun kitapları kendin için sakla.",
+          description:
+            "Bu alan paylaşım, takas ve harita görünürlüğünden bağımsızdır. Paketlerdeki kitap ekleme hakkını kullanmaz; sınırsız kişisel okuma arşivin olarak çalışır.",
+          addLabel: "Kitaplığa Kitap Ekle",
+        }
+      : {
+          eyebrow: "Benim Rafım",
+          title: "Paylaşıma açık kitap rafını yönet.",
+          description:
+            "Takas, ödünç, satış veya bağış için eklediğin kitaplar burada görünür. Bu raf arama, harita ve eşleşme sisteminin temelini oluşturur.",
+          addLabel: "Rafa Yeni Kitap Ekle",
+        };
+  const takasCount = scopedBooks.filter(
     (book) => book.exchange_type === "takas"
   ).length;
-  const oduncCount = activeBooks.filter(
+  const oduncCount = scopedBooks.filter(
     (book) => book.exchange_type === "odunc"
   ).length;
-  const activeShelfCount = activeBooks.filter(
+  const activeShelfCount = scopedBooks.filter(
     (book) => book.status === "mevcut"
   ).length;
-  const coverCount = activeBooks.filter((book) => getBookInfo(book).image).length;
-  const noteCount = activeBooks.filter((book) => book.note && book.note.length > 8).length;
-  const archiveCount = activeBooks.filter((book) => book.status !== "mevcut").length;
-  const categoryStats = getCategoryStats(activeBooks);
+  const coverCount = scopedBooks.filter((book) => getBookInfo(book).image).length;
+  const noteCount = scopedBooks.filter((book) => book.note && book.note.length > 8).length;
+  const archiveCount = scopedBooks.filter((book) => book.status !== "mevcut").length;
+  const categoryStats = getCategoryStats(scopedBooks);
   const topCategory = categoryStats[0]?.label || "Henüz oluşmadı";
   const averageQuality =
     totalBooks > 0
       ? Math.round(
-          activeBooks.reduce((total, item) => total + getLibraryQuality(item), 0) /
+          scopedBooks.reduce((total, item) => total + getLibraryQuality(item), 0) /
             totalBooks
         )
       : 0;
   const normalizedQuery = normalizeSearchText(searchQuery);
-  const filteredBooks = activeBooks
+  const filteredBooks = scopedBooks
     .filter((book) => {
       if (!matchesShelf(book, selectedShelf)) return false;
       if (!normalizedQuery) return true;
@@ -348,6 +470,7 @@ export default async function MyBooksPage({
     });
 
   const shelfRows = chunkArray(filteredBooks, 3);
+  const error = listError ?? { message: "" };
 
   return (
     <main className="min-h-screen bg-[#FAF7F0] pb-24 text-[#1F2933] md:pb-0">
@@ -356,10 +479,10 @@ export default async function MyBooksPage({
         active="kitaplarim"
         actions={
           <Link
-            href="/kitap-ekle"
+            href={addBookHref}
             className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
           >
-            Kitap Ekle
+            {selectedScope === "personal" ? "KitaplÄ±ÄŸa Ekle" : "Kitap Ekle"}
           </Link>
         }
       />
@@ -373,24 +496,24 @@ export default async function MyBooksPage({
             <div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.22em] text-[#F5EBDD]">
-                  Benim Rafım
+                  {heroCopy.eyebrow}
                 </p>
 
                 <h1 className="mt-3 break-words text-3xl font-black tracking-tight md:text-5xl">
-                  Kendi sanal kütüphaneni kur.
+                  {heroCopy.title}
                 </h1>
 
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-white/75 md:text-base">
-                  Buradaki her kitap sadece takas kaydı değil; kapak, not,
-                  kategori ve konumuyla senin kişisel kitaplığının bir parçası.
-                  Rafını düzenledikçe hem kendin için arşiv oluşur hem de doğru
-                  öğrenciler seni daha kolay bulur.
+                  {heroCopy.description}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-2 rounded-[1.5rem] bg-white/10 p-3 backdrop-blur sm:min-w-[320px]">
-                <HeroStat label="Toplam Kitap" value={totalBooks} />
-                <HeroStat label="Aktif Raf" value={activeShelfCount} />
+                <HeroStat
+                  label={selectedScope === "personal" ? "Kitaplık" : "Paylaşım"}
+                  value={totalBooks}
+                />
+                <HeroStat label="Aktif Kayıt" value={activeShelfCount} />
                 <HeroStat label="Notlu Kitap" value={noteCount} />
                 <HeroStat label="Raf Kalitesi" value={`%${averageQuality}`} />
               </div>
@@ -398,29 +521,77 @@ export default async function MyBooksPage({
 
             <div className="relative mt-6 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/kitap-ekle"
+                href={addBookHref}
                 className="rounded-full bg-white px-7 py-4 text-center text-sm font-black text-[#2E7D5B] transition hover:-translate-y-0.5"
               >
-                Rafa Yeni Kitap Ekle
+                {heroCopy.addLabel}
               </Link>
 
               <Link
-                href="/kitap-ara"
+                href={selectedScope === "personal" ? "/kitaplarim" : "/kitap-ara"}
                 className="rounded-full border border-white/25 px-7 py-4 text-center text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10"
               >
-                Platformda Kitap Ara
+                {selectedScope === "personal" ? "Paylaşım Rafına Geç" : "Platformda Kitap Ara"}
               </Link>
             </div>
           </div>
         </section>
 
-        {error && (
+        <section className="mt-6 rounded-[1.6rem] bg-white p-3 shadow-sm ring-1 ring-[#2E7D5B]/5">
+          <div className="grid gap-2 md:grid-cols-2">
+            {scopeOptions.map((option) => {
+              const active = selectedScope === option.value;
+
+              return (
+                <Link
+                  key={option.value}
+                  href={buildMyBooksUrl({
+                    scope: option.value,
+                    view: selectedView,
+                  })}
+                  className={`rounded-[1.25rem] p-4 transition ${
+                    active
+                      ? "bg-[#2E7D5B] text-white shadow-sm"
+                      : "bg-[#FAF7F0] text-[#1F2933] hover:bg-[#EAF5EF]"
+                  }`}
+                >
+                  <span className="block text-sm font-black">{option.label}</span>
+                  <span
+                    className={`mt-1 block text-xs font-semibold leading-5 ${
+                      active ? "text-white/75" : "text-slate-500"
+                    }`}
+                  >
+                    {option.description}
+                  </span>
+                  <span
+                    className={`mt-3 inline-flex rounded-full px-3 py-1 text-[11px] font-black ${
+                      active ? "bg-white/15 text-white" : "bg-white text-[#2E7D5B]"
+                    }`}
+                  >
+                    {option.value === "personal"
+                      ? `${personalBooks.length} kişisel`
+                      : `${exchangeBooks.length} paylaşım`}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          {!hasLibraryScopeColumn ? (
+            <p className="mt-3 rounded-2xl bg-[#FFF7E6] px-4 py-3 text-xs font-bold leading-5 text-[#92400E]">
+              Sanal Kitaplık için Supabase SQL güncellemesi bekleniyor. Kod hazır;
+              SQL çalışınca bu sekme kişisel ve sınırsız kitaplık olarak ayrılacak.
+            </p>
+          ) : null}
+        </section>
+
+        {listError && (
           <div className="mt-6 rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700 md:mt-8 md:p-5">
             Kitaplar listelenirken hata oluştu: {error.message}
           </div>
         )}
 
-        {activeBooks.length > 0 ? (
+        {scopedBooks.length > 0 ? (
           <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <LibrarySignalCard
               label="Raf Kimliği"
@@ -433,9 +604,13 @@ export default async function MyBooksPage({
               description="Kapak görselleri rafı gerçek kütüphane gibi hissettirir."
             />
             <LibrarySignalCard
-              label="Paylaşıma Hazır"
-              value={takasCount + oduncCount}
-              description="Takas veya ödünç için hızlıca bulunabilecek kitaplar."
+              label={selectedScope === "personal" ? "Limit Etkisi" : "Paylaşıma Hazır"}
+              value={selectedScope === "personal" ? "Sınırsız" : takasCount + oduncCount}
+              description={
+                selectedScope === "personal"
+                  ? "Bu kitaplar paketlerdeki paylaşım rafı hakkını kullanmaz."
+                  : "Takas veya ödünç için hızlıca bulunabilecek kitaplar."
+              }
             />
             <LibrarySignalCard
               label="Arşiv"
@@ -445,7 +620,7 @@ export default async function MyBooksPage({
           </section>
         ) : null}
 
-        {activeBooks.length === 0 ? (
+        {scopedBooks.length === 0 ? (
           <section className="mt-6 overflow-hidden rounded-[1.8rem] bg-white shadow-sm ring-1 ring-[#2E7D5B]/5 md:mt-8 md:rounded-[2rem]">
             <div className="bg-[#8B5E3C] px-4 py-3 text-center text-xs font-black uppercase tracking-[0.24em] text-white/85">
               Rafın şu an boş
@@ -477,7 +652,7 @@ export default async function MyBooksPage({
               </div>
 
               <Link
-                href="/kitap-ekle"
+                href={addBookHref}
                 className="mt-8 inline-flex w-full justify-center rounded-full bg-[#2E7D5B] px-7 py-4 text-sm font-black text-white shadow-lg shadow-[#2E7D5B]/20 transition hover:-translate-y-0.5 sm:w-auto"
               >
                 İlk Kitabımı Ekle
@@ -503,7 +678,7 @@ export default async function MyBooksPage({
               </div>
 
               <Link
-                href="/kitap-ekle"
+                href={addBookHref}
                 className="rounded-full bg-[#2E7D5B] px-6 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
               >
                 Rafı Büyüt
@@ -519,6 +694,7 @@ export default async function MyBooksPage({
                     <Link
                       key={option.value}
                       href={buildMyBooksUrl({
+                        scope: selectedScope,
                         q: searchQuery,
                         shelf: selectedShelf,
                         sort: selectedSort,
@@ -544,6 +720,7 @@ export default async function MyBooksPage({
 
             <form className="grid gap-3 rounded-[1.6rem] bg-white p-4 shadow-sm ring-1 ring-[#2E7D5B]/5 lg:grid-cols-[1fr_190px_190px_auto]">
               <input type="hidden" name="view" value={selectedView} />
+              <input type="hidden" name="scope" value={selectedScope} />
               <input
                 name="q"
                 defaultValue={searchQuery}
@@ -555,7 +732,7 @@ export default async function MyBooksPage({
                 label="Raf"
                 name="shelf"
                 defaultValue={selectedShelf}
-                options={shelfFilters}
+                options={availableShelfFilters}
               />
 
               <FilterSelect
@@ -574,7 +751,7 @@ export default async function MyBooksPage({
                 </button>
                 {searchQuery || selectedShelf !== "all" || selectedSort !== "newest" ? (
                   <Link
-                    href="/kitaplarim"
+                    href={resetHref}
                     className="flex min-h-[50px] items-center rounded-full bg-[#FAF7F0] px-5 text-sm font-black text-slate-600 transition hover:bg-slate-100"
                   >
                     Sıfırla
@@ -629,13 +806,13 @@ export default async function MyBooksPage({
                 </p>
                 <div className="mt-5 flex flex-col justify-center gap-3 sm:flex-row">
                   <Link
-                    href="/kitaplarim"
+                    href={resetHref}
                     className="rounded-full bg-[#FAF7F0] px-6 py-3 text-sm font-black text-[#2E7D5B]"
                   >
                     Filtreleri Temizle
                   </Link>
                   <Link
-                    href="/kitap-ekle"
+                    href={addBookHref}
                     className="rounded-full bg-[#2E7D5B] px-6 py-3 text-sm font-black text-white"
                   >
                     Kitap Ekle
@@ -710,8 +887,10 @@ export default async function MyBooksPage({
                             {conditionLabels[userBook.condition] || userBook.condition}
                           </span>
                           <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1.5 text-[11px] font-black text-[#B45309]">
-                            {exchangeTypeLabels[userBook.exchange_type] ||
-                              userBook.exchange_type}
+                            {isPersonalBook(userBook)
+                              ? "Sanal Kitaplık"
+                              : exchangeTypeLabels[userBook.exchange_type] ||
+                                userBook.exchange_type}
                           </span>
                           <span
                             className={`rounded-full px-3 py-1.5 text-[11px] font-black ${getStatusBadgeClass(
@@ -824,8 +1003,10 @@ export default async function MyBooksPage({
                                   </span>
 
                                   <span className="rounded-full bg-[#F59E0B]/10 px-3 py-1 text-[11px] font-black text-[#B45309]">
-                                    {exchangeTypeLabels[userBook.exchange_type] ||
-                                      userBook.exchange_type}
+                                    {isPersonalBook(userBook)
+                                      ? "Sanal Kitaplık"
+                                      : exchangeTypeLabels[userBook.exchange_type] ||
+                                        userBook.exchange_type}
                                   </span>
 
                                   <span

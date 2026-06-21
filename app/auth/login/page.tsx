@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const featureCards = [
@@ -63,18 +63,47 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(getInitialRememberMe);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function redirectExistingSession() {
+      const { data } = await supabase.auth.getSession();
+
+      if (!active) return;
+
+      if (data.session) {
+        router.replace("/dashboard");
+        router.refresh();
+        return;
+      }
+
+      setIsCheckingSession(false);
+    }
+
+    void redirectExistingSession().catch(() => {
+      if (active) {
+        setIsCheckingSession(false);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [router, supabase]);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (isLoading) return;
+    if (isLoading || isCheckingSession) return;
 
     setIsLoading(true);
     setMessage("");
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
       password,
     });
@@ -93,9 +122,22 @@ export default function LoginPage() {
       window.localStorage.removeItem(rememberEmailKey);
     }
 
-    await supabase.auth.getSession();
+    if (data.session) {
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+    }
 
-    router.push("/dashboard");
+    const { data: sessionData } = await supabase.auth.getSession();
+
+    if (!sessionData.session) {
+      setMessage("Oturum kalıcılaştırılamadı. Lütfen tekrar dene.");
+      setIsLoading(false);
+      return;
+    }
+
+    router.replace("/dashboard");
     router.refresh();
   }
 
@@ -288,7 +330,7 @@ export default function LoginPage() {
 
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || isCheckingSession}
                   className="group flex w-full items-center justify-center gap-2 rounded-full bg-[#2E7D5B] px-6 py-4 text-sm font-black text-white shadow-lg shadow-[#2E7D5B]/20 transition hover:-translate-y-0.5 hover:bg-[#25684c] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                 >
                   {isLoading ? "Giriş yapılıyor..." : "Giriş Yap"}

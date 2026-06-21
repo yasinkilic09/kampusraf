@@ -86,6 +86,7 @@ export default async function SharePage({
     `
     )
     .eq("user_id", user.id)
+    .eq("is_active", true)
     .in("status", ["mevcut", "available"])
     .order("created_at", { ascending: false })
     .limit(50);

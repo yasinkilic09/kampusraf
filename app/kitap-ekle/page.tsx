@@ -21,6 +21,41 @@ const exchangeTypes = [
   { value: "bagis", label: "Bağış" },
 ];
 
+type LibraryScope = "exchange" | "personal";
+
+const libraryScopeOptions: {
+  value: LibraryScope;
+  title: string;
+  description: string;
+  badge: string;
+}[] = [
+  {
+    value: "exchange",
+    title: "Paylaşım Rafı",
+    description: "Arama, harita, takas ve eşleşme sistemlerinde görünebilir.",
+    badge: "Paket limitine dahil",
+  },
+  {
+    value: "personal",
+    title: "Sanal Kitaplık",
+    description: "Sadece senin okuma arşivinde durur; paylaşıma açılmaz.",
+    badge: "Sınırsız",
+  },
+];
+
+function isMissingLibraryScopeError(error: { message?: string | null; code?: string | null } | null) {
+  if (!error) return false;
+
+  const message = (error.message || "").toLocaleLowerCase("en-US");
+
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("library_scope") ||
+    message.includes("column")
+  );
+}
+
 type CatalogBook = {
   id: string;
   title: string;
@@ -57,6 +92,12 @@ export default function AddBookPage() {
 
   const [bookCondition, setBookCondition] = useState("temiz");
   const [exchangeType, setExchangeType] = useState("takas");
+  const [libraryScope, setLibraryScope] = useState<LibraryScope>(() => {
+    if (typeof window === "undefined") return "exchange";
+
+    const params = new URLSearchParams(window.location.search);
+    return params.get("scope") === "personal" ? "personal" : "exchange";
+  });
   const [note, setNote] = useState("");
   const [city, setCity] = useState("");
   const [university, setUniversity] = useState("");
@@ -81,6 +122,8 @@ export default function AddBookPage() {
   const [message, setMessage] = useState("");
 
   const isCatalogBookSelected = Boolean(selectedCatalogBook);
+  const isPersonalLibrary = libraryScope === "personal";
+
 
   useEffect(() => {
     async function loadProfile() {
@@ -179,6 +222,15 @@ export default function AddBookPage() {
   }
 
   async function checkBookLimit(userId: string) {
+    if (isPersonalLibrary) {
+      return {
+        allowed: true,
+        currentUsage: 0,
+        limit: Number.POSITIVE_INFINITY,
+        remaining: Number.POSITIVE_INFINITY,
+      };
+    }
+
     const monthStart = getCurrentMonthStart();
 
     const { data: profile } = await supabase
@@ -187,11 +239,20 @@ export default function AddBookPage() {
       .eq("id", userId)
       .single();
 
-    const { count } = await supabase
+    const scopedCountResult = await supabase
       .from("user_books")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
+      .eq("library_scope", "exchange")
       .gte("created_at", monthStart);
+
+    const { count } = isMissingLibraryScopeError(scopedCountResult.error)
+      ? await supabase
+          .from("user_books")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .gte("created_at", monthStart)
+      : scopedCountResult;
 
     const limit = profile?.monthly_book_limit ?? 10;
     const currentUsage = count ?? 0;
@@ -374,7 +435,7 @@ export default function AddBookPage() {
       return;
     }
 
-    if (!city.trim() || !university.trim()) {
+    if (!isPersonalLibrary && (!city.trim() || !university.trim())) {
       setMessage("Şehir ve üniversite bilgisi zorunludur.");
       setIsLoading(false);
       return;
@@ -401,9 +462,36 @@ export default function AddBookPage() {
         bookId = await createCatalogBook();
       }
 
-      const { data: userBook, error: userBookError } = await supabase
+      const userBookPayload = {
+        user_id: user.id,
+        book_id: bookId,
+        library_scope: libraryScope,
+        condition: bookCondition,
+        exchange_type: exchangeType,
+        status: "mevcut",
+        custom_title: cleanTitle,
+        custom_author: cleanAuthor,
+        image_url: coverUrl.trim() || null,
+        note: note.trim() || null,
+        city: city.trim() || null,
+        university: university.trim() || null,
+        is_active: !isPersonalLibrary,
+      };
+
+      let { data: userBook, error: userBookError } = await supabase
         .from("user_books")
-        .insert({
+        .insert(userBookPayload)
+        .select("id")
+        .single();
+
+      if (isMissingLibraryScopeError(userBookError)) {
+        if (isPersonalLibrary) {
+          throw new Error(
+            "Sanal Kitaplık için Supabase SQL güncellemesini çalıştırman gerekiyor."
+          );
+        }
+
+        const fallbackPayload = {
           user_id: user.id,
           book_id: bookId,
           condition: bookCondition,
@@ -416,15 +504,23 @@ export default function AddBookPage() {
           city: city.trim(),
           university: university.trim(),
           is_active: true,
-        })
-        .select("id")
-        .single();
+        };
+
+        const fallbackInsert = await supabase
+          .from("user_books")
+          .insert(fallbackPayload)
+          .select("id")
+          .single();
+
+        userBook = fallbackInsert.data;
+        userBookError = fallbackInsert.error;
+      }
 
       if (userBookError) {
         throw new Error(userBookError.message);
       }
 
-      if (userBook?.id) {
+      if (userBook?.id && !isPersonalLibrary) {
         const { error: matchError } = await supabase.rpc(
           "create_matches_for_user_book",
           {
@@ -444,12 +540,12 @@ export default function AddBookPage() {
 
       setMessage(
         selectedCatalogBook
-          ? "Kitap hazır kütüphaneden seçilerek rafına eklendi. Kitaplarım sayfasına yönlendiriliyorsun."
-          : "Kitap katalog kaydıyla birlikte rafına eklendi. Kitaplarım sayfasına yönlendiriliyorsun."
+          ? `${isPersonalLibrary ? "Kitap sanal kitaplığına" : "Kitap rafına"} hazır kütüphaneden seçilerek eklendi. Kitaplarım sayfasına yönlendiriliyorsun.`
+          : `${isPersonalLibrary ? "Kitap sanal kitaplığına" : "Kitap rafına"} katalog kaydıyla birlikte eklendi. Kitaplarım sayfasına yönlendiriliyorsun.`
       );
 
       setTimeout(() => {
-        router.push("/kitaplarim");
+        router.push(isPersonalLibrary ? "/kitaplarim?scope=personal" : "/kitaplarim");
         router.refresh();
       }, 900);
     } catch (submitError) {
@@ -823,6 +919,50 @@ export default function AddBookPage() {
               onSubmit={handleSubmit}
               className="mt-5 space-y-4 md:mt-8 md:space-y-5"
             >
+              <section className="rounded-[1.5rem] bg-[#FAF7F0] p-3">
+                <p className="px-1 text-sm font-black text-[#1F2933]">
+                  Kitap nereye eklensin?
+                </p>
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  {libraryScopeOptions.map((option) => {
+                    const active = libraryScope === option.value;
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setLibraryScope(option.value)}
+                        className={`rounded-[1.2rem] border p-4 text-left transition ${
+                          active
+                            ? "border-[#2E7D5B] bg-[#2E7D5B] text-white shadow-sm"
+                            : "border-slate-100 bg-white text-[#1F2933] hover:border-[#2E7D5B]/25"
+                        }`}
+                      >
+                        <span className="block text-sm font-black">
+                          {option.title}
+                        </span>
+                        <span
+                          className={`mt-1 block text-xs font-semibold leading-5 ${
+                            active ? "text-white/75" : "text-slate-500"
+                          }`}
+                        >
+                          {option.description}
+                        </span>
+                        <span
+                          className={`mt-3 inline-flex rounded-full px-3 py-1 text-[11px] font-black ${
+                            active
+                              ? "bg-white/15 text-white"
+                              : "bg-[#EAF5EF] text-[#2E7D5B]"
+                          }`}
+                        >
+                          {option.badge}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
               <div className="grid gap-3 md:grid-cols-2 md:gap-4">
                 <div>
                   <label className="text-sm font-bold text-slate-700">
@@ -1024,7 +1164,7 @@ export default function AddBookPage() {
                   </label>
 
                   <input
-                    required
+                    required={!isPersonalLibrary}
                     value={city}
                     onChange={(event) => setCity(event.target.value)}
                     placeholder="Aydın"
@@ -1038,7 +1178,7 @@ export default function AddBookPage() {
                   </label>
 
                   <input
-                    required
+                    required={!isPersonalLibrary}
                     value={university}
                     onChange={(event) => setUniversity(event.target.value)}
                     placeholder="Aydın Adnan Menderes Üniversitesi"
@@ -1080,6 +1220,10 @@ export default function AddBookPage() {
               >
                 {isLoading
                   ? "Kitap ekleniyor..."
+                  : isPersonalLibrary
+                  ? isCatalogBookSelected
+                    ? "Seçili Kitabı Sanal Kitaplığa Ekle"
+                    : "Yeni Kitabı Sanal Kitaplığa Ekle"
                   : isCatalogBookSelected
                   ? "Seçili Kitabı Rafa Ekle"
                   : "Yeni Kitabı Kataloğa ve Rafa Ekle"}

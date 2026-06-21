@@ -313,11 +313,24 @@ export default async function ProfilePage({
     .select("*", { count: "exact", head: true })
     .or(`requester_id.eq.${user.id},owner_id.eq.${user.id}`);
 
-  const { count: monthlyBooksCount } = await supabase
+  const scopedMonthlyBooksResult = await supabase
     .from("user_books")
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id)
+    .eq("library_scope", "exchange")
     .gte("created_at", monthStart);
+
+  const { count: monthlyBooksCount } =
+    scopedMonthlyBooksResult.error &&
+    ((scopedMonthlyBooksResult.error.message || "").includes("library_scope") ||
+      scopedMonthlyBooksResult.error.code === "42703" ||
+      scopedMonthlyBooksResult.error.code === "PGRST204")
+      ? await supabase
+          .from("user_books")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .gte("created_at", monthStart)
+      : scopedMonthlyBooksResult;
 
   const { count: monthlyRequestsCount } = await supabase
     .from("book_requests")

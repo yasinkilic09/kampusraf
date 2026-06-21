@@ -56,17 +56,24 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
     let active = true;
 
-    async function loadRememberedEmail() {
-      const [storedPreference, storedEmail] = await Promise.all([
+    async function bootstrapLogin() {
+      const [sessionResult, storedPreference, storedEmail] = await Promise.all([
+        supabase.auth.getSession(),
         getRememberItem(rememberPreferenceKey),
         getRememberItem(rememberEmailKey),
       ]);
 
       if (!active) return;
+
+      if (sessionResult.data.session) {
+        router.replace("/(tabs)");
+        return;
+      }
 
       if (storedPreference === "false") {
         setRememberMe(false);
@@ -75,9 +82,15 @@ export default function LoginScreen() {
       if (storedEmail) {
         setEmail(storedEmail);
       }
+
+      setCheckingSession(false);
     }
 
-    loadRememberedEmail();
+    void bootstrapLogin().catch(() => {
+      if (active) {
+        setCheckingSession(false);
+      }
+    });
 
     return () => {
       active = false;
@@ -94,14 +107,13 @@ export default function LoginScreen() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password,
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       Alert.alert("Giriş yapılamadı", error.message);
       return;
     }
@@ -112,6 +124,22 @@ export default function LoginScreen() {
     } else {
       await setRememberItem(rememberPreferenceKey, "false");
       await deleteRememberItem(rememberEmailKey);
+    }
+
+    if (data.session) {
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+
+    setLoading(false);
+
+    if (!sessionData.session) {
+      Alert.alert("Oturum hazirlanamadi", "Lutfen tekrar giris yapmayi dene.");
+      return;
     }
 
     router.replace("/(tabs)");
@@ -181,11 +209,11 @@ export default function LoginScreen() {
 
           <Pressable
             onPress={handleLogin}
-            disabled={loading}
+            disabled={loading || checkingSession}
             style={({ pressed }) => [
               styles.primaryButton,
               pressed && { opacity: 0.88 },
-              loading && { opacity: 0.7 },
+              (loading || checkingSession) && { opacity: 0.7 },
             ]}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Giriş Yap</Text>}
           </Pressable>

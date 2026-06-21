@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { supabaseCookieOptions } from "@/lib/supabase/cookie-options";
+import {
+  supabaseCookieOptions,
+  withSupabaseCookieOptions,
+} from "@/lib/supabase/cookie-options";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -17,7 +20,11 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
+              cookieStore.set(
+                name,
+                value,
+                withSupabaseCookieOptions(options)
+              );
             });
           } catch {
             // Server Component içinde cookie yazılamadığı durumlar için güvenli geçiş.

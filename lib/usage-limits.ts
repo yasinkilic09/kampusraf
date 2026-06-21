@@ -30,7 +30,7 @@ function getLimitValue(profile: ProfileLimitRow | null, type: UsageLimitType) {
 }
 
 function getLimitLabel(type: UsageLimitType) {
-  if (type === "books") return "kitap ekleme";
+  if (type === "books") return "paylaşım rafı kitap ekleme";
   if (type === "requests") return "arama kaydı";
   if (type === "messages") return "mesaj gönderme";
   if (type === "matches") return "eşleşme";
@@ -46,11 +46,29 @@ async function getMonthlyUsageCount(
   const monthStart = getCurrentMonthStart();
 
   if (type === "books") {
-    const { count } = await supabase
+    const scopedCountResult = await supabase
       .from("user_books")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId)
+      .eq("library_scope", "exchange")
       .gte("created_at", monthStart);
+
+    if (
+      scopedCountResult.error &&
+      ((scopedCountResult.error.message || "").includes("library_scope") ||
+        scopedCountResult.error.code === "42703" ||
+        scopedCountResult.error.code === "PGRST204")
+    ) {
+      const { count } = await supabase
+        .from("user_books")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .gte("created_at", monthStart);
+
+      return count ?? 0;
+    }
+
+    const { count } = scopedCountResult;
 
     return count ?? 0;
   }

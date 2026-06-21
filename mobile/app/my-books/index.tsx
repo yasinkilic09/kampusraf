@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -30,6 +30,17 @@ const shelfSegments = [
   { label: "Arşiv", value: "archive" },
 ];
 
+const personalShelfSegments = [
+  { label: "Tümü", value: "all" },
+  { label: "Okuma", value: "active" },
+  { label: "Arşiv", value: "archive" },
+];
+
+const scopeSegments = [
+  { label: "Paylaşım Rafı", value: "exchange" },
+  { label: "Sanal Kitaplık", value: "personal" },
+];
+
 type RelatedBook = {
   title: string | null;
   author: string | null;
@@ -39,6 +50,7 @@ type RelatedBook = {
 
 type UserBookRow = {
   id: string;
+  library_scope: string | null;
   condition: string | null;
   exchange_type: string | null;
   status: string | null;
@@ -51,6 +63,23 @@ type UserBookRow = {
   created_at: string | null;
   books: RelatedBook | RelatedBook[] | null;
 };
+
+function isMissingLibraryScopeError(error: { message?: string | null; code?: string | null } | null) {
+  if (!error) return false;
+
+  const message = (error.message || "").toLocaleLowerCase("en-US");
+
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    message.includes("library_scope") ||
+    message.includes("column")
+  );
+}
+
+function isPersonalBook(item: Pick<UserBookRow, "library_scope">) {
+  return item.library_scope === "personal";
+}
 
 function first<T>(value: T | T[] | null | undefined) {
   if (Array.isArray(value)) return value[0] || null;
@@ -117,6 +146,7 @@ function normalizeSearchText(value?: string | null) {
 }
 
 function getShelfMood(item: UserBookRow) {
+  if (isPersonalBook(item)) return "Sanal kitaplık";
   if (!isVisibleStatus(item.status)) return "Arşivde";
   if (item.exchange_type === "odunc" || item.exchange_type === "lend") return "Ödünç verilebilir";
   if (item.exchange_type === "satis" || item.exchange_type === "sell") return "Satışta";
@@ -141,12 +171,15 @@ function matchesShelf(item: UserBookRow, shelf: string) {
   if (shelf === "all") return true;
   if (shelf === "active") return isVisibleStatus(item.status);
   if (shelf === "archive") return !isVisibleStatus(item.status);
+  if (isPersonalBook(item)) return false;
   if (shelf === "odunc") return item.exchange_type === "odunc" || item.exchange_type === "lend";
 
   return item.exchange_type === shelf;
 }
 
 export default function MyBooksScreen() {
+  const params = useLocalSearchParams<{ scope?: string }>();
+  const initialScope = params.scope === "personal" ? "personal" : "exchange";
   const [items, setItems] = useState<UserBookRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -154,6 +187,7 @@ export default function MyBooksScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedShelf, setSelectedShelf] = useState("all");
+  const [selectedScope, setSelectedScope] = useState<"exchange" | "personal">(initialScope);
   const [query, setQuery] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
 
@@ -179,6 +213,7 @@ export default function MyBooksScreen() {
       .select(
         `
         id,
+        library_scope,
         condition,
         exchange_type,
         status,
@@ -200,13 +235,59 @@ export default function MyBooksScreen() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
+    if (isMissingLibraryScopeError(error)) {
+      const fallback = await supabase
+        .from("user_books")
+        .select(
+          `
+          id,
+          condition,
+          exchange_type,
+          status,
+          custom_title,
+          custom_author,
+          image_url,
+          note,
+          city,
+          university,
+          created_at,
+          books (
+            title,
+            author,
+            category,
+            cover_url
+          )
+        `
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (fallback.error) {
+        setErrorMessage(fallback.error.message);
+        setItems([]);
+        return;
+      }
+
+      setItems(
+        ((fallback.data || []) as unknown as Omit<UserBookRow, "library_scope">[]).map(
+          (item) => ({ ...item, library_scope: "exchange" })
+        )
+      );
+      return;
+    }
+
     if (error) {
       setErrorMessage(error.message);
       setItems([]);
       return;
     }
 
-    setItems((data || []) as unknown as UserBookRow[]);
+    setItems(
+      ((data || []) as unknown as UserBookRow[]).map((item) => ({
+        ...item,
+        library_scope: item.library_scope || "exchange",
+      }))
+    );
   }, []);
 
   useEffect(() => {
@@ -223,7 +304,7 @@ export default function MyBooksScreen() {
     if (!userId || updatingId) return;
 
     const nextStatus = isVisibleStatus(item.status) ? "pasif" : "mevcut";
-    const nextActive = nextStatus === "mevcut";
+    const nextActive = !isPersonalBook(item) && nextStatus === "mevcut";
 
     setUpdatingId(item.id);
 
@@ -252,24 +333,31 @@ export default function MyBooksScreen() {
   }
 
   const stats = useMemo(() => {
-    const visible = items.filter((item) => isVisibleStatus(item.status)).length;
-    const swap = items.filter((item) => item.exchange_type === "takas" || item.exchange_type === "swap").length;
-    const lend = items.filter((item) => item.exchange_type === "odunc" || item.exchange_type === "lend").length;
-    const withCover = items.filter((item) => getBookInfo(item).image).length;
-    const withNote = items.filter((item) => item.note && item.note.length > 8).length;
-    const archive = items.length - visible;
+    const scopedItems = items.filter((item) =>
+      selectedScope === "personal" ? isPersonalBook(item) : !isPersonalBook(item)
+    );
+    const visible = scopedItems.filter((item) => isVisibleStatus(item.status)).length;
+    const swap = scopedItems.filter((item) => item.exchange_type === "takas" || item.exchange_type === "swap").length;
+    const lend = scopedItems.filter((item) => item.exchange_type === "odunc" || item.exchange_type === "lend").length;
+    const withCover = scopedItems.filter((item) => getBookInfo(item).image).length;
+    const withNote = scopedItems.filter((item) => item.note && item.note.length > 8).length;
+    const archive = scopedItems.length - visible;
     const quality =
-      items.length > 0
-        ? Math.round(items.reduce((total, item) => total + getLibraryQuality(item), 0) / items.length)
+      scopedItems.length > 0
+        ? Math.round(scopedItems.reduce((total, item) => total + getLibraryQuality(item), 0) / scopedItems.length)
         : 0;
 
-    return { total: items.length, visible, swap, lend, withCover, withNote, archive, quality };
-  }, [items]);
+    return { total: scopedItems.length, visible, swap, lend, withCover, withNote, archive, quality };
+  }, [items, selectedScope]);
 
   const displayedItems = useMemo(() => {
     const normalizedQuery = normalizeSearchText(query);
 
-    return items.filter((item) => {
+    const scopedItems = items.filter((item) =>
+      selectedScope === "personal" ? isPersonalBook(item) : !isPersonalBook(item)
+    );
+
+    return scopedItems.filter((item) => {
       if (!matchesShelf(item, selectedShelf)) return false;
       if (!normalizedQuery) return true;
 
@@ -290,7 +378,7 @@ export default function MyBooksScreen() {
 
       return haystack.includes(normalizedQuery);
     });
-  }, [items, query, selectedShelf]);
+  }, [items, query, selectedScope, selectedShelf]);
 
   if (loading) {
     return (
@@ -308,10 +396,18 @@ export default function MyBooksScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={GREEN} />}
     >
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>Benim Rafım</Text>
-        <Text style={styles.title}>Kitaplarını mobilde yönet.</Text>
+        <Text style={styles.eyebrow}>
+          {selectedScope === "personal" ? "Sanal Kitaplık" : "Benim Rafım"}
+        </Text>
+        <Text style={styles.title}>
+          {selectedScope === "personal"
+            ? "Okuma arşivini mobilde tut."
+            : "Kitaplarını mobilde yönet."}
+        </Text>
         <Text style={styles.description}>
-          Rafa eklediğin kitapları görüntüle, detayına git veya görünürlüğünü hızlıca değiştir.
+          {selectedScope === "personal"
+            ? "Bu alan sınırsızdır, paylaşım ve paket kitap hakkından düşmez."
+            : "Rafa eklediğin kitapları görüntüle, detayına git veya görünürlüğünü hızlıca değiştir."}
         </Text>
 
         <View style={styles.headerStats}>
@@ -322,19 +418,52 @@ export default function MyBooksScreen() {
         </View>
       </View>
 
+      <View style={styles.scopeSwitch}>
+        {scopeSegments.map((segment) => {
+          const active = selectedScope === segment.value;
+
+          return (
+            <Pressable
+              key={segment.value}
+              style={[styles.scopeSwitchButton, active && styles.activeScopeSwitchButton]}
+              onPress={() => {
+                setSelectedScope(segment.value as "exchange" | "personal");
+                setSelectedShelf("all");
+              }}
+            >
+              <Text style={[styles.scopeSwitchText, active && styles.activeScopeSwitchText]}>
+                {segment.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <View style={styles.libraryPulse}>
         <View>
           <Text style={styles.libraryPulseLabel}>Sanal kütüphane özeti</Text>
           <Text style={styles.libraryPulseTitle}>
-            {stats.swap + stats.lend} kitap paylaşıma hazır, {stats.archive} kayıt arşivde.
+            {selectedScope === "personal"
+              ? `${stats.total} kişisel kitap kaydı, paket limitinden bağımsız.`
+              : `${stats.swap + stats.lend} kitap paylaşıma hazır, ${stats.archive} kayıt arşivde.`}
           </Text>
         </View>
         <Text style={styles.libraryPulseBadge}>{stats.withNote} not</Text>
       </View>
 
       <View style={styles.actionRow}>
-        <Pressable style={styles.primaryButton} onPress={() => router.push("/books/add" as never)}>
-          <Text style={styles.primaryButtonText}>📚 Kitap Ekle</Text>
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() =>
+            router.push({
+              pathname: "/books/add",
+              params: selectedScope === "personal" ? { scope: "personal" } : {},
+            } as never)
+          }
+        >
+          <Text style={styles.primaryButtonText}>
+            {selectedScope === "personal" ? "Kitaplığa Ekle" : "Kitap Ekle"}
+          </Text>
         </Pressable>
 
         <Pressable style={styles.outlineButton} onPress={() => router.push("/explore" as never)}>
@@ -374,7 +503,7 @@ export default function MyBooksScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.segmentRow}
       >
-        {shelfSegments.map((segment) => {
+        {(selectedScope === "personal" ? personalShelfSegments : shelfSegments).map((segment) => {
           const active = selectedShelf === segment.value;
 
           return (
@@ -399,15 +528,29 @@ export default function MyBooksScreen() {
       ) : null}
 
       <View style={styles.list}>
-        {items.length === 0 ? (
+        {stats.total === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyIcon}>📚</Text>
-            <Text style={styles.emptyTitle}>Rafın henüz boş</Text>
-            <Text style={styles.emptyText}>
-              İlk kitabını eklediğinde diğer öğrenciler arama ekranında seni görebilir.
+            <Text style={styles.emptyTitle}>
+              {selectedScope === "personal" ? "Kitaplığın henüz boş" : "Rafın henüz boş"}
             </Text>
-            <Pressable style={styles.emptyButton} onPress={() => router.push("/books/add" as never)}>
-              <Text style={styles.emptyButtonText}>İlk Kitabımı Ekle</Text>
+            <Text style={styles.emptyText}>
+              {selectedScope === "personal"
+                ? "Okuduğun kitapları burada sınırsız ve kişisel olarak saklayabilirsin."
+                : "İlk kitabını eklediğinde diğer öğrenciler arama ekranında seni görebilir."}
+            </Text>
+            <Pressable
+              style={styles.emptyButton}
+              onPress={() =>
+                router.push({
+                  pathname: "/books/add",
+                  params: selectedScope === "personal" ? { scope: "personal" } : {},
+                } as never)
+              }
+            >
+              <Text style={styles.emptyButtonText}>
+                {selectedScope === "personal" ? "Kitaplığıma Ekle" : "İlk Kitabımı Ekle"}
+              </Text>
             </Pressable>
           </View>
         ) : displayedItems.length === 0 ? (
@@ -459,7 +602,7 @@ export default function MyBooksScreen() {
                     {book.author}
                   </Text>
                   <Text style={styles.compactMeta} numberOfLines={1}>
-                    {getExchangeLabel(item.exchange_type)} • {getStatusLabel(item.status)} • %{quality}
+                    {isPersonalBook(item) ? "Sanal Kitaplık" : getExchangeLabel(item.exchange_type)} • {getStatusLabel(item.status)} • %{quality}
                   </Text>
                 </View>
 
@@ -519,7 +662,9 @@ export default function MyBooksScreen() {
                   <Text style={[styles.badge, visible && styles.activeBadge]}>
                     {getStatusLabel(item.status)}
                   </Text>
-                  <Text style={styles.badge}>{getExchangeLabel(item.exchange_type)}</Text>
+                  <Text style={styles.badge}>
+                    {isPersonalBook(item) ? "Sanal Kitaplık" : getExchangeLabel(item.exchange_type)}
+                  </Text>
                   <Text style={styles.badge}>{getConditionLabel(item.condition)}</Text>
                 </View>
 
@@ -607,6 +752,24 @@ const styles = StyleSheet.create({
   },
   headerStatValue: { color: "#fff", fontSize: 19, fontWeight: "900" },
   headerStatLabel: { marginTop: 3, color: "rgba(255,255,255,0.68)", fontSize: 10, fontWeight: "900" },
+  scopeSwitch: {
+    marginTop: 14,
+    flexDirection: "row",
+    borderRadius: 22,
+    backgroundColor: CARD,
+    padding: 5,
+    borderWidth: 1,
+    borderColor: "rgba(46,125,91,0.10)",
+  },
+  scopeSwitchButton: {
+    flex: 1,
+    borderRadius: 18,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  activeScopeSwitchButton: { backgroundColor: GREEN },
+  scopeSwitchText: { color: MUTED, fontSize: 12, fontWeight: "900" },
+  activeScopeSwitchText: { color: "#FFFFFF" },
   libraryPulse: {
     marginTop: 14,
     borderRadius: 24,

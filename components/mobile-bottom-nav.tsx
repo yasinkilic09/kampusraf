@@ -55,6 +55,13 @@ const quickActions: ShortcutItem[] = [
     tone: "green",
   },
   {
+    title: "Sanal Kitaplık",
+    href: "/kitaplarim?scope=personal",
+    icon: "K",
+    description: "Limit dışı arşiv",
+    tone: "light",
+  },
+  {
     title: "Kitap Ekle",
     href: "/kitap-ekle",
     icon: "+",
