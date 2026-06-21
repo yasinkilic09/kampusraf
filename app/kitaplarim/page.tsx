@@ -482,7 +482,7 @@ export default async function MyBooksPage({
             href={addBookHref}
             className="rounded-full bg-[#2E7D5B] px-5 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-[#25684c]"
           >
-            {selectedScope === "personal" ? "KitaplÄ±ÄŸa Ekle" : "Kitap Ekle"}
+            {selectedScope === "personal" ? "Kitaplığa Ekle" : "Kitap Ekle"}
           </Link>
         }
       />
