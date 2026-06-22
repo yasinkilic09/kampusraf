@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -9,10 +10,12 @@ import { AppLaunchScreen } from "@/components/app-launch-screen";
 import { registerForPushNotificationsAsync, usePushNotificationObserver } from "@/lib/push-notifications";
 import { supabase } from "@/lib/supabase";
 
-SplashScreen.setOptions({
-  duration: 500,
-  fade: true,
-});
+if (Constants.appOwnership !== "expo") {
+  SplashScreen.setOptions({
+    duration: 500,
+    fade: true,
+  });
+}
 
 export default function RootLayout() {
   const [showLaunchScreen, setShowLaunchScreen] = useState(true);
@@ -40,7 +43,13 @@ export default function RootLayout() {
     }
 
     async function bootstrapPush() {
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.warn("PUSH_SESSION_ERROR", sessionError);
+        return;
+      }
+
       const userId = sessionData.session?.user?.id;
 
       await syncPushForUser(userId);
@@ -54,7 +63,9 @@ export default function RootLayout() {
 
     interactionTask = InteractionManager.runAfterInteractions(() => {
       pushDelay = setTimeout(() => {
-        void bootstrapPush();
+        void bootstrapPush().catch((error) => {
+          console.warn("PUSH_BOOTSTRAP_ERROR", error);
+        });
       }, 1800);
     });
 

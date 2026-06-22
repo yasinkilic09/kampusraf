@@ -48,6 +48,8 @@ export const appNavItems: AppHeaderNavItem[] = [
   { key: "bildirimler", href: "/bildirimler", label: "Bildirimler" },
   { key: "rastgele-raf", href: "/rastgele-raf", label: "Rastgele Raf" },
   { key: "kelime-sozlugu", href: "/kelime-sozlugu", label: "Kelime Sözlüğü" },
+  { key: "okuma-listeleri", href: "/okuma-listeleri", label: "Okuma Listeleri" },
+  { key: "yazar-takibi", href: "/yazar-takibi", label: "Yazar Takibi" },
   { key: "favori-alintilarim", href: "/favori-alintilarim", label: "Favori Alıntılar" },
   { key: "sesli-raf", href: "/sesli-raf", label: "Sesli Raf" },
   { key: "ogrenci-dogrulama", href: "/ogrenci-dogrulama", label: "Öğrenci Doğrulama" },
@@ -128,16 +130,13 @@ const appNavGroups: AppHeaderNavGroup[] = [
     key: "discover",
     label: "Keşif",
     description: "Alıntı, kelime ve sesli raf",
-    itemKeys: ["rastgele-raf", "kelime-sozlugu", "favori-alintilarim", "sesli-raf"],
-    plannedItems: [
-      {
-        label: "Okuma Listeleri",
-        description: "Kişisel ve kampüs temalı kitap listeleri.",
-      },
-      {
-        label: "Yazar Takibi",
-        description: "Sevdiğin yazarlardan yeni keşifler.",
-      },
+    itemKeys: [
+      "rastgele-raf",
+      "kelime-sozlugu",
+      "okuma-listeleri",
+      "yazar-takibi",
+      "favori-alintilarim",
+      "sesli-raf",
     ],
   },
   {

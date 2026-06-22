@@ -97,6 +97,20 @@ const quickActions: ShortcutItem[] = [
     tone: "light",
   },
   {
+    title: "Okuma Listeleri",
+    href: "/okuma-listeleri",
+    icon: "L",
+    description: "Hazır okuma rotaları",
+    tone: "green",
+  },
+  {
+    title: "Yazar Takibi",
+    href: "/yazar-takibi",
+    icon: "Y",
+    description: "Yazar radarın",
+    tone: "light",
+  },
+  {
     title: "Topluluklar",
     href: "/topluluklar",
     icon: "T",
@@ -200,6 +214,18 @@ const shortcutGroups: ShortcutGroup[] = [
         href: "/kelime-sozlugu",
         icon: "K",
         description: "Her gün yeni kelime ve anlamı",
+      },
+      {
+        title: "Okuma Listeleri",
+        href: "/okuma-listeleri",
+        icon: "L",
+        description: "Kampüs temposuna uygun rotalar",
+      },
+      {
+        title: "Yazar Takibi",
+        href: "/yazar-takibi",
+        icon: "Y",
+        description: "Sevdiğin yazarları izle",
       },
       {
         title: "Favoriler",

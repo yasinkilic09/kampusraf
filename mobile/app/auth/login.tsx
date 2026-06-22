@@ -22,33 +22,72 @@ const AMBER = "#F59E0B";
 const BG = "#FAF7F0";
 const TEXT = "#1F2933";
 const brandSymbol = require("../../assets/images/brand-symbol.png");
-const rememberEmailKey = "kampusraf:remember-email";
-const rememberPreferenceKey = "kampusraf:remember-login";
+const rememberEmailKey = "kampusraf.remember_email";
+const rememberPreferenceKey = "kampusraf.remember_login";
+
+function isInvalidRefreshTokenError(error: unknown) {
+  return error instanceof Error && error.message.includes("Invalid Refresh Token");
+}
+
+async function getCurrentSessionSafely() {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+
+    if (error) {
+      if (isInvalidRefreshTokenError(error)) {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+      }
+
+      return null;
+    }
+
+    return data.session;
+  } catch (error) {
+    if (isInvalidRefreshTokenError(error)) {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+    }
+
+    return null;
+  }
+}
 
 async function getRememberItem(key: string) {
-  if (Platform.OS === "web" && typeof localStorage !== "undefined") {
-    return localStorage.getItem(key);
-  }
+  try {
+    if (Platform.OS === "web" && typeof localStorage !== "undefined") {
+      return localStorage.getItem(key);
+    }
 
-  return SecureStore.getItemAsync(key);
+    return await SecureStore.getItemAsync(key);
+  } catch (error) {
+    console.warn("REMEMBER_GET_ERROR", error);
+    return null;
+  }
 }
 
 async function setRememberItem(key: string, value: string) {
-  if (Platform.OS === "web" && typeof localStorage !== "undefined") {
-    localStorage.setItem(key, value);
-    return;
-  }
+  try {
+    if (Platform.OS === "web" && typeof localStorage !== "undefined") {
+      localStorage.setItem(key, value);
+      return;
+    }
 
-  await SecureStore.setItemAsync(key, value);
+    await SecureStore.setItemAsync(key, value);
+  } catch (error) {
+    console.warn("REMEMBER_SET_ERROR", error);
+  }
 }
 
 async function deleteRememberItem(key: string) {
-  if (Platform.OS === "web" && typeof localStorage !== "undefined") {
-    localStorage.removeItem(key);
-    return;
-  }
+  try {
+    if (Platform.OS === "web" && typeof localStorage !== "undefined") {
+      localStorage.removeItem(key);
+      return;
+    }
 
-  await SecureStore.deleteItemAsync(key);
+    await SecureStore.deleteItemAsync(key);
+  } catch (error) {
+    console.warn("REMEMBER_DELETE_ERROR", error);
+  }
 }
 
 export default function LoginScreen() {
@@ -62,15 +101,15 @@ export default function LoginScreen() {
     let active = true;
 
     async function bootstrapLogin() {
-      const [sessionResult, storedPreference, storedEmail] = await Promise.all([
-        supabase.auth.getSession(),
+      const [currentSession, storedPreference, storedEmail] = await Promise.all([
+        getCurrentSessionSafely(),
         getRememberItem(rememberPreferenceKey),
         getRememberItem(rememberEmailKey),
       ]);
 
       if (!active) return;
 
-      if (sessionResult.data.session) {
+      if (currentSession) {
         router.replace("/(tabs)");
         return;
       }
@@ -107,7 +146,7 @@ export default function LoginScreen() {
 
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password,
     });
@@ -126,18 +165,11 @@ export default function LoginScreen() {
       await deleteRememberItem(rememberEmailKey);
     }
 
-    if (data.session) {
-      await supabase.auth.setSession({
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-      });
-    }
-
-    const { data: sessionData } = await supabase.auth.getSession();
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
     setLoading(false);
 
-    if (!sessionData.session) {
+    if (sessionError || !sessionData.session) {
       Alert.alert("Oturum hazirlanamadi", "Lutfen tekrar giris yapmayi dene.");
       return;
     }
